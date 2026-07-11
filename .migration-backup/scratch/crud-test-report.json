@@ -1,0 +1,7486 @@
+[
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "FAIL",
+    "httpStatus": 401,
+    "detail": "Unauthorized"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "76 bookings"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "5 bookings"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-BC6F949E"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "super_admin",
+    "env": "local",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: admin"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 tours"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: c6a778f0-3877-4893-b9a5-f7bc5eeba6e6"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Updated description"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Deleted"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "77 bookings"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "2 bookings"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-2D181C5B"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "OK"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Deleted"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "12 payments"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "admin",
+    "env": "local",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: airline_supplier"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "77 bookings"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "4 bookings"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-D18F56D4"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "local",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: country_manager"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 tours"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: 05092b31-3ab7-4b9a-a27f-97362d50980e"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Updated description"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Deleted"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "78 bookings"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "4 bookings"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-955FD3A8"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "country_manager",
+    "env": "local",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: city_manager"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "79 bookings"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "4 bookings"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-D67FD33C"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "city_manager",
+    "env": "local",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: hotel_manager"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "80 bookings"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "4 bookings"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-7A4E0FFC"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "local",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: transport_manager"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "81 bookings"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "4 bookings"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-C60BCA3B"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "transport_manager",
+    "env": "local",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: guide_manager"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "82 bookings"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "4 bookings"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-DFD23E83"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "guide_manager",
+    "env": "local",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: sights_manager"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "83 bookings"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "4 bookings"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-D299B172"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "sights_manager",
+    "env": "local",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: content_editor"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "84 bookings"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "4 bookings"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-72E365B0"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "content_editor",
+    "env": "local",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: flight_agent"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "85 bookings"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "4 bookings"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-FEAD214D"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "flight_agent",
+    "env": "local",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: tour_builder"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "86 bookings"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "4 bookings"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-1621BE87"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "tour_builder",
+    "env": "local",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: supplier"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "87 bookings"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "4 bookings"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-6C9D9364"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "supplier",
+    "env": "local",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: travel_agent"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "88 bookings"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "4 bookings"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-3F1FA0D9"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "travel_agent",
+    "env": "local",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: super_admin"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "89 bookings"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "6 bookings"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-3F5F5C0C"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "super_admin",
+    "env": "deployed",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: admin"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 tours"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: fd630ab5-2f72-425c-ad3b-e8cedc259555"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Updated description"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Deleted"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "90 bookings"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "2 bookings"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-5D82DE3E"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "OK"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Deleted"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "12 payments"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "admin",
+    "env": "deployed",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: airline_supplier"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "90 bookings"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "5 bookings"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-85104E58"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "airline_supplier",
+    "env": "deployed",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: country_manager"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 tours"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: d7820ee6-e620-43a6-b83e-191f7ddc8280"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Updated description"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Deleted"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "91 bookings"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "5 bookings"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-4A0053B0"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "country_manager",
+    "env": "deployed",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: city_manager"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "92 bookings"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "5 bookings"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-62E918F5"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "city_manager",
+    "env": "deployed",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: hotel_manager"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "93 bookings"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "5 bookings"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-0DA164A1"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "hotel_manager",
+    "env": "deployed",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: transport_manager"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "94 bookings"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "5 bookings"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-41A47614"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "transport_manager",
+    "env": "deployed",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: guide_manager"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "95 bookings"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "5 bookings"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-B41CA9B5"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "guide_manager",
+    "env": "deployed",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: sights_manager"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "96 bookings"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "5 bookings"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-FA26CF53"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "sights_manager",
+    "env": "deployed",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: content_editor"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "97 bookings"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "5 bookings"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-B5081EE6"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "content_editor",
+    "env": "deployed",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: flight_agent"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "98 bookings"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "5 bookings"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-89D22926"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "flight_agent",
+    "env": "deployed",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: tour_builder"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "99 bookings"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "5 bookings"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-4EA3495B"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "tour_builder",
+    "env": "deployed",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: supplier"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "100 bookings"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "5 bookings"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-97EDABB4"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "supplier",
+    "env": "deployed",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Auth",
+    "operation": "LOGIN",
+    "endpoint": "POST /api/auth/login",
+    "status": "PASS",
+    "detail": "Login OK"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (self)",
+    "endpoint": "GET /api/user-profile",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Role: travel_agent"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "User Profiles",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/user-profiles",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "28 profiles"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "READ (public)",
+    "endpoint": "GET /api/tours/public",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "9 published tours"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "CREATE",
+    "endpoint": "POST /api/tours",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Tours",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/tours/:id",
+    "status": "SKIP",
+    "detail": "No tour created"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "101 bookings"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "READ (my)",
+    "endpoint": "GET /api/my-bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "5 bookings"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "CREATE",
+    "endpoint": "POST /api/bookings",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "Code: BK-72E6F2BA"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Bookings",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/bookings/:id",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Deleted"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 countries"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "CREATE",
+    "endpoint": "POST /api/countries",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "ID: undefined"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "UPDATE",
+    "endpoint": "PATCH /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Countries",
+    "operation": "DELETE",
+    "endpoint": "DELETE /api/countries/:id",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": ""
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Cities",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/cities",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 cities"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Hotels",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/hotels",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "19 hotels"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Sights",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/sights",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 sights"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Workflows",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/workflows",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "33 workflows"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Documents",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/documents",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "11 documents"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Payments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/payments",
+    "status": "EXPECTED_DENY",
+    "httpStatus": 403,
+    "detail": "Forbidden: insufficient role"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Assignments",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/assignments",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "30 assignments"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Notifications",
+    "operation": "READ",
+    "endpoint": "GET /api/notifications",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 notifications"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Transport",
+    "operation": "READ (companies)",
+    "endpoint": "GET /api/transport-companies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 companies"
+  },
+  {
+    "role": "travel_agent",
+    "env": "deployed",
+    "category": "Airlines",
+    "operation": "READ (all)",
+    "endpoint": "GET /api/airline-agencies",
+    "status": "PASS",
+    "httpStatus": 200,
+    "detail": "0 agencies"
+  }
+]

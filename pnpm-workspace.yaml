@@ -70,8 +70,13 @@ autoInstallPeers: false
 
 onlyBuiltDependencies:
   - '@swc/core'
+  - core-js
+  - es5-ext
   - esbuild
+  - msgpackr-extract
   - msw
+  - puppeteer
+  - sharp
   - unrs-resolver
 
 overrides:

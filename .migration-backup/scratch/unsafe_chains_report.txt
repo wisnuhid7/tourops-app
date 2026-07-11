@@ -1,0 +1,208 @@
+
+File: components\DocumentPreview.tsx
+  Line 13: const isImage = fileUrl?.match(/\.(jpg|jpeg|png|gif|webp)$/i) || fileUrl?.includes("image");
+  Line 14: const isPdf = fileUrl?.match(/\.pdf$/i) || fileUrl?.includes("pdf");
+
+File: components\layout\notification-bell.tsx
+  Line 29: const unreadCount = notifications?.filter((n) => !n.isRead).length || 0;
+
+File: components\ui\chart.tsx
+  Line 89: itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ||
+  Line 201: {formatter && item?.value !== undefined && item.name ? (
+  Line 238: {itemConfig?.label || item.name}
+
+File: pages\admin\airline-search.tsx
+  Line 118: {cities?.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+  Line 132: {cities?.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+
+File: pages\admin\assignments.tsx
+  Line 29: const booking = bookings?.find(b => b.id === a.bookingId);
+  Line 31: (booking?.bookingCode || "").toLowerCase().includes(search.toLowerCase()) ||
+  Line 83: const booking = bookings?.find(b => b.id === a.bookingId);
+  Line 84: const user = users?.find(u => u.userId === a.assignedUserId);
+
+File: pages\admin\booking-detail.tsx
+  Line 278: const travelerDocs = documents?.filter((d) => d.travelerId === t.id);
+  Line 282: const blockedWorkflowsCount = workflows?.filter((wf) => wf.status === "blocked").length || 0;
+  Line 310: if (!confirm(`Warning: This booking expects ${booking.partySizeExpected} travelers but only ${travelers?.length || 0} are recorded. Confirm anyway?`)) {
+  Line 365: const travelerDocs = documents?.filter(d => d.travelerId === t.id && d.docType === "passport");
+  Line 717: {allUsers?.filter((u) => u.role !== "customer").map((u) => (
+  Line 822: Step: {steps.find((s) => s.code === wf.currentStep)?.name || wf.currentStep}
+  Line 1164: const linkedInvoice = invoices?.find(inv => inv.id === p.invoiceId);
+
+File: pages\admin\bookings.tsx
+  Line 58: const customers = profiles?.filter(p => p.role === "customer") || [];
+  Line 94: const tour = tours?.find(t => t.id === selectedTourId);
+  Line 95: const dep = departures?.find(d => d.id === selectedDepartureId);
+  Line 203: {c.user?.firstName ? `${c.user.firstName} ${c.user.lastName || ""}` : c.user?.username} (@{c.user?.username})
+
+File: pages\admin\dashboard.tsx
+  Line 124: <StatCard title={t('grossSales')} value={`$${(stats?.grossSales || 0).toLocaleString()}`} icon={DollarSign} color="bg-primary/5" />
+  Line 125: <StatCard title={t('netProfit')} value={`$${(stats?.netProfit || 0).toLocaleString()}`} icon={TrendingUp} color="bg-emerald-50" />
+  Line 126: <StatCard title={t('avgBooking')} value={`$${(stats?.avgBookingValue || 0).toLocaleString()}`} icon={CreditCard} color="bg-blue-50" />
+
+File: pages\admin\departures.tsx
+  Line 72: {tours?.map((t) => <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>)}
+  Line 87: {airports?.map((a) => <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>)}
+  Line 96: {airports?.map((a) => <SelectItem key={a.id} value={a.id}>{a.code} - {a.name}</SelectItem>)}
+  Line 133: const tour = tours?.find((t) => t.id === dep.tourId);
+  Line 134: const depAir = airports?.find(a => a.id === dep.departureAirportId);
+  Line 135: const arrAir = airports?.find(a => a.id === dep.arrivalAirportId);
+
+File: pages\admin\documents.tsx
+  Line 44: const booking = bookings?.find(b => b.id === d.bookingId);
+  Line 47: (booking?.bookingCode || "").toLowerCase().includes(search.toLowerCase());
+  Line 98: const booking = bookings?.find(b => b.id === doc.bookingId);
+
+File: pages\admin\master-data.tsx
+  Line 162: if (result?.totalImported) msg = `${result.totalImported} ${entityName.toLowerCase()} imported`;
+  Line 163: if (result?.totalSkipped > 0) msg += `, ${result.totalSkipped} skipped (unmatched references)`;
+  Line 502: const country = countriesList?.find(c => c.id === countryId);
+  Line 522: const getCountryName = (cId: string) => countriesList?.find((c) => c.id === cId)?.name || cId;
+  Line 537: {countriesList?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+  Line 595: {countriesList?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name} ({c.code})</SelectItem>)}
+  Line 681: const getCityName = (cId: string) => citiesList?.find((c) => c.id === cId)?.name || cId;
+  Line 734: {citiesList?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+  Line 833: const getCityName = (cId: string) => citiesList?.find((c) => c.id === cId)?.name || cId;
+  Line 848: {citiesList?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+  Line 914: {citiesList?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+  Line 1019: const getCountryName = (cId: string) => countriesList?.find((c) => c.id === cId)?.name || cId;
+  Line 1079: {countriesList?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name} ({c.code})</SelectItem>)}
+  Line 1294: const getCityName = (cId: string) => citiesList?.find((c) => c.id === cId)?.name || cId;
+  Line 1308: {citiesList?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+  Line 1358: {citiesList?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+
+File: pages\admin\messages.tsx
+  Line 21: const booking = bookings?.find(b => b.id === m.bookingId);
+  Line 25: (booking?.bookingCode || "").toLowerCase().includes(search.toLowerCase());
+  Line 58: const booking = bookings?.find(b => b.id === msg.bookingId);
+
+File: pages\admin\payments.tsx
+  Line 41: const booking = bookings?.find(b => b.id === p.bookingId);
+  Line 43: (booking?.bookingCode || "").toLowerCase().includes(search.toLowerCase()) ||
+  Line 85: const booking = bookings?.find(b => b.id === payment.bookingId);
+
+File: pages\admin\pricing-settings.tsx
+  Line 76: defaultValue={settings?.find(s => s.key === 'default_service_fee')?.value || "0"}
+  Line 85: defaultValue={settings?.find(s => s.key === 'tax_rate')?.value || "0"}
+  Line 162: {countries?.find(c => c.id === rule.countryId)?.name}
+
+File: pages\admin\rate-cards.tsx
+  Line 259: const filtered = data?.filter((r) => statusFilter === "all" || r.status === statusFilter) || [];
+  Line 471: const filtered = data?.filter((r) => statusFilter === "all" || r.status === statusFilter) || [];
+  Line 682: const filtered = data?.filter((r) => statusFilter === "all" || r.status === statusFilter) || [];
+  Line 866: const filtered = data?.filter((r) => statusFilter === "all" || r.status === statusFilter) || [];
+
+File: pages\admin\tour-generator.tsx
+  Line 74: const tour = tours?.find(t => t.id === selectedTourId);
+  Line 378: else setTranslations({ ...translations, [activeLang]: { ...translations?.[activeLang], title: e.target.value } });
+  Line 391: else setTranslations({ ...translations, [activeLang]: { ...translations?.[activeLang], description: e.target.value } });
+  Line 478: {cities?.map(c => <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>)}
+  Line 492: {countries?.map(c => <SelectItem key={c.id} value={c.code}>{c.name}</SelectItem>)}
+  Line 530: const city = cities?.find(c => c.name === day.city);
+  Line 536: const city = cities?.find(c => c.name === day.city);
+
+File: pages\admin\tours.tsx
+  Line 58: const filteredTours = tours?.filter((t) => t.title.toLowerCase().includes(search.toLowerCase())) || [];
+  Line 67: const [galleryUrls, setGalleryUrls] = useState((tour?.galleryUrls || []).join(", "));
+  Line 72: const [countries, setCountries] = useState((tour?.countries || []).join(", "));
+  Line 73: const [tags, setTags] = useState((tour?.tags || []).join(", "));
+  Line 211: ...(tour?.id ? { id: tour.id } : {}),
+  Line 312: <Dialog open={editTour?.id === tour.id} onOpenChange={(open) => !open && setEditTour(null)}>
+  Line 409: const sortedDays = days?.sort((a, b) => a.dayNumber - b.dayNumber) || [];
+  Line 465: {editDay?.id === day.id ? (
+  Line 538: setCost(res.individualTicketCost?.toString() || res.basePrice?.toString() || "0");
+  Line 863: {pricing?.breakdown.map((b: any, idx: number) => (
+  Line 866: <td className="p-2 text-right">${b.cost?.toFixed(2) || "0.00"}</td>
+  Line 867: <td className="p-2 text-right text-green-600">+{b.markup?.toFixed(2) || b.amount?.toFixed(2) || "0.00"}</td>
+  Line 882: <span>Estimated Sales Tax ({((pricing?.tax / pricing?.totalPrice) * 100 || 0).toFixed(1)}%):</span>
+
+File: pages\admin\transport.tsx
+  Line 178: const getCountryName = (cId: string | null) => countriesList?.find((c) => c.id === cId)?.name || "-";
+  Line 236: {countriesList?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+  Line 616: const getBusTypeName = (id: string) => busTypes?.find((b) => b.id === id)?.name || id;
+  Line 631: {routes?.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+  Line 685: {busTypes?.map((b) => <SelectItem key={b.id} value={b.id}>{b.name} ({b.seats} seats)</SelectItem>)}
+  Line 771: const getCompanyName = (id: string) => companies?.find((c) => c.id === id)?.name || id;
+  Line 772: const getTourTitle = (id: string | null) => tours?.find((t) => t.id === id)?.title || "-";
+  Line 857: {tours?.map((t) => <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>)}
+  Line 868: {companyRoutes?.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+  Line 877: {companyBusTypes?.map((b) => <SelectItem key={b.id} value={b.id}>{b.name} ({b.seats} seats)</SelectItem>)}
+  Line 971: const getCompanyName = (id: string) => companies?.find((c) => c.id === id)?.name || id;
+  Line 972: const getTourTitle = (id: string | null) => tours?.find((t) => t.id === id)?.title || "-";
+  Line 1113: {tours?.map((t) => <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>)}
+  Line 1122: {invoices?.filter((i) => !payCompanyId || i.companyId === payCompanyId).map((i) => (
+
+File: pages\admin\users.tsx
+  Line 69: (p.user?.email || "").toLowerCase().includes(search.toLowerCase()) ||
+  Line 70: (p.user?.firstName || "").toLowerCase().includes(search.toLowerCase()) ||
+  Line 71: (p.user?.lastName || "").toLowerCase().includes(search.toLowerCase()) ||
+  Line 72: (p.user?.username || "").toLowerCase().includes(search.toLowerCase())
+  Line 164: {profile.user?.firstName && profile.user?.lastName
+  Line 169: {profile.user?.username ? `@${profile.user.username}` : ""}
+  Line 170: {profile.user?.email ? ` | ${profile.user.email}` : ""}
+  Line 199: Reset password for {profile.user?.firstName || profile.user?.username || profile.userId}
+
+File: pages\admin\workflow-detail.tsx
+  Line 72: const assignedUser = allUsers?.find(u => u.userId === workflow.assignedUserId);
+
+File: pages\customer\booking-detail.tsx
+  Line 274: ['Total Price', `${booking.totalPrice?.toLocaleString() || "0"} ${booking.currency || "USD"}`],
+  Line 708: <p className="text-sm text-muted-foreground">{travelers?.length || 0} of {booking.partySizeExpected} travelers added</p>
+  Line 1075: {pmt.method?.replace(/_/g, " ")} - {pmt.createdAt ? new Date(pmt.createdAt).toLocaleDateString() : ""}
+  Line 1096: <Dialog open={activePayment?.id === pmt.id} onOpenChange={(open) => !open && setActivePayment(null)}>
+
+File: pages\customer\browse-tours.tsx
+  Line 57: t.tags?.some((tag) => tag.toLowerCase().includes(search.toLowerCase()));
+
+File: pages\customer\leader-payments.tsx
+  Line 72: const uniqueBookingCodes = Array.from(new Set(payments?.map((p) => p.bookingCode) || []));
+
+File: pages\customer\manage-passengers.tsx
+  Line 149: const activeBookings = bookings?.filter(b => b.status !== "cancelled") || [];
+
+File: pages\customer\tour-brochure.tsx
+  Line 71: const highlightLines = tour?.highlights ? tour.highlights.split("\n").filter((l: string) => l.trim()) : [];
+  Line 153: placeholder={tour?.title || "Enter a custom title..."}
+
+File: pages\customer\tour-detail.tsx
+  Line 76: queryFn: () => apiRequest("GET", `/api/bookings/by-code/${urlJoinCode?.toUpperCase()}`).then(res => res.json()),
+  Line 101: const openDepartures = departures?.filter((d) => d.status === "open") || [];
+  Line 118: <p className="font-bold text-lg mt-1">{language === 'en' ? tour.title : ((tour as any).translations?.[language]?.title || tour.title)}</p>
+  Line 166: <img src={tour.imageUrl || "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=1200"} alt={language === 'en' ? tour.title : ((tour as any).translations?.[language]?.title || tour.title)} className="w-full h-full object-cover" />
+  Line 172: <h1 className="text-3xl font-bold font-serif" data-testid="text-tour-title">{language === 'en' ? tour.title : ((tour as any).translations?.[language]?.title || tour.title)}</h1>
+  Line 197: <p className="text-muted-foreground leading-relaxed">{language === 'en' ? tour.description : ((tour as any).translations?.[language]?.description || tour.description)}</p>
+  Line 203: <img src={url} alt={`${language === 'en' ? tour.title : ((tour as any).translations?.[language]?.title || tour.title)} gallery ${i+1}`} className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" />
+  Line 284: <img src={day.imageUrl} alt={language === 'en' ? day.title : ((day as any).translations?.[language]?.title || day.title)} className="w-full h-full object-cover" />
+  Line 293: <p className="font-medium italic text-slate-800 dark:text-slate-200">{language === 'en' ? day.title : ((day as any).translations?.[language]?.title || day.title)}</p>
+  Line 309: {day.description && <p className="text-sm text-slate-700 dark:text-slate-300 mt-2 whitespace-pre-wrap">{language === 'en' ? day.description : ((day as any).translations?.[language]?.description || day.description)}</p>}
+  Line 313: <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-wrap">{language === 'en' ? day.activities : ((day as any).translations?.[language]?.activities || day.activities)}</p>
+
+File: pages\ops\dashboard.tsx
+  Line 32: const active = workflows?.filter((w) => w.status !== "completed" && w.status !== "cancelled").length || 0;
+  Line 33: const completed = workflows?.filter((w) => w.status === "completed").length || 0;
+
+File: pages\ops\generic-dashboard.tsx
+  Line 136: <Input name="title" defaultValue={editingItem?.title} required placeholder={`Enter ${config.entity} name...`} />
+
+File: pages\ops\transport-dashboard.tsx
+  Line 61: const company = companies?.find((c) => c.id === companyId);
+  Line 379: const getBusTypeName = (id: string) => busTypes?.find((b) => b.id === id)?.name || id;
+  Line 434: <h3 className="text-lg font-semibold">Pricing for: {routes?.find((r) => r.id === selectedRouteId)?.name}</h3>
+  Line 501: {busTypes?.map((b) => <SelectItem key={b.id} value={b.id}>{b.name} ({b.seats} seats)</SelectItem>)}
+  Line 549: const getTourTitle = (id: string | null) => tours?.find((t) => t.id === id)?.title || "-";
+  Line 550: const getRouteName = (id: string | null) => routes?.find((r) => r.id === id)?.name || "-";
+  Line 551: const getBusTypeName = (id: string | null) => busTypesData?.find((b) => b.id === id)?.name || "-";
+  Line 712: {bookings?.map((b) => <SelectItem key={b.id} value={b.id}>{b.serviceDate || b.id} - {b.status}</SelectItem>)}
+
+File: pages\supplier\dashboard.tsx
+  Line 134: const config = ROLE_CONFIG[profile?.role || ""] || ROLE_CONFIG.admin;
+  Line 137: const pending = workflows?.filter((w) => w.status === "assigned" || w.status === "in_progress").length || 0;
+  Line 138: const completed = workflows?.filter((w) => w.status === "completed").length || 0;
+  Line 139: const blocked = workflows?.filter((w) => w.status === "blocked").length || 0;
+  Line 522: {bookingManifest?.travelers.map((t) => (
+  Line 529: {(!bookingManifest?.travelers || bookingManifest.travelers.length === 0) && (
+  Line 567: {(!bookingManifest?.documents || bookingManifest.documents?.length === 0) && (
+  Line 576: const wf = workflows?.find(w => w.bookingId === selectedBookingId);
+  Line 592: {m.senderUserId === profile?.userId ? 'You' : m.senderName} • {new Date(m.createdAt).toLocaleTimeString()}
+  Line 772: const unread = notifications?.filter(n => !n.read) || [];

@@ -1,0 +1,66 @@
+﻿1. Super Admin (System Owner)
+This is the software's oversight role. They control global configurations and have access to all the business's financial metrics.
+
+Responsibilities: Create and delete accounts for other users (including Country Managers and Suppliers), configure payment gateways, define global commissions, view total revenue reports, and modify the site's structure, such as tours.
+
+2. Country Manager (Country Manager)
+The regional supervisor. They ensure that everything within a specific country functions correctly.
+
+Responsibilities: Supervise the City Managers in their assigned country, approve new local suppliers, ensure that prices and taxes comply with local laws, and analyze sales in their region.
+
+3. City Manager (City Manager)
+The on-the-ground operator. They manage specific destinations (cities or tourist hubs).
+
+Responsibilities: Validate the viability of tours created for their city, resolve local disputes between clients and suppliers, and seek partnerships with new local businesses.
+
+🛠️ Operations and Logistics Level (Inventory Management)
+This group is responsible for uploading and maintaining the updated "ingredients" that will later form a tour.
+
+4. Airline Supplier
+Responsibilities: Upload seat availability, flight schedules, available routes, baggage policies, and fares for partner charter or commercial flights.
+
+5. Hotel Manager/Supplier
+Responsibilities: Manage room inventory (check-in/check-out), seasonal rates (high/low season), cancellation policies, and included services (breakfast, Wi-Fi, etc.).
+
+6. Transport Manager
+Responsibilities: Coordinate the vehicle fleet (buses, vans, private transfers), assign drivers, define transfer routes (e.g., Airport ⇄ Hotel), and set prices per segment or per person.
+
+7. Guide Manager (Tour Guide Manager)
+Responsibilities: Manage tour guide schedules and availability, including languages ​​spoken, daily/hourly rates, and assign guides to specific tours based on demand.
+
+8. Sights Manager (Attractions/Tickets Manager)
+Responsibilities: Manage admission tickets to museums, national parks, monuments, and shows. Control opening hours, maximum hourly capacity (slots), and ticket prices.
+
+9. Supplier (General Supplier)
+A versatile role for smaller external companies.
+
+Responsibilities: External companies (e.g., a local surf school or restaurant) upload their specific services, prices, and availability for the system to process.
+
+✍️ Creation and Sales Level (Product Assembly)
+This group takes the elements provided by suppliers and transforms them into marketable experiences.
+
+10. Tour Builder (Tour Creator / Product Designer)
+The architect of the trip. This is the person who uses the interface you're programming.
+
+Responsibilities: Combine the hotel, transportation, attractions, and guide to create a tour package (itinerary). Define the final retail price, the tour's operating days, and the trip's narrative.
+
+11. Content Editor
+The person in charge of visual and written marketing.
+
+Responsibilities: Write compelling descriptions (copywriting), upload high-quality photos and videos, and optimize the keywords (SEO) of the created tours to improve their online sales. They do not handle pricing or inventory.
+
+12. Flight Agent
+The specialist in the airline industry.
+
+Responsibilities: Issue tickets, manage date changes requested by clients, resolve issues with missed flights, and connect reservations from external airlines (GDS systems) with the local system.
+
+13. Travel Agent (Travel Agent / B2B)
+The seller or distributor (can be internal or an external partner agency).
+
+Functions: Sell tours created on the platform to end customers. They have a special view where they see prices with their discount/commission applied and manage their own clients' bookings.
+
+🗺️ Consumer Level (The End User)
+14. Customer (Client / Traveler)
+The user who brings the business to life.
+
+Functions: Search for tours, filter by price/city, view their itinerary, make online payments, download their vouchers/tickets, cancel bookings (if applicable), and leave reviews or ratings of the tours they have already taken.

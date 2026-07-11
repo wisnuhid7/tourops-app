@@ -1,0 +1,1640 @@
+[
+  {
+    "env": "local",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_super_admin_login_result.png"
+  },
+  {
+    "env": "local",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (130595 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_super_admin_Admin_Dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (158836 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_super_admin_Admin_Bookings.png"
+  },
+  {
+    "env": "local",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Tours",
+    "status": "PASS",
+    "detail": "Page loaded (158843 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_super_admin_Admin_Tours.png"
+  },
+  {
+    "env": "local",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Users",
+    "status": "PASS",
+    "detail": "Page loaded (158771 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_super_admin_Admin_Users.png"
+  },
+  {
+    "env": "local",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Countries",
+    "status": "PASS",
+    "detail": "Page loaded (159424 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_super_admin_Admin_Countries.png"
+  },
+  {
+    "env": "local",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Cities",
+    "status": "PASS",
+    "detail": "Page loaded (159424 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_super_admin_Admin_Cities.png"
+  },
+  {
+    "env": "local",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Hotels",
+    "status": "PASS",
+    "detail": "Page loaded (159424 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_super_admin_Admin_Hotels.png"
+  },
+  {
+    "env": "local",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Sights",
+    "status": "PASS",
+    "detail": "Page loaded (159424 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_super_admin_Admin_Sights.png"
+  },
+  {
+    "env": "local",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (159424 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_super_admin_Admin_Workflows.png"
+  },
+  {
+    "env": "local",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "View Tours List",
+    "status": "PASS",
+    "detail": "Tours page loaded with content",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_super_admin_admin_tours_list.png"
+  },
+  {
+    "env": "local",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "View Bookings List",
+    "status": "PASS",
+    "detail": "Bookings loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_super_admin_admin_bookings_list.png"
+  },
+  {
+    "env": "local",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "View Users List",
+    "status": "PASS",
+    "detail": "Users loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_super_admin_admin_users_list.png"
+  },
+  {
+    "env": "local",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_admin_login_result.png"
+  },
+  {
+    "env": "local",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (130595 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_admin_Admin_Dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (158824 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_admin_Admin_Bookings.png"
+  },
+  {
+    "env": "local",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Tours",
+    "status": "PASS",
+    "detail": "Page loaded (158831 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_admin_Admin_Tours.png"
+  },
+  {
+    "env": "local",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Users",
+    "status": "PASS",
+    "detail": "Page loaded (158759 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_admin_Admin_Users.png"
+  },
+  {
+    "env": "local",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Countries",
+    "status": "PASS",
+    "detail": "Page loaded (159412 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_admin_Admin_Countries.png"
+  },
+  {
+    "env": "local",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Cities",
+    "status": "PASS",
+    "detail": "Page loaded (159412 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_admin_Admin_Cities.png"
+  },
+  {
+    "env": "local",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Hotels",
+    "status": "PASS",
+    "detail": "Page loaded (159412 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_admin_Admin_Hotels.png"
+  },
+  {
+    "env": "local",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Sights",
+    "status": "PASS",
+    "detail": "Page loaded (159412 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_admin_Admin_Sights.png"
+  },
+  {
+    "env": "local",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (159412 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_admin_Admin_Workflows.png"
+  },
+  {
+    "env": "local",
+    "role": "admin",
+    "portal": "admin",
+    "test": "View Tours List",
+    "status": "PASS",
+    "detail": "Tours page loaded with content",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_admin_admin_tours_list.png"
+  },
+  {
+    "env": "local",
+    "role": "admin",
+    "portal": "admin",
+    "test": "View Bookings List",
+    "status": "PASS",
+    "detail": "Bookings loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_admin_admin_bookings_list.png"
+  },
+  {
+    "env": "local",
+    "role": "admin",
+    "portal": "admin",
+    "test": "View Users List",
+    "status": "PASS",
+    "detail": "Users loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_admin_admin_users_list.png"
+  },
+  {
+    "env": "local",
+    "role": "airline_supplier",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_airline_supplier_login_result.png"
+  },
+  {
+    "env": "local",
+    "role": "airline_supplier",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (130595 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_airline_supplier_Staff_Dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "airline_supplier",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (140953 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_airline_supplier_Staff_Workflows.png"
+  },
+  {
+    "env": "local",
+    "role": "airline_supplier",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (140953 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_airline_supplier_Staff_Bookings.png"
+  },
+  {
+    "env": "local",
+    "role": "airline_supplier",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_airline_supplier_staff_dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "country_manager",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_country_manager_login_result.png"
+  },
+  {
+    "env": "local",
+    "role": "country_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (130436 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_country_manager_Staff_Dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "country_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (159430 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_country_manager_Staff_Workflows.png"
+  },
+  {
+    "env": "local",
+    "role": "country_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (159430 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_country_manager_Staff_Bookings.png"
+  },
+  {
+    "env": "local",
+    "role": "country_manager",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_country_manager_staff_dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "city_manager",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_city_manager_login_result.png"
+  },
+  {
+    "env": "local",
+    "role": "city_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (139066 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_city_manager_Staff_Dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "city_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (139066 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_city_manager_Staff_Workflows.png"
+  },
+  {
+    "env": "local",
+    "role": "city_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (139066 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_city_manager_Staff_Bookings.png"
+  },
+  {
+    "env": "local",
+    "role": "city_manager",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_city_manager_staff_dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "hotel_manager",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_hotel_manager_login_result.png"
+  },
+  {
+    "env": "local",
+    "role": "hotel_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (130595 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_hotel_manager_Staff_Dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "hotel_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (141046 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_hotel_manager_Staff_Workflows.png"
+  },
+  {
+    "env": "local",
+    "role": "hotel_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (141046 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_hotel_manager_Staff_Bookings.png"
+  },
+  {
+    "env": "local",
+    "role": "hotel_manager",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_hotel_manager_staff_dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "transport_manager",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_transport_manager_login_result.png"
+  },
+  {
+    "env": "local",
+    "role": "transport_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (130595 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_transport_manager_Staff_Dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "transport_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (141041 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_transport_manager_Staff_Workflows.png"
+  },
+  {
+    "env": "local",
+    "role": "transport_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (141041 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_transport_manager_Staff_Bookings.png"
+  },
+  {
+    "env": "local",
+    "role": "transport_manager",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_transport_manager_staff_dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "guide_manager",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_guide_manager_login_result.png"
+  },
+  {
+    "env": "local",
+    "role": "guide_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (130595 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_guide_manager_Staff_Dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "guide_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (140853 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_guide_manager_Staff_Workflows.png"
+  },
+  {
+    "env": "local",
+    "role": "guide_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (140853 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_guide_manager_Staff_Bookings.png"
+  },
+  {
+    "env": "local",
+    "role": "guide_manager",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_guide_manager_staff_dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "sights_manager",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_sights_manager_login_result.png"
+  },
+  {
+    "env": "local",
+    "role": "sights_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (130595 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_sights_manager_Staff_Dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "sights_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (140930 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_sights_manager_Staff_Workflows.png"
+  },
+  {
+    "env": "local",
+    "role": "sights_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (140930 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_sights_manager_Staff_Bookings.png"
+  },
+  {
+    "env": "local",
+    "role": "sights_manager",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_sights_manager_staff_dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "content_editor",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_content_editor_login_result.png"
+  },
+  {
+    "env": "local",
+    "role": "content_editor",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (130595 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_content_editor_Staff_Dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "content_editor",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (139070 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_content_editor_Staff_Workflows.png"
+  },
+  {
+    "env": "local",
+    "role": "content_editor",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (139070 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_content_editor_Staff_Bookings.png"
+  },
+  {
+    "env": "local",
+    "role": "content_editor",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_content_editor_staff_dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "flight_agent",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_flight_agent_login_result.png"
+  },
+  {
+    "env": "local",
+    "role": "flight_agent",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (130595 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_flight_agent_Staff_Dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "flight_agent",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (139066 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_flight_agent_Staff_Workflows.png"
+  },
+  {
+    "env": "local",
+    "role": "flight_agent",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (130436 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_flight_agent_Staff_Bookings.png"
+  },
+  {
+    "env": "local",
+    "role": "flight_agent",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_flight_agent_staff_dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "tour_builder",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_tour_builder_login_result.png"
+  },
+  {
+    "env": "local",
+    "role": "tour_builder",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (139066 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_tour_builder_Staff_Dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "tour_builder",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (139066 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_tour_builder_Staff_Workflows.png"
+  },
+  {
+    "env": "local",
+    "role": "tour_builder",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (139066 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_tour_builder_Staff_Bookings.png"
+  },
+  {
+    "env": "local",
+    "role": "tour_builder",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_tour_builder_staff_dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "supplier",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_supplier_login_result.png"
+  },
+  {
+    "env": "local",
+    "role": "supplier",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (130595 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_supplier_Staff_Dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "supplier",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (139059 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_supplier_Staff_Workflows.png"
+  },
+  {
+    "env": "local",
+    "role": "supplier",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (139059 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_supplier_Staff_Bookings.png"
+  },
+  {
+    "env": "local",
+    "role": "supplier",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_supplier_staff_dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "travel_agent",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_travel_agent_login_result.png"
+  },
+  {
+    "env": "local",
+    "role": "travel_agent",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (130595 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_travel_agent_Staff_Dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "travel_agent",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (139066 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_travel_agent_Staff_Workflows.png"
+  },
+  {
+    "env": "local",
+    "role": "travel_agent",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (139066 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_travel_agent_Staff_Bookings.png"
+  },
+  {
+    "env": "local",
+    "role": "travel_agent",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_travel_agent_staff_dashboard.png"
+  },
+  {
+    "env": "local",
+    "role": "customer (superadmin1)",
+    "portal": "customer",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_customer (superadmin1)_login_result.png"
+  },
+  {
+    "env": "local",
+    "role": "customer (superadmin1)",
+    "portal": "customer",
+    "test": "Navigate: Customer Home",
+    "status": "PASS",
+    "detail": "Page loaded (130595 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_customer (superadmin1)_Customer_Home.png"
+  },
+  {
+    "env": "local",
+    "role": "customer (superadmin1)",
+    "portal": "customer",
+    "test": "Navigate: My Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (158889 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_customer (superadmin1)_My_Bookings.png"
+  },
+  {
+    "env": "local",
+    "role": "customer (superadmin1)",
+    "portal": "customer",
+    "test": "My Bookings Page",
+    "status": "PASS",
+    "detail": "Bookings visible",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_customer (superadmin1)_my_bookings.png"
+  },
+  {
+    "env": "local",
+    "role": "customer (superadmin1)",
+    "portal": "customer",
+    "test": "Home/Tours Page",
+    "status": "PASS",
+    "detail": "Tours visible",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\local_customer (superadmin1)_home_page.png"
+  },
+  {
+    "env": "deployed",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_super_admin_login_result.png"
+  },
+  {
+    "env": "deployed",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (56631 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_super_admin_Admin_Dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Bookings",
+    "status": "WARN",
+    "detail": "Access denied (403)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_super_admin_Admin_Bookings.png"
+  },
+  {
+    "env": "deployed",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Tours",
+    "status": "PASS",
+    "detail": "Page loaded (35142 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_super_admin_Admin_Tours.png"
+  },
+  {
+    "env": "deployed",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Users",
+    "status": "PASS",
+    "detail": "Page loaded (117253 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_super_admin_Admin_Users.png"
+  },
+  {
+    "env": "deployed",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Countries",
+    "status": "PASS",
+    "detail": "Page loaded (32152 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_super_admin_Admin_Countries.png"
+  },
+  {
+    "env": "deployed",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Cities",
+    "status": "PASS",
+    "detail": "Page loaded (32152 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_super_admin_Admin_Cities.png"
+  },
+  {
+    "env": "deployed",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Hotels",
+    "status": "PASS",
+    "detail": "Page loaded (32152 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_super_admin_Admin_Hotels.png"
+  },
+  {
+    "env": "deployed",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Sights",
+    "status": "PASS",
+    "detail": "Page loaded (32152 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_super_admin_Admin_Sights.png"
+  },
+  {
+    "env": "deployed",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (32152 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_super_admin_Admin_Workflows.png"
+  },
+  {
+    "env": "deployed",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "View Tours List",
+    "status": "PASS",
+    "detail": "Tours page loaded with content",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_super_admin_admin_tours_list.png"
+  },
+  {
+    "env": "deployed",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "View Bookings List",
+    "status": "PASS",
+    "detail": "Bookings loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_super_admin_admin_bookings_list.png"
+  },
+  {
+    "env": "deployed",
+    "role": "super_admin",
+    "portal": "admin",
+    "test": "View Users List",
+    "status": "PASS",
+    "detail": "Users loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_super_admin_admin_users_list.png"
+  },
+  {
+    "env": "deployed",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_admin_login_result.png"
+  },
+  {
+    "env": "deployed",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (69312 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_admin_Admin_Dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Bookings",
+    "status": "WARN",
+    "detail": "Access denied (403)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_admin_Admin_Bookings.png"
+  },
+  {
+    "env": "deployed",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Tours",
+    "status": "WARN",
+    "detail": "Access denied (403)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_admin_Admin_Tours.png"
+  },
+  {
+    "env": "deployed",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Users",
+    "status": "PASS",
+    "detail": "Page loaded (117241 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_admin_Admin_Users.png"
+  },
+  {
+    "env": "deployed",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Countries",
+    "status": "PASS",
+    "detail": "Page loaded (32140 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_admin_Admin_Countries.png"
+  },
+  {
+    "env": "deployed",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Cities",
+    "status": "PASS",
+    "detail": "Page loaded (32140 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_admin_Admin_Cities.png"
+  },
+  {
+    "env": "deployed",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Hotels",
+    "status": "PASS",
+    "detail": "Page loaded (32140 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_admin_Admin_Hotels.png"
+  },
+  {
+    "env": "deployed",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Sights",
+    "status": "PASS",
+    "detail": "Page loaded (32140 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_admin_Admin_Sights.png"
+  },
+  {
+    "env": "deployed",
+    "role": "admin",
+    "portal": "admin",
+    "test": "Navigate: Admin Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (32140 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_admin_Admin_Workflows.png"
+  },
+  {
+    "env": "deployed",
+    "role": "admin",
+    "portal": "admin",
+    "test": "View Tours List",
+    "status": "PASS",
+    "detail": "Tours page loaded with content",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_admin_admin_tours_list.png"
+  },
+  {
+    "env": "deployed",
+    "role": "admin",
+    "portal": "admin",
+    "test": "View Bookings List",
+    "status": "PASS",
+    "detail": "Bookings loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_admin_admin_bookings_list.png"
+  },
+  {
+    "env": "deployed",
+    "role": "admin",
+    "portal": "admin",
+    "test": "View Users List",
+    "status": "PASS",
+    "detail": "Users loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_admin_admin_users_list.png"
+  },
+  {
+    "env": "deployed",
+    "role": "airline_supplier",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_airline_supplier_login_result.png"
+  },
+  {
+    "env": "deployed",
+    "role": "airline_supplier",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (13681 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_airline_supplier_Staff_Dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "airline_supplier",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (13681 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_airline_supplier_Staff_Workflows.png"
+  },
+  {
+    "env": "deployed",
+    "role": "airline_supplier",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (13681 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_airline_supplier_Staff_Bookings.png"
+  },
+  {
+    "env": "deployed",
+    "role": "airline_supplier",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_airline_supplier_staff_dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "country_manager",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_country_manager_login_result.png"
+  },
+  {
+    "env": "deployed",
+    "role": "country_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (32158 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_country_manager_Staff_Dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "country_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (32158 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_country_manager_Staff_Workflows.png"
+  },
+  {
+    "env": "deployed",
+    "role": "country_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (3164 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_country_manager_Staff_Bookings.png"
+  },
+  {
+    "env": "deployed",
+    "role": "country_manager",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_country_manager_staff_dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "city_manager",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_city_manager_login_result.png"
+  },
+  {
+    "env": "deployed",
+    "role": "city_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (11794 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_city_manager_Staff_Dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "city_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (11794 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_city_manager_Staff_Workflows.png"
+  },
+  {
+    "env": "deployed",
+    "role": "city_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (11794 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_city_manager_Staff_Bookings.png"
+  },
+  {
+    "env": "deployed",
+    "role": "city_manager",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_city_manager_staff_dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "hotel_manager",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_hotel_manager_login_result.png"
+  },
+  {
+    "env": "deployed",
+    "role": "hotel_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (13774 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_hotel_manager_Staff_Dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "hotel_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (13774 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_hotel_manager_Staff_Workflows.png"
+  },
+  {
+    "env": "deployed",
+    "role": "hotel_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (13774 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_hotel_manager_Staff_Bookings.png"
+  },
+  {
+    "env": "deployed",
+    "role": "hotel_manager",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_hotel_manager_staff_dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "transport_manager",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_transport_manager_login_result.png"
+  },
+  {
+    "env": "deployed",
+    "role": "transport_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (13769 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_transport_manager_Staff_Dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "transport_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (13769 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_transport_manager_Staff_Workflows.png"
+  },
+  {
+    "env": "deployed",
+    "role": "transport_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (13769 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_transport_manager_Staff_Bookings.png"
+  },
+  {
+    "env": "deployed",
+    "role": "transport_manager",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_transport_manager_staff_dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "guide_manager",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_guide_manager_login_result.png"
+  },
+  {
+    "env": "deployed",
+    "role": "guide_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (13581 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_guide_manager_Staff_Dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "guide_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (13581 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_guide_manager_Staff_Workflows.png"
+  },
+  {
+    "env": "deployed",
+    "role": "guide_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (13581 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_guide_manager_Staff_Bookings.png"
+  },
+  {
+    "env": "deployed",
+    "role": "guide_manager",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_guide_manager_staff_dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "sights_manager",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_sights_manager_login_result.png"
+  },
+  {
+    "env": "deployed",
+    "role": "sights_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (13658 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_sights_manager_Staff_Dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "sights_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (13658 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_sights_manager_Staff_Workflows.png"
+  },
+  {
+    "env": "deployed",
+    "role": "sights_manager",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (13658 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_sights_manager_Staff_Bookings.png"
+  },
+  {
+    "env": "deployed",
+    "role": "sights_manager",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_sights_manager_staff_dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "content_editor",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_content_editor_login_result.png"
+  },
+  {
+    "env": "deployed",
+    "role": "content_editor",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (11798 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_content_editor_Staff_Dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "content_editor",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (11798 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_content_editor_Staff_Workflows.png"
+  },
+  {
+    "env": "deployed",
+    "role": "content_editor",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (11798 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_content_editor_Staff_Bookings.png"
+  },
+  {
+    "env": "deployed",
+    "role": "content_editor",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_content_editor_staff_dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "flight_agent",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_flight_agent_login_result.png"
+  },
+  {
+    "env": "deployed",
+    "role": "flight_agent",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (11794 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_flight_agent_Staff_Dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "flight_agent",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (11794 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_flight_agent_Staff_Workflows.png"
+  },
+  {
+    "env": "deployed",
+    "role": "flight_agent",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (11794 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_flight_agent_Staff_Bookings.png"
+  },
+  {
+    "env": "deployed",
+    "role": "flight_agent",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_flight_agent_staff_dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "tour_builder",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_tour_builder_login_result.png"
+  },
+  {
+    "env": "deployed",
+    "role": "tour_builder",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (11794 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_tour_builder_Staff_Dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "tour_builder",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (11794 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_tour_builder_Staff_Workflows.png"
+  },
+  {
+    "env": "deployed",
+    "role": "tour_builder",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (11794 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_tour_builder_Staff_Bookings.png"
+  },
+  {
+    "env": "deployed",
+    "role": "tour_builder",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_tour_builder_staff_dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "supplier",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_supplier_login_result.png"
+  },
+  {
+    "env": "deployed",
+    "role": "supplier",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (11787 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_supplier_Staff_Dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "supplier",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (11787 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_supplier_Staff_Workflows.png"
+  },
+  {
+    "env": "deployed",
+    "role": "supplier",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (11787 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_supplier_Staff_Bookings.png"
+  },
+  {
+    "env": "deployed",
+    "role": "supplier",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_supplier_staff_dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "travel_agent",
+    "portal": "staff",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_travel_agent_login_result.png"
+  },
+  {
+    "env": "deployed",
+    "role": "travel_agent",
+    "portal": "staff",
+    "test": "Navigate: Staff Dashboard",
+    "status": "PASS",
+    "detail": "Page loaded (11794 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_travel_agent_Staff_Dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "travel_agent",
+    "portal": "staff",
+    "test": "Navigate: Staff Workflows",
+    "status": "PASS",
+    "detail": "Page loaded (11794 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_travel_agent_Staff_Workflows.png"
+  },
+  {
+    "env": "deployed",
+    "role": "travel_agent",
+    "portal": "staff",
+    "test": "Navigate: Staff Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (11794 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_travel_agent_Staff_Bookings.png"
+  },
+  {
+    "env": "deployed",
+    "role": "travel_agent",
+    "portal": "staff",
+    "test": "Staff Dashboard",
+    "status": "PASS",
+    "detail": "Dashboard loaded",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_travel_agent_staff_dashboard.png"
+  },
+  {
+    "env": "deployed",
+    "role": "customer (superadmin1)",
+    "portal": "customer",
+    "test": "Login",
+    "status": "PASS",
+    "detail": "Login successful",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_customer (superadmin1)_login_result.png"
+  },
+  {
+    "env": "deployed",
+    "role": "customer (superadmin1)",
+    "portal": "customer",
+    "test": "Navigate: Customer Home",
+    "status": "PASS",
+    "detail": "Page loaded (56631 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_customer (superadmin1)_Customer_Home.png"
+  },
+  {
+    "env": "deployed",
+    "role": "customer (superadmin1)",
+    "portal": "customer",
+    "test": "Navigate: My Bookings",
+    "status": "PASS",
+    "detail": "Page loaded (52716 bytes)",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_customer (superadmin1)_My_Bookings.png"
+  },
+  {
+    "env": "deployed",
+    "role": "customer (superadmin1)",
+    "portal": "customer",
+    "test": "My Bookings Page",
+    "status": "PASS",
+    "detail": "Bookings visible",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_customer (superadmin1)_my_bookings.png"
+  },
+  {
+    "env": "deployed",
+    "role": "customer (superadmin1)",
+    "portal": "customer",
+    "test": "Home/Tours Page",
+    "status": "PASS",
+    "detail": "Tours visible",
+    "screenshot": "D:\\INFORMATICS\\FREELANCE\\tourops\\scratch\\screenshots\\deployed_customer (superadmin1)_home_page.png"
+  }
+]

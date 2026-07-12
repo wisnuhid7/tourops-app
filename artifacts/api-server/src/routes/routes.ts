@@ -1382,8 +1382,9 @@ export async function registerRoutes(
   });
 
   // ---- Hotels ----
-  app.get("/api/hotels", async (req, res) => {
+  app.get("/api/hotels", isAuthenticated, async (req, res) => {
     try {
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       if (req.query.cityId) {
         return res.json(await storage.getHotelsByCity(req.query.cityId as string));
       }
@@ -2025,9 +2026,11 @@ export async function registerRoutes(
   });
 
   // ---- Master Data: Countries ----
-  app.get("/api/master/countries", isAuthenticated, async (_req, res) => {
-    try { res.json(await storage.getAllCountries()); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
+  app.get("/api/master/countries", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      res.json(await storage.getAllCountries());
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/countries", isAuthenticated, async (req, res) => {
     try {
@@ -2238,9 +2241,11 @@ export async function registerRoutes(
   });
 
   // ---- Master Data: Sights ----
-  app.get("/api/master/sights", isAuthenticated, async (_req, res) => {
-    try { res.json(await storage.getAllSights()); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
+  app.get("/api/master/sights", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      res.json(await storage.getAllSights());
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/sights", isAuthenticated, async (req, res) => {
     try {

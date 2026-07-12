@@ -22,3 +22,11 @@ dead code; any logged-in user hit the ungated one first.
   earlier shadowing registration rather than a bug in the gate itself.
 - Prefer collapsing to one gated definition; keep a breadcrumb comment where the
   old ungated block used to live so nobody re-adds it above the gated one.
+
+## Automated guard
+
+There is now a functional test (`no-duplicate-routes.test.ts`) that registers the
+real routes with DB/auth/Redis mocked, walks `app.router.stack` (Express 5;
+`_router` fallback), and fails on any exact duplicate method+path. Note it only
+catches EXACT duplicates — it does NOT catch order-dependent shadowing where a
+static path is hidden behind an earlier `:param` route.

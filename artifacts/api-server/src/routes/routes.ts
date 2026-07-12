@@ -64,7 +64,7 @@ import {
   insertSightSchema, insertHotelSchema, insertTransportCompanySchema, insertAirlineAgencySchema,
   insertBusTypeSchema, insertTransportRouteSchema, insertTransportRoutePricingSchema,
   insertTransportBookingSchema, insertTransportInvoiceSchema, insertTransportPaymentSchema,
-  insertHotelRateSchema, insertTransportRateSchema, insertGuideRateSchema, insertSightsRateSchema,
+  insertHotelRateSchema, insertTransportRateSchema, insertGuideRateSchema, insertSightsRateSchema, insertAirlineRateSchema,
   insertBookingWorkflowSchema, insertWorkflowStepSchema, insertInvoiceSchema,
   insertAffiliateSchema, insertMarkupRuleSchema
 } from "@workspace/db";
@@ -1275,89 +1275,10 @@ export async function registerRoutes(
   });
 
   // ---- Supplier Rates ----
-  // Hotel Rates
-  app.get("/api/rates/hotel", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.getHotelRates()); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
-  app.post("/api/rates/hotel", isAuthenticated, async (req, res) => {
-    try { res.status(201).json(await storage.createHotelRate(req.body)); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
-  app.patch("/api/rates/hotel/:id", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.updateHotelRate(req.params.id as string, req.body)); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
-  app.delete("/api/rates/hotel/:id", isAuthenticated, async (req, res) => {
-    try { await storage.deleteHotelRate(req.params.id as string); res.sendStatus(204); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
-  // Guide Rates
-  app.get("/api/rates/guide", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.getGuideRates()); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
-  app.post("/api/rates/guide", isAuthenticated, async (req, res) => {
-    try { res.status(201).json(await storage.createGuideRate(req.body)); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
-  app.patch("/api/rates/guide/:id", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.updateGuideRate(req.params.id as string, req.body)); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
-  app.delete("/api/rates/guide/:id", isAuthenticated, async (req, res) => {
-    try { await storage.deleteGuideRate(req.params.id as string); res.sendStatus(204); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
-  // Sights Rates
-  app.get("/api/rates/sights", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.getSightsRates()); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
-  app.post("/api/rates/sights", isAuthenticated, async (req, res) => {
-    try { res.status(201).json(await storage.createSightsRate(req.body)); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
-  app.patch("/api/rates/sights/:id", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.updateSightsRate(req.params.id as string, req.body)); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
-  app.delete("/api/rates/sights/:id", isAuthenticated, async (req, res) => {
-    try { await storage.deleteSightsRate(req.params.id as string); res.sendStatus(204); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
-  // Airline Rates
-  app.get("/api/rates/airline", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.getAirlineRates()); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
-  app.post("/api/rates/airline", isAuthenticated, async (req, res) => {
-    try { res.status(201).json(await storage.createAirlineRate(req.body)); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
-  app.patch("/api/rates/airline/:id", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.updateAirlineRate(req.params.id as string, req.body)); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
-  app.delete("/api/rates/airline/:id", isAuthenticated, async (req, res) => {
-    try { await storage.deleteAirlineRate(req.params.id as string); res.sendStatus(204); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
+  // NOTE: Rate-card routes (hotel/transport/guide/sights/airline) are defined
+  // once, with role gates, in the "Rate Cards" section further below. Do not
+  // add ungated duplicates here — Express uses the first-registered match, so a
+  // duplicate above the gated definition would silently bypass authorization.
 
   // ---- Airline Management ----
   app.get("/api/flights/search", async (req, res) => {
@@ -2802,6 +2723,45 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       await storage.deleteSightsRate(req.params.id as string);
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Rate Cards: Airline Rates ----
+  app.get("/api/rates/airline", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      res.json(await storage.getAirlineRates());
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.post("/api/rates/airline", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      const parsed = insertAirlineRateSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      res.json(await storage.createAirlineRate(parsed.data));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.post("/api/rates/airline/bulk", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      const rows = z.array(insertAirlineRateSchema).safeParse(req.body);
+      if (!rows.success) return res.status(400).json({ message: rows.error.message });
+      res.json(await storage.bulkCreateAirlineRates(rows.data));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.patch("/api/rates/airline/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      const data = sanitizeRateUpdate(req.body);
+      if (!data) return res.status(400).json({ message: "Invalid status value" });
+      res.json(await storage.updateAirlineRate(req.params.id as string, data));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.delete("/api/rates/airline/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      await storage.deleteAirlineRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });

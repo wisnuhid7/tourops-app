@@ -1887,6 +1887,9 @@ export class DatabaseStorage implements IStorage {
     
     const totalRevenue = confirmed.reduce((sum, b) => sum + (parseFloat(b.totalPrice?.toString() || "0")), 0);
     const bookingCount = confirmed.length;
+    const netProfit = totalRevenue * 0.15; // 15% estimated net margin
+    const avgBookingValue = bookingCount > 0 ? totalRevenue / bookingCount : 0;
+    const [{ count: activeAssets }] = await db.select({ count: sql<number>`count(*)::int` }).from(tours);
     
     // Aggregate by month for the chart
     const monthlySalesMap: Record<string, number> = {};
@@ -1905,8 +1908,13 @@ export class DatabaseStorage implements IStorage {
 
     return {
       totalRevenue,
-      totalProfit: totalRevenue * 0.15, // 15% estimated net margin
+      totalProfit: netProfit,
       bookingCount,
+      // Fields consumed by the admin dashboard stat cards
+      grossSales: totalRevenue,
+      netProfit,
+      avgBookingValue,
+      activeAssets,
       activeTravelers: bookingCount * 2, // Estimated
       topDestinations: [
         { name: "Jordan", count: 12 }, // Placeholder for complex join

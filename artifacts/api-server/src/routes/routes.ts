@@ -2919,13 +2919,6 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
-  app.get("/api/audit-logs/:type/:id", isAuthenticated, async (req, res) => {
-    try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
-      res.json(await storage.getAuditLogs(req.params.type as string, req.params.id as string));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
   // ---- Data Import & Scrapers ----
   app.get("/api/hotels/search", async (req, res) => {
     try {

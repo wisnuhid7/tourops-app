@@ -1,8 +1,22 @@
 import type { Express } from "express";
 import { authStorage } from "./storage";
 import { isAuthenticated } from "./replitAuth";
+import { runUserSeed, superAdminExists } from "../../seed-core";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { z } from "zod/v4";
+
+/** Constant-time string comparison that avoids leaking length via early return. */
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  if (ab.length !== bb.length) {
+    // Still run a comparison to keep timing roughly constant.
+    crypto.timingSafeEqual(ab, ab);
+    return false;
+  }
+  return crypto.timingSafeEqual(ab, bb);
+}
 
 const CUSTOMER_ROLES = ["customer"];
 const ADMIN_ROLES = ["admin", "super_admin"];
@@ -146,5 +160,34 @@ export function registerAuthRoutes(app: Express): void {
       res.clearCookie("connect.sid");
       res.redirect("/");
     });
+  });
+
+  // ---- One-time demo seeding (secret-guarded) ----
+  // Creates/refreshes the standard demo accounts. Only works when the request
+  // presents the SEED_SECRET; if SEED_SECRET is unset, the endpoint is disabled.
+  // Intended for bootstrapping a freshly deployed environment that has no
+  // usable staff accounts. Remove once real accounts exist.
+  app.post("/api/auth/seed-demo", async (req, res) => {
+    try {
+      const secret = process.env.SEED_SECRET;
+      if (!secret) {
+        return res.status(404).json({ message: "Not found" });
+      }
+      const provided = req.get("x-seed-secret") || "";
+      if (!safeEqual(provided, secret)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      // One-time bootstrap: once a super_admin exists, refuse to reseed so a
+      // leaked secret cannot reset privileged credentials to a known value.
+      if (await superAdminExists()) {
+        return res.status(409).json({ message: "Already bootstrapped" });
+      }
+      const accounts = await runUserSeed();
+      // Do not return plaintext passwords; only report which accounts exist now.
+      res.json({ ok: true, count: accounts.length, usernames: accounts.map(a => a.username) });
+    } catch (error: any) {
+      console.error("Seed error:", error);
+      res.status(500).json({ message: "Seeding failed" });
+    }
   });
 }

@@ -21,3 +21,11 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
+
+[userenv]
+
+[userenv.development]
+SEED_SECRET = "c1e7e8030218fdc02cde24181d0eb51d5c6a5981209ee6bc"
+
+[userenv.production]
+SEED_SECRET = "c1e7e8030218fdc02cde24181d0eb51d5c6a5981209ee6bc"

@@ -1,70 +1,105 @@
-import { describe, it, expect, vi, beforeAll } from 'vitest';
-import request from 'supertest';
+import { describe, it, expect, beforeAll, vi } from "vitest";
+import request from "supertest";
+import express, { type Express } from "express";
+import { createServer } from "http";
 
-// Mock the database before anything else is imported
-vi.mock('../../db', () => ({
-  db: {
-    select: vi.fn().mockReturnThis(),
-    from: vi.fn().mockReturnThis(),
-    where: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockReturnThis(),
-    insert: vi.fn().mockReturnThis(),
-    values: vi.fn().mockReturnThis(),
-    returning: vi.fn().mockResolvedValue([]),
-    update: vi.fn().mockReturnThis(),
-    set: vi.fn().mockReturnThis(),
-  }
+// ---------------------------------------------------------------------------
+// Import-time side effects must be stubbed BEFORE importing the routes, so we
+// never boot the real HTTP server (src/index.ts) or require a live database,
+// Redis, or PORT. We build the Express app in-test and register the routes,
+// mirroring src/tests/functional/auto-created-account-role.test.ts.
+// ---------------------------------------------------------------------------
+
+// A minimal in-memory drizzle stub. These functional tests exercise routes
+// that do not touch the DB directly, but importing the routes/storage modules
+// loads `@workspace/db`, so it must resolve without opening a real connection.
+vi.mock("@workspace/db", () => {
+  const chain: any = {
+    from: () => chain,
+    where: () => chain,
+    leftJoin: () => chain,
+    limit: () => chain,
+    orderBy: () => chain,
+    values: () => chain,
+    set: () => chain,
+    onConflictDoNothing: () => chain,
+    returning: () => Promise.resolve([]),
+    then: (resolve: (rows: any[]) => void) => resolve([]),
+  };
+  const fakeDb: any = {
+    select: () => chain,
+    insert: () => chain,
+    update: () => chain,
+    delete: () => chain,
+  };
+  return new Proxy(
+    { db: fakeDb },
+    {
+      // Every table/type export used by storage resolves to an opaque marker.
+      get: (target, prop) =>
+        prop in target ? (target as any)[prop] : { __table: String(prop) },
+    },
+  );
+});
+
+// Keep isAuthenticated realistic (401 when no session) without a pg session store.
+vi.mock("../../replit_integrations/auth", () => ({
+  setupAuth: async (_app: Express) => {},
+  isAuthenticated: (req: any, res: any, next: any) => {
+    if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
+    next();
+  },
+  registerAuthRoutes: () => {},
 }));
 
-// Mock storage
-vi.mock('../../storage', () => ({
-  storage: {
-    bulkCreateHotels: vi.fn().mockResolvedValue([]),
-    getGlobalSalesStats: vi.fn().mockResolvedValue({}),
-    getAuditLogs: vi.fn().mockResolvedValue([]),
-    getSight: vi.fn().mockResolvedValue({ id: '1', name: 'Test Sight' }),
-  }
-}));
-
-// Mock workers/queues entirely to avoid Redis
-vi.mock('../../lib/workers', () => ({
+// Avoid Redis/BullMQ connections at import time.
+vi.mock("../../lib/workers", () => ({
   queues: {
-    countryImport: { add: vi.fn().mockResolvedValue({ id: '1' }) },
-    cityImport: { add: vi.fn().mockResolvedValue({ id: '1' }) },
-    sightDiscovery: { add: vi.fn().mockResolvedValue({ id: '1' }) },
-    sightEnrichment: { add: vi.fn().mockResolvedValue({ id: '1' }) },
-    tourAi: { add: vi.fn().mockResolvedValue({ id: '1' }) },
-    hotelPrice: { add: vi.fn().mockResolvedValue({ id: '1' }) },
-    flightPrice: { add: vi.fn().mockResolvedValue({ id: '1' }) },
+    countryImport: { add: vi.fn().mockResolvedValue({ id: "1" }) },
+    cityImport: { add: vi.fn().mockResolvedValue({ id: "1" }) },
+    sightDiscovery: { add: vi.fn().mockResolvedValue({ id: "1" }) },
+    sightEnrichment: { add: vi.fn().mockResolvedValue({ id: "1" }) },
+    tourAi: { add: vi.fn().mockResolvedValue({ id: "1" }) },
+    hotelPrice: { add: vi.fn().mockResolvedValue({ id: "1" }) },
+    flightPrice: { add: vi.fn().mockResolvedValue({ id: "1" }) },
   },
   startWorkers: vi.fn(),
 }));
-
-// Mock IORedis just in case
-vi.mock('ioredis', () => ({
-  default: function() {
+vi.mock("ioredis", () => ({
+  default: function () {
     return { on: vi.fn(), quit: vi.fn() };
-  }
+  },
 }));
 
-// Now import the app
-import { app } from '../../index';
+// Import AFTER the mocks are registered.
+import { registerRoutes } from "../../routes/routes";
 
-describe('Functional API Tests', () => {
-  it('GET /api/hotels/search should return 400 if params are missing', async () => {
-    const response = await request(app).get('/api/hotels/search');
+describe("Functional API Tests", () => {
+  let app: Express;
+
+  beforeAll(async () => {
+    app = express();
+    app.use(express.json());
+    const server = createServer(app);
+    await registerRoutes(server, app);
+  });
+
+  it("GET /api/hotels/search should return 400 if params are missing", async () => {
+    const response = await request(app).get("/api/hotels/search");
     expect(response.status).toBe(400);
   });
 
-  it('GET /api/hotels/search should return hotels if params are valid', async () => {
-    const response = await request(app).get('/api/hotels/search?city=Palestine&countryCode=PS');
+  it("GET /api/hotels/search should return hotels if params are valid", async () => {
+    const response = await request(app).get(
+      "/api/hotels/search?city=Palestine&countryCode=PS",
+    );
     expect(response.status).toBe(200);
   });
 
-  it('POST /api/admin/scraper/block should require authentication', async () => {
+  it("POST /api/admin/scraper/block should require authentication", async () => {
     const response = await request(app)
-      .post('/api/admin/scraper/block')
-      .send({ domain: 'malicious.com' });
+      .post("/api/admin/scraper/block")
+      .send({ domain: "malicious.com" });
     expect([401, 403]).toContain(response.status);
   });
 });

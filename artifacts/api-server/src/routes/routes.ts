@@ -1281,27 +1281,6 @@ export async function registerRoutes(
   // duplicate above the gated definition would silently bypass authorization.
 
   // ---- Airline Management ----
-  app.get("/api/flights/search", async (req, res) => {
-    try {
-      const origin = req.query.origin as string;
-      const destination = req.query.destination as string;
-      const date = req.query.date as string;
-      const passengers = req.query.passengers as string;
-      const cabinClass = req.query.cabinClass as string;
-      if (!origin || !destination || !date) {
-        return res.status(400).json({ message: "Origin, destination, and date are required" });
-      }
-      const results = await airlineService.searchFlights({
-        origin: origin as string,
-        destination: destination as string,
-        date: date as string,
-        passengers: passengers ? parseInt(passengers as string) : 1,
-        cabinClass: cabinClass as any,
-      });
-      res.json(results);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
-  });
-
   // ---- Hotels ----
   app.get("/api/hotels", isAuthenticated, async (req, res) => {
     try {
@@ -3027,6 +3006,7 @@ export async function registerRoutes(
 
   app.get("/api/flights/search", isAuthenticated, async (req, res) => {
     try {
+      if (!await requireRole(req, res, [...ADMIN_ROLES, "flight_agent"])) return;
       const { origin, destination, date, passengers, cabinClass } = req.query;
       if (!origin || !destination || !date) {
         return res.status(400).json({ message: "origin, destination, and date are required" });

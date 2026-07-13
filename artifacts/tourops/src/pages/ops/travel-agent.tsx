@@ -38,6 +38,7 @@ export default function TravelAgentDashboard() {
 }
 
 function TourCatalog() {
+  const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [bookingTour, setBookingTour] = useState<Tour | null>(null);
   const { data: tours, isLoading } = useQuery<Tour[]>({ queryKey: ["/api/tours/public"] });

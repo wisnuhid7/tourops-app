@@ -19,6 +19,14 @@ description: Where the user's role actually lives, how frontend vs backend read 
 
 **How to apply:** audit the allowlist on every rate/master endpoint against `supplier/dashboard.tsx` tab gating whenever roles or tabs change.
 
+# Hotel registration + approval flow
+
+- `hotels` is a **shared master catalog** (staff-only `GET /api/hotels`, no ownership column). By design it is NOT per-manager scoped — a `hotel_manager` sees/registers into the whole catalog. Do not add a "My Hotels"–style ownership filter unless the user explicitly asks; label such UI as the shared catalog, not "mine".
+- Registration roles: `admin`, `super_admin`, `hotel_manager` (`HOTEL_REGISTER_ROLES`). Approval roles: `admin`, `super_admin` only (`PATCH /api/hotels/:id/approve`).
+- `POST /api/hotels` **force-sets `status:"draft"`** server-side so a hotel_manager can't self-approve via payload. Approval is a separate admin-only action that flips status → `approved`.
+
+**Why:** the user wanted managers to submit hotels but reserve approval for admins; the schema already had `hotels.status` = draft/approved/published.
+
 # Open security tradeoff (not yet resolved)
 
 - Rate/master endpoints are **globally scoped** (no per-supplier ownership column except transport's `transportCompanyId`). Granting a supplier role access lets it read/edit/delete **all** rows in that category, not just its own. True isolation needs ownership fields + scoped queries — a schema-level change. This overlaps the "keep supplier catalog data out of customer accounts" concern.

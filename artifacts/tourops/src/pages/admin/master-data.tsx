@@ -15,8 +15,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Upload, Pencil, Trash2, Globe, Building2, Plane, Landmark, Truck, TicketCheck, Wand2, Sparkles } from "lucide-react";
 import type {
-  Country, City, Airport, Sight, Hotel, TransportCompany, AirlineAgency,
+  Country, City, Airport, Sight, Hotel, TransportCompany, AirlineAgency, UserProfile,
 } from "@workspace/db";
+import { CheckCircle } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 
 const SIGHT_CATEGORIES = ["museum", "landmark", "park", "religious", "entertainment", "nature", "historical", "other"];
@@ -1279,6 +1280,14 @@ function HotelsTab() {
 
   const { data: items, isLoading } = useQuery<Hotel[]>({ queryKey: ["/api/hotels"] });
   const { data: citiesList } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
+  const { data: profile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const canApprove = profile?.role === "admin" || profile?.role === "super_admin";
+
+  const approveMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("PATCH", `/api/hotels/${id}/approve`, {}),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/hotels"] }); toast({ title: t("approved_status") }); },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
 
   const resetForm = () => { setName(""); setCityId(""); setStarRating("3"); setBasePrice(""); setCurrency("USD"); setAddress(""); setDescription(""); setIsActive(true); };
 
@@ -1354,9 +1363,18 @@ function HotelsTab() {
               <TableCell>{item.starRating} ⭐</TableCell>
               <TableCell className="font-mono text-xs">{item.basePrice} {item.currency}</TableCell>
               <TableCell className="text-muted-foreground text-sm">{item.address || "-"}</TableCell>
-              <TableCell><Badge variant={item.isActive ? "default" : "secondary"}>{item.isActive ? "Active" : "Inactive"}</Badge></TableCell>
+              <TableCell>
+                <Badge variant={item.status === "approved" || item.status === "published" ? "default" : "secondary"} className="capitalize">
+                  {item.status === "approved" ? t("approved_status") : item.status === "draft" ? t("pending_approval") : item.status}
+                </Badge>
+              </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
+                  {canApprove && item.status === "draft" && (
+                    <Button size="icon" variant="ghost" className="text-emerald-600" onClick={() => approveMutation.mutate(item.id)} data-testid={`button-approve-hotel-${item.id}`}>
+                      <CheckCircle className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button size="icon" variant="ghost" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
                 </div>
               </TableCell>

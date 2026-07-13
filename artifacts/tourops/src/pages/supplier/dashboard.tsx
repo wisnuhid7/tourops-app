@@ -60,6 +60,23 @@ export default function SupplierDashboard() {
   });
 
   const { data: hotelRates } = useQuery<any[]>({ queryKey: ["/api/rates/hotel"] });
+  const canRegisterHotels = profile?.role === "hotel_manager" || profile?.role === "admin" || profile?.role === "super_admin";
+  const { data: hotels } = useQuery<any[]>({ queryKey: ["/api/hotels"], enabled: canRegisterHotels });
+  const { data: cities } = useQuery<any[]>({ queryKey: ["/api/master/cities"], enabled: canRegisterHotels });
+
+  const [hotelDialogOpen, setHotelDialogOpen] = useState(false);
+  const [hotelForm, setHotelForm] = useState({ name: "", cityId: "", starRating: "3", basePrice: "", currency: "USD", address: "" });
+  const registerHotel = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", "/api/hotels", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/hotels"] });
+      toast({ title: t("hotel_registered") });
+      setHotelDialogOpen(false);
+      setHotelForm({ name: "", cityId: "", starRating: "3", basePrice: "", currency: "USD", address: "" });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
   const { data: guideRates } = useQuery<any[]>({ queryKey: ["/api/rates/guide"] });
   const { data: sightsRates } = useQuery<any[]>({ queryKey: ["/api/rates/sights"] });
   const { data: airlineRates } = useQuery<any[]>({ queryKey: ["/api/rates/airline"] });
@@ -194,6 +211,12 @@ export default function SupplierDashboard() {
             <ClipboardList className="h-4 w-4 mr-2" />
             {t("tasks_tab")}
           </TabsTrigger>
+          {(profile?.role === "hotel_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
+            <TabsTrigger value="hotels" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
+              <Hotel className="h-4 w-4 mr-2" />
+              {t("hotels_catalog")}
+            </TabsTrigger>
+          )}
           {(profile?.role === "hotel_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
             <TabsTrigger value="hotel_rates" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
               <Hotel className="h-4 w-4 mr-2" />
@@ -340,6 +363,99 @@ export default function SupplierDashboard() {
           </div>
         )}
       </TabsContent>
+
+      <TabsContent value="hotels">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>{t("hotels_catalog")}</CardTitle>
+              <CardDescription>{t("manage_accommodation_bookings")}</CardDescription>
+            </div>
+            <Button size="sm" onClick={() => setHotelDialogOpen(true)}><Plus className="h-4 w-4 mr-2" /> {t("register_hotel")}</Button>
+          </CardHeader>
+          <CardContent>
+            <div className="border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t("hotel_name")}</TableHead>
+                    <TableHead>{t("stars_label")}</TableHead>
+                    <TableHead>{t("base_price_label")}</TableHead>
+                    <TableHead>{t("status")}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {hotels?.map(h => (
+                    <TableRow key={h.id}>
+                      <TableCell className="font-medium">{h.name}</TableCell>
+                      <TableCell>{h.starRating} ⭐</TableCell>
+                      <TableCell>{h.basePrice ? `${h.currency} ${h.basePrice}` : "-"}</TableCell>
+                      <TableCell>
+                        <Badge variant={h.status === "approved" || h.status === "published" ? "default" : "secondary"} className="capitalize">
+                          {h.status === "approved" ? t("approved_status") : h.status === "draft" ? t("pending_approval") : h.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {(!hotels || hotels.length === 0) && (
+                    <TableRow><TableCell colSpan={4} className="text-center py-10 text-muted-foreground">{t("no_hotels_found")}</TableCell></TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <Dialog open={hotelDialogOpen} onOpenChange={setHotelDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("register_hotel")}</DialogTitle>
+            <DialogDescription>{t("pending_approval")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div><Label>{t("name_required_label")}</Label><Input value={hotelForm.name} onChange={(e) => setHotelForm({ ...hotelForm, name: e.target.value })} placeholder="Grand Plaza" /></div>
+            <div>
+              <Label>{t("city_label")} *</Label>
+              <Select value={hotelForm.cityId} onValueChange={(v) => setHotelForm({ ...hotelForm, cityId: v })}>
+                <SelectTrigger><SelectValue placeholder={t("select_city_placeholder")} /></SelectTrigger>
+                <SelectContent>
+                  {cities?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{t("star_rating_label")}</Label>
+              <Select value={hotelForm.starRating} onValueChange={(v) => setHotelForm({ ...hotelForm, starRating: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[1,2,3,4,5].map(s => <SelectItem key={s} value={String(s)}>{s} Stars</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>{t("base_price_label")}</Label><Input type="number" step="0.01" value={hotelForm.basePrice} onChange={(e) => setHotelForm({ ...hotelForm, basePrice: e.target.value })} placeholder="150.00" /></div>
+              <div><Label>{t("currency_label")}</Label><Input value={hotelForm.currency} onChange={(e) => setHotelForm({ ...hotelForm, currency: e.target.value })} placeholder="USD" /></div>
+            </div>
+            <div><Label>{t("address_label")}</Label><Input value={hotelForm.address} onChange={(e) => setHotelForm({ ...hotelForm, address: e.target.value })} placeholder="123 Street..." /></div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => registerHotel.mutate({
+                name: hotelForm.name,
+                cityId: hotelForm.cityId,
+                starRating: parseInt(hotelForm.starRating),
+                basePrice: hotelForm.basePrice || undefined,
+                currency: hotelForm.currency,
+                address: hotelForm.address,
+              })}
+              disabled={!hotelForm.name || !hotelForm.cityId || registerHotel.isPending}
+            >
+              {t("register_hotel")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <TabsContent value="hotel_rates">
         <Card>

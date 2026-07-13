@@ -87,6 +87,9 @@ const ADMIN_ROLES = ["admin", "super_admin"];
 // Each supplier role manages its own catalog category (rates + master records).
 const CATALOG_BASE_ROLES = ["super_admin", "admin", "country_manager"];
 const HOTEL_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "hotel_manager"];
+// Who may register (submit) a master hotel record. Hotel managers can submit,
+// but their submissions stay in "draft" until an admin/super_admin approves.
+const HOTEL_REGISTER_ROLES = [...ADMIN_ROLES, "hotel_manager"];
 const GUIDE_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "guide_manager"];
 const SIGHTS_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "sights_manager"];
 const AIRLINE_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "airline_supplier"];
@@ -1316,10 +1319,20 @@ export async function registerRoutes(
 
   app.post("/api/hotels", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, HOTEL_REGISTER_ROLES)) return;
       const parsed = insertHotelSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.status(201).json(await storage.createHotel(parsed.data));
+      // Registration always starts as "draft"; only admin/super_admin can approve.
+      // Force the status server-side so a hotel_manager can't self-approve via the payload.
+      res.status(201).json(await storage.createHotel({ ...parsed.data, status: "draft" }));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Approve a registered hotel — admin/super_admin only.
+  app.patch("/api/hotels/:id/approve", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      res.json(await storage.updateHotel(req.params.id as string, { status: "approved" }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 

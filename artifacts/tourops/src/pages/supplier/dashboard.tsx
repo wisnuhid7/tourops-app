@@ -478,12 +478,12 @@ export default function SupplierDashboard() {
       </TabsContent>
 
       <Dialog open={hotelDialogOpen} onOpenChange={setHotelDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="flex flex-col max-h-[85vh]">
+          <DialogHeader className="shrink-0">
             <DialogTitle>{editingHotelId ? t("edit_hotel") : t("register_hotel")}</DialogTitle>
             <DialogDescription>{t("pending_approval")}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 overflow-y-auto flex-1 pr-1 -mr-1">
             <div><Label>{t("name_required_label")}</Label><Input value={hotelForm.name} onChange={(e) => setHotelForm({ ...hotelForm, name: e.target.value })} placeholder="Grand Plaza" /></div>
             <div>
               <Label>{t("city_label")} *</Label>
@@ -517,7 +517,7 @@ export default function SupplierDashboard() {
             <div><Label>{t("description_label")}</Label><Textarea value={hotelForm.description} onChange={(e) => setHotelForm({ ...hotelForm, description: e.target.value })} rows={2} /></div>
             <div><Label>{t("room_description_label")}</Label><Textarea value={hotelForm.roomDescription} onChange={(e) => setHotelForm({ ...hotelForm, roomDescription: e.target.value })} rows={2} /></div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 pt-2">
             <Button variant="outline" onClick={() => { setHotelDialogOpen(false); setEditingHotelId(null); }}>{t("cancel")}</Button>
             <Button
               onClick={submitHotel}
@@ -957,8 +957,8 @@ export default function SupplierDashboard() {
 
       {/* Rate Dialog Form */}
       <Dialog open={rateDialogOpen} onOpenChange={setRateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="flex flex-col max-h-[85vh]">
+          <DialogHeader className="shrink-0">
             <DialogTitle>{editingRate ? t("edit_rate") : t("create_new_rate")}</DialogTitle>
           </DialogHeader>
           <form onSubmit={(e) => {
@@ -994,7 +994,8 @@ export default function SupplierDashboard() {
               data.pricePerPerson = parseInt(fd.get("price") as string);
             }
             saveRate.mutate({ type: rateType, id: editingRate?.id, data });
-          }} className="space-y-4 pt-4">
+          }} className="flex flex-col overflow-hidden flex-1">
+            <div className="space-y-4 pt-4 overflow-y-auto flex-1 pr-1 -mr-1">
             {rateType === "hotel" && (
               <>
                 <div className="space-y-2"><Label>{t("hotel_name")}</Label><Input name="hotelName" defaultValue={editingRate?.hotelName} required /></div>
@@ -1040,7 +1041,8 @@ export default function SupplierDashboard() {
               <div className="space-y-2"><Label>{t("valid_from_label")}</Label><Input type="date" name="validFrom" defaultValue={editingRate?.validFrom?.split("T")[0] || format(new Date(), "yyyy-MM-dd")} required /></div>
               <div className="space-y-2"><Label>{t("valid_to_label")}</Label><Input type="date" name="validTo" defaultValue={editingRate?.validTo?.split("T")[0]} required /></div>
             </div>
-            <DialogFooter>
+            </div>
+            <DialogFooter className="shrink-0 pt-4">
               <Button type="button" variant="outline" onClick={() => setRateDialogOpen(false)}>{t("cancel")}</Button>
               <Button type="submit" disabled={saveRate.isPending}>
                 {saveRate.isPending ? t("saving_ellipsis") : t("save_rate_button")}

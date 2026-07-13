@@ -83,6 +83,15 @@ const ALL_STAFF_ROLES = [
 // Both admin and super_admin have full administrative access
 const ADMIN_ROLES = ["admin", "super_admin"];
 
+// Catalog/master-data managers: base staff plus per-domain supplier roles.
+// Each supplier role manages its own catalog category (rates + master records).
+const CATALOG_BASE_ROLES = ["super_admin", "admin", "country_manager"];
+const HOTEL_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "hotel_manager"];
+const GUIDE_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "guide_manager"];
+const SIGHTS_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "sights_manager"];
+const AIRLINE_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "airline_supplier"];
+const TRANSPORT_COMPANY_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "transport_manager"];
+
 // Tour builders assemble itineraries (days/items) and can create/edit tour structure & pricing
 const TOUR_BUILDER_ROLES = [...ADMIN_ROLES, "tour_builder"];
 // Content editors + tour builders can edit tour marketing/content fields
@@ -1295,7 +1304,9 @@ export async function registerRoutes(
   app.post("/api/hotels", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
-      res.status(201).json(await storage.createHotel(req.body));
+      const parsed = insertHotelSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      res.status(201).json(await storage.createHotel(parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -2255,7 +2266,7 @@ export async function registerRoutes(
   });
   app.post("/api/master/transport-companies", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, TRANSPORT_COMPANY_MANAGE_ROLES)) return;
       const parsed = insertTransportCompanySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTransportCompany(parsed.data));
@@ -2263,7 +2274,7 @@ export async function registerRoutes(
   });
   app.patch("/api/master/transport-companies/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, TRANSPORT_COMPANY_MANAGE_ROLES)) return;
       const parsed = insertTransportCompanySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateTransportCompany(req.params.id as string, parsed.data));
@@ -2271,14 +2282,14 @@ export async function registerRoutes(
   });
   app.delete("/api/master/transport-companies/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, CATALOG_BASE_ROLES)) return;
       await storage.deleteTransportCompany(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/transport-companies/import", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, TRANSPORT_COMPANY_MANAGE_ROLES)) return;
       const data = coerceBooleans(req.body, ["isActive"]);
       const rows = z.array(insertTransportCompanySchema).safeParse(data);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
@@ -2293,7 +2304,7 @@ export async function registerRoutes(
   });
   app.post("/api/master/airline-agencies", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
       const parsed = insertAirlineAgencySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createAirlineAgency(parsed.data));
@@ -2301,7 +2312,7 @@ export async function registerRoutes(
   });
   app.patch("/api/master/airline-agencies/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
       const parsed = insertAirlineAgencySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateAirlineAgency(req.params.id as string, parsed.data));
@@ -2309,14 +2320,14 @@ export async function registerRoutes(
   });
   app.delete("/api/master/airline-agencies/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
       await storage.deleteAirlineAgency(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/airline-agencies/import", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
       const data = coerceBooleans(req.body, ["isActive"]);
       const rows = z.array(insertAirlineAgencySchema).safeParse(data);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
@@ -2553,13 +2564,13 @@ export async function registerRoutes(
   // ---- Rate Cards: Hotel Rates ----
   app.get("/api/rates/hotel", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, HOTEL_MANAGE_ROLES)) return;
       res.json(await storage.getHotelRates());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/hotel", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, HOTEL_MANAGE_ROLES)) return;
       const parsed = insertHotelRateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createHotelRate(parsed.data));
@@ -2567,7 +2578,7 @@ export async function registerRoutes(
   });
   app.post("/api/rates/hotel/bulk", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, HOTEL_MANAGE_ROLES)) return;
       const rows = z.array(insertHotelRateSchema).safeParse(req.body);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       res.json(await storage.bulkCreateHotelRates(rows.data));
@@ -2575,7 +2586,7 @@ export async function registerRoutes(
   });
   app.patch("/api/rates/hotel/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, HOTEL_MANAGE_ROLES)) return;
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateHotelRate(req.params.id as string, data));
@@ -2583,7 +2594,7 @@ export async function registerRoutes(
   });
   app.delete("/api/rates/hotel/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, HOTEL_MANAGE_ROLES)) return;
       await storage.deleteHotelRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2631,13 +2642,13 @@ export async function registerRoutes(
   // ---- Rate Cards: Guide Rates ----
   app.get("/api/rates/guide", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, GUIDE_MANAGE_ROLES)) return;
       res.json(await storage.getGuideRates());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/guide", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, GUIDE_MANAGE_ROLES)) return;
       const parsed = insertGuideRateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createGuideRate(parsed.data));
@@ -2645,7 +2656,7 @@ export async function registerRoutes(
   });
   app.post("/api/rates/guide/bulk", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, GUIDE_MANAGE_ROLES)) return;
       const rows = z.array(insertGuideRateSchema).safeParse(req.body);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       res.json(await storage.bulkCreateGuideRates(rows.data));
@@ -2653,7 +2664,7 @@ export async function registerRoutes(
   });
   app.patch("/api/rates/guide/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, GUIDE_MANAGE_ROLES)) return;
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateGuideRate(req.params.id as string, data));
@@ -2661,7 +2672,7 @@ export async function registerRoutes(
   });
   app.delete("/api/rates/guide/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, GUIDE_MANAGE_ROLES)) return;
       await storage.deleteGuideRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2670,13 +2681,13 @@ export async function registerRoutes(
   // ---- Rate Cards: Sights Rates ----
   app.get("/api/rates/sights", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
       res.json(await storage.getSightsRates());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/sights", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
       const parsed = insertSightsRateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createSightsRate(parsed.data));
@@ -2684,7 +2695,7 @@ export async function registerRoutes(
   });
   app.post("/api/rates/sights/bulk", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
       const rows = z.array(insertSightsRateSchema).safeParse(req.body);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       res.json(await storage.bulkCreateSightsRates(rows.data));
@@ -2692,7 +2703,7 @@ export async function registerRoutes(
   });
   app.patch("/api/rates/sights/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateSightsRate(req.params.id as string, data));
@@ -2700,7 +2711,7 @@ export async function registerRoutes(
   });
   app.delete("/api/rates/sights/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
       await storage.deleteSightsRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2709,13 +2720,13 @@ export async function registerRoutes(
   // ---- Rate Cards: Airline Rates ----
   app.get("/api/rates/airline", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
       res.json(await storage.getAirlineRates());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/airline", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
       const parsed = insertAirlineRateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createAirlineRate(parsed.data));
@@ -2723,7 +2734,7 @@ export async function registerRoutes(
   });
   app.post("/api/rates/airline/bulk", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
       const rows = z.array(insertAirlineRateSchema).safeParse(req.body);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       res.json(await storage.bulkCreateAirlineRates(rows.data));
@@ -2731,7 +2742,7 @@ export async function registerRoutes(
   });
   app.patch("/api/rates/airline/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateAirlineRate(req.params.id as string, data));
@@ -2739,7 +2750,7 @@ export async function registerRoutes(
   });
   app.delete("/api/rates/airline/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
       await storage.deleteAirlineRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }

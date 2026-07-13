@@ -39,3 +39,15 @@ the list GET has a staff-role gate, not just `isAuthenticated`.
 **Pre-existing rows:** records created before the change have `createdBy = null`, so
 scoped suppliers won't see them (only full-access roles will). Acceptable, but note
 prod rows are the same after publish — backfill if suppliers must see legacy records.
+
+**Exception — hotels are a SHARED master catalog, not own_only.** `/api/hotels` GET
+returns the full list to all staff, and `hotel_manager` can edit/delete ANY hotel
+(role set `HOTEL_EDIT_ROLES = admin/super_admin/hotel_manager` on PATCH+DELETE). This is
+intentional per explicit user request — do NOT "fix" it by adding createdBy scoping.
+Two invariants still hold and must be preserved: (1) approval status is admin-only —
+`/api/hotels/:id/approve` is ADMIN_ROLES, and the PATCH handler strips `status` from the
+payload for non-admins so a hotel_manager can't self-approve; (2) PATCH runs the body
+through `insertHotelSchema.partial()` as a field allowlist so internal columns
+(id/createdAt/etc.) can't be mass-assigned. **Why:** widening PATCH/DELETE to
+hotel_manager without those two guards would let a manager self-approve or mutate
+internal fields — flagged in architect review.

@@ -90,6 +90,9 @@ const HOTEL_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "hotel_manager"];
 // Who may register (submit) a master hotel record. Hotel managers can submit,
 // but their submissions stay in "draft" until an admin/super_admin approves.
 const HOTEL_REGISTER_ROLES = [...ADMIN_ROLES, "hotel_manager"];
+// Who may edit/delete a master hotel record: admins plus hotel managers.
+// (Approval status changes remain admin-only — enforced in the PATCH handler.)
+const HOTEL_EDIT_ROLES = [...ADMIN_ROLES, "hotel_manager"];
 const GUIDE_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "guide_manager"];
 const SIGHTS_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "sights_manager"];
 const AIRLINE_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "airline_supplier"];
@@ -1338,14 +1341,23 @@ export async function registerRoutes(
 
   app.patch("/api/hotels/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
-      res.json(await storage.updateHotel(req.params.id as string, req.body));
+      if (!await requireRole(req, res, HOTEL_EDIT_ROLES)) return;
+      const { role } = await ownerScope(req, []);
+      // Field allowlist: parse against the (partial) insert schema so only known
+      // hotel columns can be updated — prevents mass-assignment of internal fields.
+      const parsed = insertHotelSchema.partial().safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const data: Record<string, any> = { ...parsed.data };
+      // Approval status is admin-only: strip it so a hotel_manager can't
+      // self-approve by smuggling `status` into an ordinary edit payload.
+      if (!ADMIN_ROLES.includes(role)) delete data.status;
+      res.json(await storage.updateHotel(req.params.id as string, data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/hotels/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, HOTEL_EDIT_ROLES)) return;
       await storage.deleteHotel(req.params.id as string);
       res.sendStatus(204);
     } catch (e: any) { res.status(500).json({ message: e.message }); }

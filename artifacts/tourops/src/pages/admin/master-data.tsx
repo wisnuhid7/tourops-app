@@ -1320,6 +1320,12 @@ function HotelsTab() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/hotels/${id}`),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/hotels"] }); setDeleteId(null); toast({ title: t("hotel_deleted") }); },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
   const scrapeHotelsMutation = useMutation({
     mutationFn: (cId: string) => apiRequest("POST", `/api/admin/scrape/hotels/${cId}`),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/hotels"] }); toast({ title: t("hotels_scraped_for_city") }); },
@@ -1390,13 +1396,14 @@ function HotelsTab() {
                       <CheckCircle className="h-4 w-4" />
                     </Button>
                   )}
-                  <Button size="icon" variant="ghost" onClick={() => openEdit(item)}><Pencil className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => openEdit(item)} data-testid={`button-edit-hotel-${item.id}`}><Pencil className="h-4 w-4" /></Button>
+                  <Button size="icon" variant="ghost" onClick={() => setDeleteId(item.id)} data-testid={`button-delete-hotel-${item.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                 </div>
               </TableCell>
             </TableRow>
           ))}
           {(!items || items.length === 0) && (
-            <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No hotels found</TableCell></TableRow>
+            <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No hotels found</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
@@ -1451,6 +1458,8 @@ function HotelsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmDialog open={!!deleteId} onOpenChange={(v) => !v && setDeleteId(null)} onConfirm={() => deleteId && deleteMutation.mutate(deleteId)} isPending={deleteMutation.isPending} entityName={t("hotel")} />
     </div>
   );
 }

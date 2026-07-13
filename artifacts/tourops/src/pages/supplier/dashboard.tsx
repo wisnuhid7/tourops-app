@@ -15,7 +15,7 @@ import {
   Hotel, Bus, MapPin, Camera, Plane,
   ChevronRight, Calendar, User, Search, Globe,
   UserCheck, Ticket, Download, FileCheck, AlertTriangle,
-  DollarSign, ClipboardList, Bell, Plus, Trash2
+  DollarSign, ClipboardList, Bell, Plus, Trash2, Pencil
 } from "lucide-react";
 import { WORKFLOW_STATUSES } from "@/lib/constants";
 import type { BookingWorkflow, Booking, UserProfile, Traveler, Document } from "@workspace/db";
@@ -66,17 +66,74 @@ export default function SupplierDashboard() {
   const { data: cities } = useQuery<any[]>({ queryKey: ["/api/master/cities"], enabled: canRegisterHotels });
 
   const [hotelDialogOpen, setHotelDialogOpen] = useState(false);
-  const [hotelForm, setHotelForm] = useState({ name: "", cityId: "", starRating: "3", basePrice: "", currency: "USD", address: "", imageUrl: "", contactPhone: "", contactEmail: "", website: "", description: "", roomDescription: "" });
+  const [editingHotelId, setEditingHotelId] = useState<string | null>(null);
+  const [deleteHotelId, setDeleteHotelId] = useState<string | null>(null);
+  const emptyHotelForm = { name: "", cityId: "", starRating: "3", basePrice: "", currency: "USD", address: "", imageUrl: "", contactPhone: "", contactEmail: "", website: "", description: "", roomDescription: "" };
+  const [hotelForm, setHotelForm] = useState(emptyHotelForm);
+
+  const openCreateHotel = () => { setEditingHotelId(null); setHotelForm(emptyHotelForm); setHotelDialogOpen(true); };
+  const openEditHotel = (h: any) => {
+    setEditingHotelId(h.id);
+    setHotelForm({
+      name: h.name || "", cityId: h.cityId || "", starRating: String(h.starRating || 3),
+      basePrice: h.basePrice || "", currency: h.currency || "USD", address: h.address || "",
+      imageUrl: h.imageUrl || "", contactPhone: h.contactPhone || "", contactEmail: h.contactEmail || "",
+      website: h.website || "", description: h.description || "", roomDescription: h.roomTypes?.description || "",
+    });
+    setHotelDialogOpen(true);
+  };
+
   const registerHotel = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/hotels", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/hotels"] });
       toast({ title: t("hotel_registered") });
       setHotelDialogOpen(false);
-      setHotelForm({ name: "", cityId: "", starRating: "3", basePrice: "", currency: "USD", address: "", imageUrl: "", contactPhone: "", contactEmail: "", website: "", description: "", roomDescription: "" });
+      setHotelForm(emptyHotelForm);
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
+
+  const updateHotel = useMutation({
+    mutationFn: ({ id, ...data }: any) => apiRequest("PATCH", `/api/hotels/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/hotels"] });
+      toast({ title: t("hotel_updated") });
+      setHotelDialogOpen(false);
+      setEditingHotelId(null);
+      setHotelForm(emptyHotelForm);
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const deleteHotel = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/hotels/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/hotels"] });
+      toast({ title: t("hotel_deleted") });
+      setDeleteHotelId(null);
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const submitHotel = () => {
+    const payload = {
+      name: hotelForm.name,
+      cityId: hotelForm.cityId,
+      starRating: parseInt(hotelForm.starRating),
+      basePrice: hotelForm.basePrice || undefined,
+      currency: hotelForm.currency,
+      address: hotelForm.address || undefined,
+      imageUrl: hotelForm.imageUrl || undefined,
+      contactPhone: hotelForm.contactPhone || undefined,
+      contactEmail: hotelForm.contactEmail || undefined,
+      website: hotelForm.website || undefined,
+      description: hotelForm.description || undefined,
+      roomTypes: hotelForm.roomDescription ? { description: hotelForm.roomDescription } : undefined,
+    };
+    if (editingHotelId) updateHotel.mutate({ id: editingHotelId, ...payload });
+    else registerHotel.mutate(payload);
+  };
 
   const { data: guideRates } = useQuery<any[]>({ queryKey: ["/api/rates/guide"] });
   const { data: sightsRates } = useQuery<any[]>({ queryKey: ["/api/rates/sights"] });
@@ -372,7 +429,7 @@ export default function SupplierDashboard() {
               <CardTitle>{t("hotels_catalog")}</CardTitle>
               <CardDescription>{t("manage_accommodation_bookings")}</CardDescription>
             </div>
-            <Button size="sm" onClick={() => setHotelDialogOpen(true)}><Plus className="h-4 w-4 mr-2" /> {t("register_hotel")}</Button>
+            <Button size="sm" onClick={openCreateHotel}><Plus className="h-4 w-4 mr-2" /> {t("register_hotel")}</Button>
           </CardHeader>
           <CardContent>
             <div className="border rounded-md">
@@ -383,6 +440,7 @@ export default function SupplierDashboard() {
                     <TableHead>{t("stars_label")}</TableHead>
                     <TableHead>{t("base_price_label")}</TableHead>
                     <TableHead>{t("status")}</TableHead>
+                    <TableHead className="text-right">{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -396,10 +454,16 @@ export default function SupplierDashboard() {
                           {h.status === "approved" ? t("approved_status") : h.status === "draft" ? t("pending_approval") : h.status}
                         </Badge>
                       </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button size="icon" variant="ghost" onClick={() => openEditHotel(h)} data-testid={`button-edit-hotel-${h.id}`}><Pencil className="h-4 w-4" /></Button>
+                          <Button size="icon" variant="ghost" onClick={() => setDeleteHotelId(h.id)} data-testid={`button-delete-hotel-${h.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {(!hotels || hotels.length === 0) && (
-                    <TableRow><TableCell colSpan={4} className="text-center py-10 text-muted-foreground">{t("no_hotels_found")}</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">{t("no_hotels_found")}</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -411,7 +475,7 @@ export default function SupplierDashboard() {
       <Dialog open={hotelDialogOpen} onOpenChange={setHotelDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{t("register_hotel")}</DialogTitle>
+            <DialogTitle>{editingHotelId ? t("edit_hotel") : t("register_hotel")}</DialogTitle>
             <DialogDescription>{t("pending_approval")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -449,24 +513,27 @@ export default function SupplierDashboard() {
             <div><Label>{t("room_description_label")}</Label><Textarea value={hotelForm.roomDescription} onChange={(e) => setHotelForm({ ...hotelForm, roomDescription: e.target.value })} rows={2} /></div>
           </div>
           <DialogFooter>
+            <Button variant="outline" onClick={() => { setHotelDialogOpen(false); setEditingHotelId(null); }}>{t("cancel")}</Button>
             <Button
-              onClick={() => registerHotel.mutate({
-                name: hotelForm.name,
-                cityId: hotelForm.cityId,
-                starRating: parseInt(hotelForm.starRating),
-                basePrice: hotelForm.basePrice || undefined,
-                currency: hotelForm.currency,
-                address: hotelForm.address || undefined,
-                imageUrl: hotelForm.imageUrl || undefined,
-                contactPhone: hotelForm.contactPhone || undefined,
-                contactEmail: hotelForm.contactEmail || undefined,
-                website: hotelForm.website || undefined,
-                description: hotelForm.description || undefined,
-                roomTypes: hotelForm.roomDescription ? { description: hotelForm.roomDescription } : undefined,
-              })}
-              disabled={!hotelForm.name || !hotelForm.cityId || registerHotel.isPending}
+              onClick={submitHotel}
+              disabled={!hotelForm.name || !hotelForm.cityId || registerHotel.isPending || updateHotel.isPending}
             >
-              {t("register_hotel")}
+              {(registerHotel.isPending || updateHotel.isPending) ? t("saving") : editingHotelId ? t("save") : t("register_hotel")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!deleteHotelId} onOpenChange={(v) => !v && setDeleteHotelId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("confirm_delete")}</DialogTitle>
+            <DialogDescription>{t("delete_hotel_confirm")}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteHotelId(null)}>{t("cancel")}</Button>
+            <Button variant="destructive" onClick={() => deleteHotelId && deleteHotel.mutate(deleteHotelId)} disabled={deleteHotel.isPending}>
+              {deleteHotel.isPending ? t("deleting") : t("delete")}
             </Button>
           </DialogFooter>
         </DialogContent>

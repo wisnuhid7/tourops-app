@@ -1341,6 +1341,10 @@ const translations = {
     airline_agency_deleted: "Airline agency deleted",
     hotel_created: "Hotel created",
     hotel_updated: "Hotel updated",
+    hotel_deleted: "Hotel deleted successfully",
+    edit_hotel: "Edit Hotel",
+    confirm_delete: "Confirm Deletion",
+    delete_hotel_confirm: "Are you sure you want to permanently delete this hotel? This action cannot be undone.",
     hotels_scraped_for_city: "Hotels scraped for selected city",
     // Ops
     content_saved: "Content saved",
@@ -2827,6 +2831,10 @@ const translations = {
     airline_agency_deleted: "Agencia aérea eliminada",
     hotel_created: "Hotel creado",
     hotel_updated: "Hotel actualizado",
+    hotel_deleted: "Hotel eliminado con éxito",
+    edit_hotel: "Editar Hotel",
+    confirm_delete: "Confirmar eliminación",
+    delete_hotel_confirm: "¿Está seguro de que desea eliminar permanentemente este hotel? Esta acción no se puede deshacer.",
     hotels_scraped_for_city: "Hoteles extraídos para la ciudad seleccionada",
     // Ops
     content_saved: "Contenido guardado",
@@ -4313,6 +4321,10 @@ const translations = {
     airline_agency_deleted: "Agen maskapai dihapus",
     hotel_created: "Hotel dibuat",
     hotel_updated: "Hotel diperbarui",
+    hotel_deleted: "Hotel berhasil dihapus",
+    edit_hotel: "Edit Hotel",
+    confirm_delete: "Konfirmasi Penghapusan",
+    delete_hotel_confirm: "Apakah Anda yakin ingin menghapus hotel ini secara permanen? Tindakan ini tidak dapat dibatalkan.",
     hotels_scraped_for_city: "Hotel diambil untuk kota terpilih",
     // Ops
     content_saved: "Konten disimpan",

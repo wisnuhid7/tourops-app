@@ -23,12 +23,12 @@ export default function TravelAgentDashboard() {
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold font-serif flex items-center gap-2"><Users className="h-6 w-6 text-primary" />{t("agent_dashboard")}</h1>
-        <p className="text-muted-foreground text-sm">Browse published tours and book them on behalf of your clients.</p>
+        <p className="text-muted-foreground text-sm">{t("travel_agent_subtitle")}</p>
       </div>
       <Tabs defaultValue="tours">
         <TabsList>
-          <TabsTrigger value="tours">Browse tours</TabsTrigger>
-          <TabsTrigger value="bookings">My client bookings</TabsTrigger>
+          <TabsTrigger value="tours">{t("browse_tours_tab")}</TabsTrigger>
+          <TabsTrigger value="bookings">{t("my_client_bookings_tab")}</TabsTrigger>
         </TabsList>
         <TabsContent value="tours"><TourCatalog /></TabsContent>
         <TabsContent value="bookings"><ClientBookings /></TabsContent>
@@ -47,7 +47,7 @@ function TourCatalog() {
 
   return (
     <div className="space-y-4 mt-4">
-      <Input placeholder="Search tours..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" data-testid="input-search-tours" />
+      <Input placeholder={t("search_tours_placeholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-sm" data-testid="input-search-tours" />
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(tour => (
           <Card key={tour.id} className="overflow-hidden" data-testid={`card-tour-${tour.id}`}>
@@ -96,17 +96,17 @@ function NewClientBookingForm({ tour, onClose }: { tour: Tour; onClose: () => vo
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
-      toast({ title: "Booking created for client" });
+      toast({ title: t("booking_created_for_client") });
       onClose();
     },
-    onError: () => toast({ title: "Failed to create booking", variant: "destructive" }),
+    onError: () => toast({ title: t("failed_to_create_booking"), variant: "destructive" }),
   });
 
   return (
     <div className="space-y-3">
-      <div><Label>Client / group name</Label><Input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="e.g. Smith Family" data-testid="input-client-name" /></div>
-      <div><Label>Party size</Label><Input type="number" min={1} value={partySize} onChange={(e) => setPartySize(parseInt(e.target.value) || 1)} /></div>
-      <div><Label>Notes</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} /></div>
+      <div><Label>{t("client_group_name_label")}</Label><Input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder={t("client_name_placeholder")} data-testid="input-client-name" /></div>
+      <div><Label>{t("party_size_label")}</Label><Input type="number" min={1} value={partySize} onChange={(e) => setPartySize(parseInt(e.target.value) || 1)} /></div>
+      <div><Label>{t("notes_label")}</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} /></div>
       <div className="flex gap-2 pt-2">
         <Button onClick={() => create.mutate()} disabled={!groupName || create.isPending} data-testid="button-confirm-booking">
           {create.isPending ? t("adding") : "Create booking"}

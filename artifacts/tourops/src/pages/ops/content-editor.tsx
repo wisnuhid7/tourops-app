@@ -37,12 +37,12 @@ export default function ContentEditorDashboard() {
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold font-serif flex items-center gap-2"><FileText className="h-6 w-6 text-primary" />{t("editor_dashboard")}</h1>
-        <p className="text-muted-foreground text-sm">Edit marketing content — descriptions, highlights, photos and tags for each tour.</p>
+        <p className="text-muted-foreground text-sm">{t("content_editor_subtitle")}</p>
       </div>
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search tours..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" data-testid="input-search-tours" />
+        <Input placeholder={t("search_tours_placeholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" data-testid="input-search-tours" />
       </div>
 
       {filtered.length === 0 ? (
@@ -128,16 +128,16 @@ function ContentForm({ tour, onClose }: { tour: Tour; onClose: () => void }) {
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tours"] });
-      toast({ title: "Content saved" });
+      toast({ title: t("content_saved") });
       onClose();
     },
-    onError: () => toast({ title: "Failed to save", variant: "destructive" }),
+    onError: () => toast({ title: t("failed_to_save"), variant: "destructive" }),
   });
 
   return (
     <div className="space-y-4">
       <div>
-        <Label>Cover image</Label>
+        <Label>{t("cover_image_label")}</Label>
         <div className="flex gap-2 items-center">
           <Input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, setImageUrl)} disabled={isUploading} />
           {isUploading && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
@@ -150,22 +150,22 @@ function ContentForm({ tour, onClose }: { tour: Tour; onClose: () => void }) {
         <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} data-testid="textarea-description" />
       </div>
       <div>
-        <Label>Highlights</Label>
-        <Textarea value={highlights} onChange={(e) => setHighlights(e.target.value)} rows={3} placeholder="One highlight per line" data-testid="textarea-highlights" />
+        <Label>{t("highlights")}</Label>
+        <Textarea value={highlights} onChange={(e) => setHighlights(e.target.value)} rows={3} placeholder={t("one_highlight_per_line")} data-testid="textarea-highlights" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <Label>Inclusions</Label>
+          <Label>{t("inclusions")}</Label>
           <Textarea value={inclusions} onChange={(e) => setInclusions(e.target.value)} rows={3} />
         </div>
         <div>
-          <Label>Exclusions</Label>
+          <Label>{t("exclusions")}</Label>
           <Textarea value={exclusions} onChange={(e) => setExclusions(e.target.value)} rows={3} />
         </div>
       </div>
 
       <div>
-        <Label>Gallery</Label>
+        <Label>{t("gallery_label")}</Label>
         <div className="flex gap-2 items-center mb-2">
           <Input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, (url) => setGalleryUrls(prev => [...prev, url]))} disabled={isUploading} />
         </div>
@@ -184,9 +184,9 @@ function ContentForm({ tour, onClose }: { tour: Tour; onClose: () => void }) {
       </div>
 
       <div>
-        <Label>Tags</Label>
+        <Label>{t("tags_label")}</Label>
         <div className="flex gap-2 mb-2">
-          <Input value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder="e.g. adventure" onKeyDown={(e) => { if (e.key === "Enter" && newTag.trim()) { setTags(prev => [...prev, newTag.trim()]); setNewTag(""); } }} />
+          <Input value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder={t("tag_example_placeholder")} onKeyDown={(e) => { if (e.key === "Enter" && newTag.trim()) { setTags(prev => [...prev, newTag.trim()]); setNewTag(""); } }} />
           <Button type="button" variant="outline" onClick={() => { if (newTag.trim()) { setTags(prev => [...prev, newTag.trim()]); setNewTag(""); } }}><Plus className="h-4 w-4" /></Button>
         </div>
         <div className="flex flex-wrap gap-1">

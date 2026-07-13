@@ -159,6 +159,19 @@ async function requireRole(req: Request, res: Response, roles: string[]): Promis
   return true;
 }
 
+// Per-supplier data isolation. When the caller's role is one of `scopedRoles`
+// (a supplier role that must only see its own records), returns ownerId = their
+// userId; for full-access / other staff roles returns ownerId = null (see all).
+async function ownerScope(
+  req: Request,
+  scopedRoles: string[],
+): Promise<{ userId: string; role: string; ownerId: string | null; transportCompanyId: string | null }> {
+  const userId = getUserId(req) as string;
+  const profile = await storage.getOrCreateProfile(userId);
+  const ownerId = scopedRoles.includes(profile.role) ? userId : null;
+  return { userId, role: profile.role, ownerId, transportCompanyId: (profile as any).transportCompanyId ?? null };
+}
+
 function coerceBooleans(data: any[], booleanFields: string[]) {
   return data.map(row => {
     const newRow = { ...row };
@@ -2260,24 +2273,36 @@ export async function registerRoutes(
   });
 
   // ---- Master Data: Transport Companies ----
-  app.get("/api/master/transport-companies", isAuthenticated, async (_req, res) => {
-    try { res.json(await storage.getAllTransportCompanies()); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
+  app.get("/api/master/transport-companies", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      const { ownerId, transportCompanyId } = await ownerScope(req, ["transport_manager"]);
+      let rows = await storage.getAllTransportCompanies();
+      if (ownerId) rows = rows.filter(r => r.createdBy === ownerId || r.id === transportCompanyId);
+      res.json(rows);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/transport-companies", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, TRANSPORT_COMPANY_MANAGE_ROLES)) return;
       const parsed = insertTransportCompanySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.json(await storage.createTransportCompany(parsed.data));
+      const { userId } = await ownerScope(req, ["transport_manager"]);
+      res.json(await storage.createTransportCompany({ ...parsed.data, createdBy: userId }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.patch("/api/master/transport-companies/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, TRANSPORT_COMPANY_MANAGE_ROLES)) return;
+      const { ownerId, transportCompanyId } = await ownerScope(req, ["transport_manager"]);
+      if (ownerId) {
+        const existing = await storage.getTransportCompany(req.params.id as string);
+        if (!existing || (existing.createdBy !== ownerId && existing.id !== transportCompanyId)) return res.status(403).json({ message: "Forbidden: not your record" });
+      }
       const parsed = insertTransportCompanySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.json(await storage.updateTransportCompany(req.params.id as string, parsed.data));
+      const { createdBy: _ignoredCb, ...updateData } = parsed.data;
+      res.json(await storage.updateTransportCompany(req.params.id as string, updateData));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.delete("/api/master/transport-companies/:id", isAuthenticated, async (req, res) => {
@@ -2293,34 +2318,52 @@ export async function registerRoutes(
       const data = coerceBooleans(req.body, ["isActive"]);
       const rows = z.array(insertTransportCompanySchema).safeParse(data);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
-      res.json(await storage.bulkCreateTransportCompanies(rows.data));
+      const { userId } = await ownerScope(req, ["transport_manager"]);
+      res.json(await storage.bulkCreateTransportCompanies(rows.data.map(r => ({ ...r, createdBy: userId }))));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   // ---- Master Data: Airline Agencies ----
-  app.get("/api/master/airline-agencies", isAuthenticated, async (_req, res) => {
-    try { res.json(await storage.getAllAirlineAgencies()); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
+  app.get("/api/master/airline-agencies", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      const { ownerId } = await ownerScope(req, ["airline_supplier"]);
+      let rows = await storage.getAllAirlineAgencies();
+      if (ownerId) rows = rows.filter(r => r.createdBy === ownerId);
+      res.json(rows);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/airline-agencies", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
       const parsed = insertAirlineAgencySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.json(await storage.createAirlineAgency(parsed.data));
+      const { userId } = await ownerScope(req, ["airline_supplier"]);
+      res.json(await storage.createAirlineAgency({ ...parsed.data, createdBy: userId }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.patch("/api/master/airline-agencies/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
+      const { ownerId } = await ownerScope(req, ["airline_supplier"]);
+      if (ownerId) {
+        const existing = await storage.getAirlineAgency(req.params.id as string);
+        if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
+      }
       const parsed = insertAirlineAgencySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.json(await storage.updateAirlineAgency(req.params.id as string, parsed.data));
+      const { createdBy: _ignoredCb, ...updateData } = parsed.data;
+      res.json(await storage.updateAirlineAgency(req.params.id as string, updateData));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.delete("/api/master/airline-agencies/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
+      const { ownerId } = await ownerScope(req, ["airline_supplier"]);
+      if (ownerId) {
+        const existing = await storage.getAirlineAgency(req.params.id as string);
+        if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
+      }
       await storage.deleteAirlineAgency(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2331,7 +2374,8 @@ export async function registerRoutes(
       const data = coerceBooleans(req.body, ["isActive"]);
       const rows = z.array(insertAirlineAgencySchema).safeParse(data);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
-      res.json(await storage.bulkCreateAirlineAgencies(rows.data));
+      const { userId } = await ownerScope(req, ["airline_supplier"]);
+      res.json(await storage.bulkCreateAirlineAgencies(rows.data.map(r => ({ ...r, createdBy: userId }))));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -2554,7 +2598,7 @@ export async function registerRoutes(
 
   const validRateStatuses = ["draft", "active", "archived"] as const;
   function sanitizeRateUpdate(body: any) {
-    const { id, createdAt, ...rest } = body;
+    const { id, createdAt, createdBy, ...rest } = body;
     if (rest.status && !validRateStatuses.includes(rest.status)) {
       return null;
     }
@@ -2565,7 +2609,10 @@ export async function registerRoutes(
   app.get("/api/rates/hotel", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, HOTEL_MANAGE_ROLES)) return;
-      res.json(await storage.getHotelRates());
+      const { ownerId } = await ownerScope(req, ["hotel_manager"]);
+      let rows = await storage.getHotelRates();
+      if (ownerId) rows = rows.filter(r => r.createdBy === ownerId);
+      res.json(rows);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/hotel", isAuthenticated, async (req, res) => {
@@ -2573,7 +2620,8 @@ export async function registerRoutes(
       if (!await requireRole(req, res, HOTEL_MANAGE_ROLES)) return;
       const parsed = insertHotelRateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.json(await storage.createHotelRate(parsed.data));
+      const { userId } = await ownerScope(req, ["hotel_manager"]);
+      res.json(await storage.createHotelRate({ ...parsed.data, createdBy: userId }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/hotel/bulk", isAuthenticated, async (req, res) => {
@@ -2581,12 +2629,18 @@ export async function registerRoutes(
       if (!await requireRole(req, res, HOTEL_MANAGE_ROLES)) return;
       const rows = z.array(insertHotelRateSchema).safeParse(req.body);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
-      res.json(await storage.bulkCreateHotelRates(rows.data));
+      const { userId } = await ownerScope(req, ["hotel_manager"]);
+      res.json(await storage.bulkCreateHotelRates(rows.data.map(r => ({ ...r, createdBy: userId }))));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.patch("/api/rates/hotel/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, HOTEL_MANAGE_ROLES)) return;
+      const { ownerId } = await ownerScope(req, ["hotel_manager"]);
+      if (ownerId) {
+        const existing = await storage.getHotelRate(req.params.id as string);
+        if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
+      }
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateHotelRate(req.params.id as string, data));
@@ -2595,6 +2649,11 @@ export async function registerRoutes(
   app.delete("/api/rates/hotel/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, HOTEL_MANAGE_ROLES)) return;
+      const { ownerId } = await ownerScope(req, ["hotel_manager"]);
+      if (ownerId) {
+        const existing = await storage.getHotelRate(req.params.id as string);
+        if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
+      }
       await storage.deleteHotelRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2643,7 +2702,10 @@ export async function registerRoutes(
   app.get("/api/rates/guide", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, GUIDE_MANAGE_ROLES)) return;
-      res.json(await storage.getGuideRates());
+      const { ownerId } = await ownerScope(req, ["guide_manager"]);
+      let rows = await storage.getGuideRates();
+      if (ownerId) rows = rows.filter(r => r.createdBy === ownerId);
+      res.json(rows);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/guide", isAuthenticated, async (req, res) => {
@@ -2651,7 +2713,8 @@ export async function registerRoutes(
       if (!await requireRole(req, res, GUIDE_MANAGE_ROLES)) return;
       const parsed = insertGuideRateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.json(await storage.createGuideRate(parsed.data));
+      const { userId } = await ownerScope(req, ["guide_manager"]);
+      res.json(await storage.createGuideRate({ ...parsed.data, createdBy: userId }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/guide/bulk", isAuthenticated, async (req, res) => {
@@ -2659,12 +2722,18 @@ export async function registerRoutes(
       if (!await requireRole(req, res, GUIDE_MANAGE_ROLES)) return;
       const rows = z.array(insertGuideRateSchema).safeParse(req.body);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
-      res.json(await storage.bulkCreateGuideRates(rows.data));
+      const { userId } = await ownerScope(req, ["guide_manager"]);
+      res.json(await storage.bulkCreateGuideRates(rows.data.map(r => ({ ...r, createdBy: userId }))));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.patch("/api/rates/guide/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, GUIDE_MANAGE_ROLES)) return;
+      const { ownerId } = await ownerScope(req, ["guide_manager"]);
+      if (ownerId) {
+        const existing = await storage.getGuideRate(req.params.id as string);
+        if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
+      }
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateGuideRate(req.params.id as string, data));
@@ -2673,6 +2742,11 @@ export async function registerRoutes(
   app.delete("/api/rates/guide/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, GUIDE_MANAGE_ROLES)) return;
+      const { ownerId } = await ownerScope(req, ["guide_manager"]);
+      if (ownerId) {
+        const existing = await storage.getGuideRate(req.params.id as string);
+        if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
+      }
       await storage.deleteGuideRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2682,7 +2756,10 @@ export async function registerRoutes(
   app.get("/api/rates/sights", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
-      res.json(await storage.getSightsRates());
+      const { ownerId } = await ownerScope(req, ["sights_manager"]);
+      let rows = await storage.getSightsRates();
+      if (ownerId) rows = rows.filter(r => r.createdBy === ownerId);
+      res.json(rows);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/sights", isAuthenticated, async (req, res) => {
@@ -2690,7 +2767,8 @@ export async function registerRoutes(
       if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
       const parsed = insertSightsRateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.json(await storage.createSightsRate(parsed.data));
+      const { userId } = await ownerScope(req, ["sights_manager"]);
+      res.json(await storage.createSightsRate({ ...parsed.data, createdBy: userId }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/sights/bulk", isAuthenticated, async (req, res) => {
@@ -2698,12 +2776,18 @@ export async function registerRoutes(
       if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
       const rows = z.array(insertSightsRateSchema).safeParse(req.body);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
-      res.json(await storage.bulkCreateSightsRates(rows.data));
+      const { userId } = await ownerScope(req, ["sights_manager"]);
+      res.json(await storage.bulkCreateSightsRates(rows.data.map(r => ({ ...r, createdBy: userId }))));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.patch("/api/rates/sights/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
+      const { ownerId } = await ownerScope(req, ["sights_manager"]);
+      if (ownerId) {
+        const existing = await storage.getSightsRate(req.params.id as string);
+        if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
+      }
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateSightsRate(req.params.id as string, data));
@@ -2712,6 +2796,11 @@ export async function registerRoutes(
   app.delete("/api/rates/sights/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
+      const { ownerId } = await ownerScope(req, ["sights_manager"]);
+      if (ownerId) {
+        const existing = await storage.getSightsRate(req.params.id as string);
+        if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
+      }
       await storage.deleteSightsRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2721,7 +2810,10 @@ export async function registerRoutes(
   app.get("/api/rates/airline", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
-      res.json(await storage.getAirlineRates());
+      const { ownerId } = await ownerScope(req, ["airline_supplier"]);
+      let rows = await storage.getAirlineRates();
+      if (ownerId) rows = rows.filter(r => r.createdBy === ownerId);
+      res.json(rows);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/airline", isAuthenticated, async (req, res) => {
@@ -2729,7 +2821,8 @@ export async function registerRoutes(
       if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
       const parsed = insertAirlineRateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.json(await storage.createAirlineRate(parsed.data));
+      const { userId } = await ownerScope(req, ["airline_supplier"]);
+      res.json(await storage.createAirlineRate({ ...parsed.data, createdBy: userId }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/airline/bulk", isAuthenticated, async (req, res) => {
@@ -2737,12 +2830,18 @@ export async function registerRoutes(
       if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
       const rows = z.array(insertAirlineRateSchema).safeParse(req.body);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
-      res.json(await storage.bulkCreateAirlineRates(rows.data));
+      const { userId } = await ownerScope(req, ["airline_supplier"]);
+      res.json(await storage.bulkCreateAirlineRates(rows.data.map(r => ({ ...r, createdBy: userId }))));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.patch("/api/rates/airline/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
+      const { ownerId } = await ownerScope(req, ["airline_supplier"]);
+      if (ownerId) {
+        const existing = await storage.getAirlineRate(req.params.id as string);
+        if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
+      }
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateAirlineRate(req.params.id as string, data));
@@ -2751,6 +2850,11 @@ export async function registerRoutes(
   app.delete("/api/rates/airline/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
+      const { ownerId } = await ownerScope(req, ["airline_supplier"]);
+      if (ownerId) {
+        const existing = await storage.getAirlineRate(req.params.id as string);
+        if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
+      }
       await storage.deleteAirlineRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }

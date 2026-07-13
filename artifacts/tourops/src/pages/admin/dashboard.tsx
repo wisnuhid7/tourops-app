@@ -137,7 +137,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Top Performing Tours</CardTitle>
+            <CardTitle className="text-base">{t('top_performing_tours')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-5">
@@ -145,7 +145,7 @@ export default function AdminDashboard() {
                 <div key={stat.id} className="space-y-1">
                   <div className="flex items-center justify-between gap-4 text-sm mb-1">
                     <span className="font-medium truncate max-w-[250px]">{stat.title}</span>
-                    <span className="text-muted-foreground">{stat.count} bookings | ${stat.revenue.toLocaleString()}</span>
+                    <span className="text-muted-foreground">{stat.count} {t('bookings_count_suffix')} | ${stat.revenue.toLocaleString()}</span>
                   </div>
                   <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
                     <div 
@@ -155,7 +155,7 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               )) : (
-                <p className="text-sm text-muted-foreground py-4 text-center">No tour data available</p>
+                <p className="text-sm text-muted-foreground py-4 text-center">{t('no_tour_data')}</p>
               )}
             </div>
           </CardContent>
@@ -165,15 +165,15 @@ export default function AdminDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Operations Overview</CardTitle>
+            <CardTitle className="text-base">{t('operations_overview')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Fulfillment Funnel</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('fulfillment_funnel')}</p>
               {[
-                { label: "Pending", count: (bookings || []).filter((b) => b.fulfillmentStatus === "pending").length, color: "bg-muted" },
-                { label: "In Progress", count: (bookings || []).filter((b) => b.fulfillmentStatus === "in_progress").length, color: "bg-primary" },
-                { label: "Completed", count: (bookings || []).filter((b) => b.fulfillmentStatus === "completed").length, color: "bg-green-600" },
+                { label: t('status_pending'), count: (bookings || []).filter((b) => b.fulfillmentStatus === "pending").length, color: "bg-muted" },
+                { label: t('status_in_progress'), count: (bookings || []).filter((b) => b.fulfillmentStatus === "in_progress").length, color: "bg-primary" },
+                { label: t('status_completed'), count: (bookings || []).filter((b) => b.fulfillmentStatus === "completed").length, color: "bg-green-600" },
               ].map((item) => (
                 <div key={item.label} className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
@@ -186,11 +186,11 @@ export default function AdminDashboard() {
             </div>
 
             <div className="pt-4 border-t space-y-3">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Needs Attention</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t('needs_attention')}</p>
               {pendingDocs > 0 && (
                 <Link href="/admin/documents">
                   <div className="flex items-center justify-between text-sm cursor-pointer hover:text-primary">
-                    <span className="flex items-center gap-2"><ClipboardList className="h-3.5 w-3.5" /> Pending Documents</span>
+                    <span className="flex items-center gap-2"><ClipboardList className="h-3.5 w-3.5" /> {t('pending_documents')}</span>
                     <Badge variant="secondary" className="h-5">{pendingDocs}</Badge>
                   </div>
                 </Link>
@@ -198,21 +198,21 @@ export default function AdminDashboard() {
               {pendingPayments > 0 && (
                 <Link href="/admin/payments">
                   <div className="flex items-center justify-between text-sm cursor-pointer hover:text-primary">
-                    <span className="flex items-center gap-2"><CreditCard className="h-3.5 w-3.5" /> Pending Payments</span>
+                    <span className="flex items-center gap-2"><CreditCard className="h-3.5 w-3.5" /> {t('pending_payments_label')}</span>
                     <Badge variant="secondary" className="h-5">{pendingPayments}</Badge>
                   </div>
                 </Link>
               )}
               {blockedWorkflows > 0 && (
                 <div className="flex items-center justify-between text-sm text-destructive font-medium">
-                  <span className="flex items-center gap-2"><AlertTriangle className="h-3.5 w-3.5" /> Blocked Workflows</span>
+                  <span className="flex items-center gap-2"><AlertTriangle className="h-3.5 w-3.5" /> {t('blocked_workflows')}</span>
                   <Badge variant="destructive" className="h-5">{blockedWorkflows}</Badge>
                 </div>
               )}
               {sights && sights.filter(s => (s.dataQualityScore || 0) < 70).length > 0 && (
                 <Link href="/admin/master-data">
                   <div className="flex items-center justify-between text-sm cursor-pointer hover:text-primary">
-                    <span className="flex items-center gap-2"><Landmark className="h-3.5 w-3.5" /> Sights Needs Review</span>
+                    <span className="flex items-center gap-2"><Landmark className="h-3.5 w-3.5" /> {t('sights_needs_review')}</span>
                     <Badge variant="secondary" className="h-5 bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200">
                       {sights.filter(s => (s.dataQualityScore || 0) < 70).length}
                     </Badge>
@@ -220,7 +220,7 @@ export default function AdminDashboard() {
                 </Link>
               )}
               {pendingDocs === 0 && pendingPayments === 0 && blockedWorkflows === 0 && (!sights || sights.filter(s => (s.dataQualityScore || 0) < 70).length === 0) && (
-                <p className="text-xs text-muted-foreground italic text-center py-2">All clear! No pending actions.</p>
+                <p className="text-xs text-muted-foreground italic text-center py-2">{t('all_clear_no_actions')}</p>
               )}
             </div>
           </CardContent>
@@ -229,9 +229,9 @@ export default function AdminDashboard() {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-4 pb-3">
-          <CardTitle className="text-base">Recent Activity</CardTitle>
+          <CardTitle className="text-base">{t('recent_activity')}</CardTitle>
           <Link href="/admin/bookings">
-            <Button variant="ghost" size="sm">View All Bookings <ArrowRight className="ml-1 h-3 w-3" /></Button>
+            <Button variant="ghost" size="sm">{t('view_all_bookings')} <ArrowRight className="ml-1 h-3 w-3" /></Button>
           </Link>
         </CardHeader>
         <CardContent className="p-0">
@@ -246,7 +246,7 @@ export default function AdminDashboard() {
                       </div>
                       <div>
                         <p className="font-semibold text-sm">{booking.bookingCode}</p>
-                        <p className="text-xs text-muted-foreground">{booking.groupName || BOOKING_TYPES[booking.bookingType]} | {booking.partySizeExpected} pax</p>
+                        <p className="text-xs text-muted-foreground">{booking.groupName || BOOKING_TYPES[booking.bookingType]} | {booking.partySizeExpected} {t('pax_label')}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -266,7 +266,7 @@ export default function AdminDashboard() {
           ) : (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <BookOpen className="h-12 w-12 text-muted-foreground/20 mb-4" />
-              <p className="text-sm text-muted-foreground">No recent booking activity</p>
+              <p className="text-sm text-muted-foreground">{t('no_recent_booking_activity')}</p>
             </div>
           )}
         </CardContent>
@@ -297,14 +297,14 @@ function LiveActivityFeed() {
               }`} />
               <div className="space-y-1 flex-1">
                 <p className="font-medium">
-                  {log.changedByName || 'System'} {log.action} <span className="capitalize">{log.entityType}</span> {(log.entityId || "").slice(0,8)}
+                  {log.changedByName || t('system_activity_default')} {log.action} <span className="capitalize">{log.entityType}</span> {(log.entityId || "").slice(0,8)}
                 </p>
                 <p className="text-muted-foreground line-clamp-1">{log.note || ""}</p>
                 <p className="text-[10px] text-muted-foreground">{log.createdAt ? new Date(log.createdAt).toLocaleTimeString() : ""}</p>
               </div>
             </div>
           ))}
-          {logs?.length === 0 && <p className="text-center py-8 text-muted-foreground italic">No recent activity</p>}
+          {logs?.length === 0 && <p className="text-center py-8 text-muted-foreground italic">{t('no_recent_activity')}</p>}
         </div>
       </CardContent>
     </Card>
@@ -326,7 +326,7 @@ function AIAdvisorDialog() {
       setAnalysis(data);
     } catch (e: any) {
       console.error(e);
-      toast({ title: "AI advisor failed", description: e?.message || "Please try again.", variant: "destructive" });
+      toast({ title: t('ai_advisor_failed'), description: e?.message || t('please_try_again'), variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -346,9 +346,9 @@ function AIAdvisorDialog() {
               <div className="p-2 bg-primary/20 rounded-lg">
                 <Sparkles className="h-5 w-5 text-primary" />
               </div>
-              <h2 className="text-2xl font-bold">Tourop AI Strategy</h2>
+              <h2 className="text-2xl font-bold">{t('tourop_ai_strategy')}</h2>
             </div>
-            <p className="text-slate-400 text-sm">Artificial Intelligence Business Consultant</p>
+            <p className="text-slate-400 text-sm">{t('ai_business_consultant')}</p>
           </div>
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
         </div>
@@ -358,10 +358,10 @@ function AIAdvisorDialog() {
             <div className="text-center py-12 space-y-4">
               <BrainCircuit className="h-16 w-16 text-muted-foreground/20 mx-auto" />
               <div className="space-y-2">
-                <h3 className="font-semibold text-lg">Analyze Business Performance</h3>
-                <p className="text-sm text-muted-foreground max-w-xs mx-auto">Our AI will review your gross sales, margins, and tour popularity to give you actionable strategic advice.</p>
+                <h3 className="font-semibold text-lg">{t('analyze_business_performance')}</h3>
+                <p className="text-sm text-muted-foreground max-w-xs mx-auto">{t('ai_analyze_description')}</p>
               </div>
-              <Button onClick={getAdvice} className="gap-2">Run Intelligence Engine</Button>
+              <Button onClick={getAdvice} className="gap-2">{t('run_intelligence_engine')}</Button>
             </div>
           )}
 
@@ -371,7 +371,7 @@ function AIAdvisorDialog() {
                 <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
                 <BrainCircuit className="h-6 w-6 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
               </div>
-              <p className="text-sm font-medium animate-pulse">Consulting global travel trends...</p>
+              <p className="text-sm font-medium animate-pulse">{t('consulting_travel_trends')}</p>
             </div>
           )}
 
@@ -383,7 +383,7 @@ function AIAdvisorDialog() {
 
               <div className="space-y-3">
                 <h4 className="font-bold text-xs uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                  <Activity className="h-3 w-3" /> Key Insights
+                  <Activity className="h-3 w-3" /> {t('key_insights')}
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {analysis.insights.map((insight: string, idx: number) => (
@@ -397,7 +397,7 @@ function AIAdvisorDialog() {
 
               <div className="space-y-3">
                 <h4 className="font-bold text-xs uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                  <TrendingUp className="h-3 w-3" /> Strategic Recommendations
+                  <TrendingUp className="h-3 w-3" /> {t('strategic_recommendations')}
                 </h4>
                 <div className="space-y-3">
                   {analysis.recommendations.map((rec: any, idx: number) => (
@@ -405,7 +405,7 @@ function AIAdvisorDialog() {
                       <p className="font-bold text-sm mb-1">{rec.title}</p>
                       <p className="text-xs text-muted-foreground mb-2 break-words">{rec.description}</p>
                       <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700 border-none">
-                        Impact: {rec.expectedImpact}
+                        {t('impact_label')} {rec.expectedImpact}
                       </Badge>
                     </div>
                   ))}
@@ -415,7 +415,7 @@ function AIAdvisorDialog() {
           )}
         </div>
         <div className="p-6 border-t bg-slate-50 flex justify-end shrink-0">
-          <Button variant="outline" onClick={() => setOpen(false)}>Close Advisor</Button>
+          <Button variant="outline" onClick={() => setOpen(false)}>{t('close_advisor')}</Button>
         </div>
       </DialogContent>
     </Dialog>

@@ -765,6 +765,7 @@ function AirportsTab() {
 }
 
 function SightsTab() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [editItem, setEditItem] = useState<Sight | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -799,19 +800,19 @@ function SightsTab() {
 
   const createMutation = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/master/sights", data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/sights"] }); setShowForm(false); toast({ title: "Sight created" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/sights"] }); setShowForm(false); toast({ title: t("sight_created") }); },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }: any) => apiRequest("PATCH", `/api/master/sights/${id}`, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/sights"] }); setShowForm(false); setEditItem(null); toast({ title: "Sight updated" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/sights"] }); setShowForm(false); setEditItem(null); toast({ title: t("sight_updated") }); },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/master/sights/${id}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/sights"] }); setDeleteId(null); toast({ title: "Sight deleted" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/sights"] }); setDeleteId(null); toast({ title: t("sight_deleted") }); },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
@@ -819,7 +820,7 @@ function SightsTab() {
     mutationFn: (cityId: string) => apiRequest("POST", `/api/admin/scrape/sights/${cityId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/master/sights"] });
-      toast({ title: "Sights scraped for selected city" });
+      toast({ title: t("sights_scraped_for_city") });
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -828,9 +829,9 @@ function SightsTab() {
     mutationFn: (id: string) => apiRequest("POST", `/api/admin/ai/enrich-sight/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/master/sights"] });
-      toast({ title: "Sight description enriched by AI!" });
+      toast({ title: t("sight_enriched_by_ai") });
     },
-    onError: (e: Error) => toast({ title: "Enrichment failed", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: t("enrichment_failed"), description: e.message, variant: "destructive" }),
   });
 
   const handleSubmit = () => {
@@ -851,7 +852,7 @@ function SightsTab() {
         <div className="flex items-center gap-2 border-l pl-3 ml-1">
           <Select onValueChange={(v) => scrapeSightsMutation.mutate(v)}>
             <SelectTrigger className="w-[200px] h-9">
-              <SelectValue placeholder="Scrape Sights for..." />
+              <SelectValue placeholder={t("scrape_sights_for_placeholder")} />
             </SelectTrigger>
             <SelectContent>
               {citiesList?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
@@ -863,16 +864,16 @@ function SightsTab() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>City</TableHead>
-            <TableHead>Category</TableHead>
+            <TableHead>{t("name_label")}</TableHead>
+            <TableHead>{t("city_label")}</TableHead>
+            <TableHead>{t("category")}</TableHead>
             <TableHead className="min-w-[200px]">Detailed Description</TableHead>
-            <TableHead>Ticket</TableHead>
-            <TableHead>Individual Cost</TableHead>
-            <TableHead>Group Cost</TableHead>
-            <TableHead>Duration</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead>{t("ticket_head_label")}</TableHead>
+            <TableHead>{t("individual_cost")}</TableHead>
+            <TableHead>{t("group_cost")}</TableHead>
+            <TableHead>{t("duration")}</TableHead>
+            <TableHead>{t("status")}</TableHead>
+            <TableHead>{t("actions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -914,9 +915,9 @@ function SightsTab() {
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editItem ? "Edit Sight" : "Add Sight"}</DialogTitle></DialogHeader>
           <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-            <div><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Acropolis" data-testid="input-sight-name" /></div>
+            <div><Label>{t("name_required_label")}</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Acropolis" data-testid="input-sight-name" /></div>
             <div>
-              <Label>City *</Label>
+              <Label>{t("city_label")} *</Label>
               <Select value={cityId} onValueChange={setCityId}>
                 <SelectTrigger data-testid="select-sight-city"><SelectValue placeholder="Select city" /></SelectTrigger>
                 <SelectContent>
@@ -924,10 +925,10 @@ function SightsTab() {
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Short Description</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief description..." rows={2} data-testid="input-sight-description" /></div>
-            <div><Label>Detailed Description (min 60 words)</Label><Textarea value={longDescription} onChange={(e) => setLongDescription(e.target.value)} placeholder="Provide a detailed description of at least 60 words..." rows={5} data-testid="input-sight-long-description" />{longDescription && longDescription.trim().split(/\s+/).length < 60 && <p className="text-sm text-destructive mt-1">{longDescription.trim().split(/\s+/).length}/60 words — need at least 60</p>}</div>
+            <div><Label>{t("short_description_label")}</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("brief_description_placeholder")} rows={2} data-testid="input-sight-description" /></div>
+            <div><Label>{t("detailed_description_label")}</Label><Textarea value={longDescription} onChange={(e) => setLongDescription(e.target.value)} placeholder={t("detailed_description_placeholder")} rows={5} data-testid="input-sight-long-description" />{longDescription && longDescription.trim().split(/\s+/).length < 60 && <p className="text-sm text-destructive mt-1">{longDescription.trim().split(/\s+/).length}/60 {t("words_need_60_suffix")}</p>}</div>
             <div>
-              <Label>Category</Label>
+              <Label>{t("category")}</Label>
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger data-testid="select-sight-category"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -937,16 +938,16 @@ function SightsTab() {
             </div>
             <div className="flex items-center gap-2">
               <Switch checked={ticketRequired} onCheckedChange={setTicketRequired} data-testid="switch-sight-ticket" />
-              <Label>Ticket Required</Label>
+              <Label>{t("ticket_required_label")}</Label>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Individual Ticket Cost</Label><Input type="number" step="0.01" value={individualTicketCost} onChange={(e) => setIndividualTicketCost(e.target.value)} placeholder="25.00" data-testid="input-sight-individual-cost" /></div>
-              <div><Label>Group Ticket Cost</Label><Input type="number" step="0.01" value={groupTicketCost} onChange={(e) => setGroupTicketCost(e.target.value)} placeholder="18.00" data-testid="input-sight-group-cost" /></div>
+              <div><Label>{t("individual_ticket_cost_label")}</Label><Input type="number" step="0.01" value={individualTicketCost} onChange={(e) => setIndividualTicketCost(e.target.value)} placeholder="25.00" data-testid="input-sight-individual-cost" /></div>
+              <div><Label>{t("group_ticket_cost_label")}</Label><Input type="number" step="0.01" value={groupTicketCost} onChange={(e) => setGroupTicketCost(e.target.value)} placeholder="18.00" data-testid="input-sight-group-cost" /></div>
             </div>
-            <div><Label>Estimated Duration</Label><Input value={estimatedDuration} onChange={(e) => setEstimatedDuration(e.target.value)} placeholder="2 hours" data-testid="input-sight-duration" /></div>
+            <div><Label>{t("estimated_duration_label")}</Label><Input value={estimatedDuration} onChange={(e) => setEstimatedDuration(e.target.value)} placeholder="2 hours" data-testid="input-sight-duration" /></div>
             <div className="flex items-center gap-2">
               <Switch checked={isActive} onCheckedChange={setIsActive} data-testid="switch-sight-active" />
-              <Label>Active</Label>
+              <Label>{t("active_label")}</Label>
             </div>
           </div>
           {(!name || !cityId) && <p className="text-xs text-muted-foreground text-right">Fill in the required fields (*) to save</p>}
@@ -966,6 +967,7 @@ function SightsTab() {
 }
 
 function TransportCompaniesTab() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [editItem, setEditItem] = useState<TransportCompany | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -996,19 +998,19 @@ function TransportCompaniesTab() {
 
   const createMutation = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/master/transport-companies", data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/transport-companies"] }); setShowForm(false); toast({ title: "Transport company created" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/transport-companies"] }); setShowForm(false); toast({ title: t("transport_company_created") }); },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }: any) => apiRequest("PATCH", `/api/master/transport-companies/${id}`, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/transport-companies"] }); setShowForm(false); setEditItem(null); toast({ title: "Transport company updated" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/transport-companies"] }); setShowForm(false); setEditItem(null); toast({ title: t("transport_company_updated") }); },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/master/transport-companies/${id}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/transport-companies"] }); setDeleteId(null); toast({ title: "Transport company deleted" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/transport-companies"] }); setDeleteId(null); toast({ title: t("transport_company_deleted") }); },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
@@ -1040,12 +1042,12 @@ function TransportCompaniesTab() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Country</TableHead>
-            <TableHead>Vehicle Types</TableHead>
-            <TableHead>Contact</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead>{t("name_label")}</TableHead>
+            <TableHead>{t("country_label")}</TableHead>
+            <TableHead>{t("vehicle_types_label")}</TableHead>
+            <TableHead>{t("contact_label")}</TableHead>
+            <TableHead>{t("status")}</TableHead>
+            <TableHead>{t("actions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -1079,24 +1081,24 @@ function TransportCompaniesTab() {
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editItem ? "Edit Transport Company" : "Add Transport Company"}</DialogTitle></DialogHeader>
           <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-            <div><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Company name" data-testid="input-transport-name" /></div>
+            <div><Label>{t("name_required_label")}</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Company name" data-testid="input-transport-name" /></div>
             <div>
-              <Label>Country</Label>
+              <Label>{t("country_label")}</Label>
               <Select value={countryId} onValueChange={setCountryId}>
                 <SelectTrigger data-testid="select-transport-country"><SelectValue placeholder="Select country (optional)" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="none">{t("none_label")}</SelectItem>
                   {countriesList?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name} ({c.code})</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Vehicle Types (comma-separated)</Label><Input value={vehicleTypes} onChange={(e) => setVehicleTypes(e.target.value)} placeholder="bus, van, minibus" data-testid="input-transport-vehicles" /></div>
-            <div><Label>Contact Name</Label><Input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="John Doe" data-testid="input-transport-contact-name" /></div>
-            <div><Label>Contact Phone</Label><Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+1-555-0123" data-testid="input-transport-contact-phone" /></div>
-            <div><Label>Contact Email</Label><Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="contact@company.com" data-testid="input-transport-contact-email" /></div>
+            <div><Label>{t("vehicle_types_comma_label")}</Label><Input value={vehicleTypes} onChange={(e) => setVehicleTypes(e.target.value)} placeholder="bus, van, minibus" data-testid="input-transport-vehicles" /></div>
+            <div><Label>{t("contact_name_label")}</Label><Input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="John Doe" data-testid="input-transport-contact-name" /></div>
+            <div><Label>{t("contact_phone_label")}</Label><Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+1-555-0123" data-testid="input-transport-contact-phone" /></div>
+            <div><Label>{t("contact_email_label")}</Label><Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="contact@company.com" data-testid="input-transport-contact-email" /></div>
             <div className="flex items-center gap-2">
               <Switch checked={isActive} onCheckedChange={setIsActive} data-testid="switch-transport-active" />
-              <Label>Active</Label>
+              <Label>{t("active_label")}</Label>
             </div>
           </div>
           {!name && <p className="text-xs text-muted-foreground text-right">Fill in the required fields (*) to save</p>}
@@ -1116,6 +1118,7 @@ function TransportCompaniesTab() {
 }
 
 function AirlineAgenciesTab() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [editItem, setEditItem] = useState<AirlineAgency | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -1145,19 +1148,19 @@ function AirlineAgenciesTab() {
 
   const createMutation = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/master/airline-agencies", data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/airline-agencies"] }); setShowForm(false); toast({ title: "Airline agency created" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/airline-agencies"] }); setShowForm(false); toast({ title: t("airline_agency_created") }); },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }: any) => apiRequest("PATCH", `/api/master/airline-agencies/${id}`, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/airline-agencies"] }); setShowForm(false); setEditItem(null); toast({ title: "Airline agency updated" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/airline-agencies"] }); setShowForm(false); setEditItem(null); toast({ title: t("airline_agency_updated") }); },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/master/airline-agencies/${id}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/airline-agencies"] }); setDeleteId(null); toast({ title: "Airline agency deleted" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/master/airline-agencies"] }); setDeleteId(null); toast({ title: t("airline_agency_deleted") }); },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
@@ -1187,12 +1190,12 @@ function AirlineAgenciesTab() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>Countries</TableHead>
-            <TableHead>Contact</TableHead>
-            <TableHead>Specializations</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead>{t("name_label")}</TableHead>
+            <TableHead>{t("countries_label")}</TableHead>
+            <TableHead>{t("contact_label")}</TableHead>
+            <TableHead>{t("specializations_label")}</TableHead>
+            <TableHead>{t("status")}</TableHead>
+            <TableHead>{t("actions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -1231,15 +1234,15 @@ function AirlineAgenciesTab() {
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editItem ? "Edit Airline Agency" : "Add Airline Agency"}</DialogTitle></DialogHeader>
           <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-            <div><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Agency name" data-testid="input-airline-agency-name" /></div>
-            <div><Label>Country Codes (comma-separated)</Label><Input value={countryIds} onChange={(e) => setCountryIds(e.target.value)} placeholder="US, IL, GR" data-testid="input-airline-agency-countries" /></div>
-            <div><Label>Contact Name</Label><Input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="John Doe" data-testid="input-airline-agency-contact-name" /></div>
-            <div><Label>Contact Phone</Label><Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+1-555-0123" data-testid="input-airline-agency-contact-phone" /></div>
-            <div><Label>Contact Email</Label><Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="contact@agency.com" data-testid="input-airline-agency-contact-email" /></div>
-            <div><Label>Specializations (comma-separated)</Label><Input value={specializations} onChange={(e) => setSpecializations(e.target.value)} placeholder="group travel, charter" data-testid="input-airline-agency-specializations" /></div>
+            <div><Label>{t("name_required_label")}</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Agency name" data-testid="input-airline-agency-name" /></div>
+            <div><Label>{t("country_codes_comma_label")}</Label><Input value={countryIds} onChange={(e) => setCountryIds(e.target.value)} placeholder="US, IL, GR" data-testid="input-airline-agency-countries" /></div>
+            <div><Label>{t("contact_name_label")}</Label><Input value={contactName} onChange={(e) => setContactName(e.target.value)} placeholder="John Doe" data-testid="input-airline-agency-contact-name" /></div>
+            <div><Label>{t("contact_phone_label")}</Label><Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+1-555-0123" data-testid="input-airline-agency-contact-phone" /></div>
+            <div><Label>{t("contact_email_label")}</Label><Input value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="contact@agency.com" data-testid="input-airline-agency-contact-email" /></div>
+            <div><Label>{t("specializations_comma_label")}</Label><Input value={specializations} onChange={(e) => setSpecializations(e.target.value)} placeholder="group travel, charter" data-testid="input-airline-agency-specializations" /></div>
             <div className="flex items-center gap-2">
               <Switch checked={isActive} onCheckedChange={setIsActive} data-testid="switch-airline-agency-active" />
-              <Label>Active</Label>
+              <Label>{t("active_label")}</Label>
             </div>
           </div>
           {!name && <p className="text-xs text-muted-foreground text-right">Fill in the required fields (*) to save</p>}
@@ -1259,6 +1262,7 @@ function AirlineAgenciesTab() {
 }
 
 function HotelsTab() {
+  const { t } = useLanguage();
   const { toast } = useToast();
   const [editItem, setEditItem] = useState<Hotel | null>(null);
   const [showForm, setShowForm] = useState(false);
@@ -1288,19 +1292,19 @@ function HotelsTab() {
 
   const createMutation = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/hotels", data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/hotels"] }); setShowForm(false); resetForm(); toast({ title: "Hotel created" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/hotels"] }); setShowForm(false); resetForm(); toast({ title: t("hotel_created") }); },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }: any) => apiRequest("PATCH", `/api/hotels/${id}`, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/hotels"] }); setShowForm(false); setEditItem(null); resetForm(); toast({ title: "Hotel updated" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/hotels"] }); setShowForm(false); setEditItem(null); resetForm(); toast({ title: t("hotel_updated") }); },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
   const scrapeHotelsMutation = useMutation({
     mutationFn: (cId: string) => apiRequest("POST", `/api/admin/scrape/hotels/${cId}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/hotels"] }); toast({ title: "Hotels scraped for selected city" }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/hotels"] }); toast({ title: t("hotels_scraped_for_city") }); },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
@@ -1321,7 +1325,7 @@ function HotelsTab() {
         <div className="flex items-center gap-2 border-l pl-3 ml-1">
           <Select onValueChange={(v) => scrapeHotelsMutation.mutate(v)}>
             <SelectTrigger className="w-[200px] h-9">
-              <SelectValue placeholder="Scrape Hotels for..." />
+              <SelectValue placeholder={t("scrape_hotels_for_placeholder")} />
             </SelectTrigger>
             <SelectContent>
               {citiesList?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
@@ -1333,13 +1337,13 @@ function HotelsTab() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
-            <TableHead>City</TableHead>
-            <TableHead>Stars</TableHead>
-            <TableHead>Base Price</TableHead>
-            <TableHead>Address</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead>{t("name_label")}</TableHead>
+            <TableHead>{t("city_label")}</TableHead>
+            <TableHead>{t("stars_label")}</TableHead>
+            <TableHead>{t("base_price_label")}</TableHead>
+            <TableHead>{t("address_label")}</TableHead>
+            <TableHead>{t("status")}</TableHead>
+            <TableHead>{t("actions")}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -1368,18 +1372,18 @@ function HotelsTab() {
         <DialogContent>
           <DialogHeader><DialogTitle>{editItem ? "Edit Hotel" : "Add Hotel"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div><Label>Name *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Grand Plaza" /></div>
+            <div><Label>{t("name_required_label")}</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Grand Plaza" /></div>
             <div>
-              <Label>City *</Label>
+              <Label>{t("city_label")} *</Label>
               <Select value={cityId} onValueChange={setCityId}>
-                <SelectTrigger><SelectValue placeholder="Select city" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={t("select_city_placeholder")} /></SelectTrigger>
                 <SelectContent>
                   {citiesList?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label>Star Rating</Label>
+              <Label>{t("star_rating_label")}</Label>
               <Select value={starRating} onValueChange={setStarRating}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -1388,13 +1392,13 @@ function HotelsTab() {
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div><Label>Base Price</Label><Input type="number" step="0.01" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} placeholder="150.00" /></div>
-              <div><Label>Currency</Label><Input value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="USD" /></div>
+              <div><Label>{t("base_price_label")}</Label><Input type="number" step="0.01" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} placeholder="150.00" /></div>
+              <div><Label>{t("currency_label")}</Label><Input value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="USD" /></div>
             </div>
-            <div><Label>Address</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Street..." /></div>
+            <div><Label>{t("address_label")}</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Street..." /></div>
             <div className="flex items-center gap-2">
               <Switch checked={isActive} onCheckedChange={setIsActive} />
-              <Label>Active</Label>
+              <Label>{t("active_label")}</Label>
             </div>
           </div>
           {(!name || !cityId) && <p className="text-xs text-muted-foreground text-right">Fill in the required fields (*) to save</p>}

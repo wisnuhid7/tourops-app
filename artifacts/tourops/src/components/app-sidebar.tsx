@@ -80,10 +80,10 @@ export function AppSidebar() {
         { title: t("rate_cards"), url: "/admin/rate-cards", icon: CreditCard },
         { title: t("pricing"), url: "/admin/pricing", icon: Percent },
         { title: t("master_data"), url: "/admin/master-data", icon: Database },
-        { title: "Documents", url: "/admin/documents", icon: FileText },
-        { title: "Payments", url: "/admin/payments", icon: DollarSign },
-        { title: "Messages", url: "/admin/messages", icon: Mail },
-        { title: "Assignments", url: "/admin/assignments", icon: UserCheck },
+        { title: t("nav_documents"), url: "/admin/documents", icon: FileText },
+        { title: t("nav_payments"), url: "/admin/payments", icon: DollarSign },
+        { title: t("nav_messages"), url: "/admin/messages", icon: Mail },
+        { title: t("nav_assignments"), url: "/admin/assignments", icon: UserCheck },
       ];
     }
     if (role === "country_manager") {

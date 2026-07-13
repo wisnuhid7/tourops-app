@@ -522,6 +522,7 @@ export const transportCompanies = pgTable("transport_companies", {
   taxId: text("tax_id"),
   notes: text("notes"),
   isActive: boolean("is_active").default(true),
+  createdBy: varchar("created_by"),
 });
 export const insertTransportCompanySchema = createInsertSchema(transportCompanies).omit({ id: true });
 export type InsertTransportCompany = z.infer<typeof insertTransportCompanySchema>;
@@ -630,6 +631,7 @@ export const airlineAgencies = pgTable("airline_agencies", {
   contactEmail: text("contact_email"),
   specializations: text("specializations").array(),
   isActive: boolean("is_active").default(true),
+  createdBy: varchar("created_by"),
 });
 export const insertAirlineAgencySchema = createInsertSchema(airlineAgencies).omit({ id: true });
 export type InsertAirlineAgency = z.infer<typeof insertAirlineAgencySchema>;

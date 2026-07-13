@@ -45,7 +45,7 @@ export default function TourBuilderDashboard() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold font-serif flex items-center gap-2"><Wand2 className="h-6 w-6 text-primary" />{t("builder_dashboard")}</h1>
-          <p className="text-muted-foreground text-sm">Assemble tours by combining hotels, transport, guides and sights into a daily itinerary.</p>
+          <p className="text-muted-foreground text-sm">{t("tour_builder_subtitle")}</p>
         </div>
         <Button onClick={() => setCreating(true)} data-testid="button-create-tour">
           <Plus className="h-4 w-4 mr-2" />{t("create_tour")}
@@ -54,7 +54,7 @@ export default function TourBuilderDashboard() {
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input placeholder="Search tours..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" data-testid="input-search-tours" />
+        <Input placeholder={t("search_tours_placeholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" data-testid="input-search-tours" />
       </div>
 
       {filtered.length === 0 ? (
@@ -116,7 +116,7 @@ function BasicFieldsButton({ tour }: { tour: Tour }) {
     mutationFn: () => apiRequest("PATCH", `/api/tours/${tour.id}`, { title, duration, basePrice }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tours"] });
-      toast({ title: "Tour updated" });
+      toast({ title: t("tour_updated") });
       setOpen(false);
     },
   });
@@ -128,12 +128,12 @@ function BasicFieldsButton({ tour }: { tour: Tour }) {
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Tour structure & pricing</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t("tour_structure_pricing")}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div><Label>{t("title")}</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>{t("days")}</Label><Input type="number" value={duration} onChange={(e) => setDuration(parseInt(e.target.value) || 1)} /></div>
-              <div><Label>Base price ($)</Label><Input type="number" value={basePrice as any} onChange={(e) => setBasePrice(e.target.value as any)} /></div>
+              <div><Label>{t("base_price_dollar_label")}</Label><Input type="number" value={basePrice as any} onChange={(e) => setBasePrice(e.target.value as any)} /></div>
             </div>
             <div className="flex gap-2 pt-2">
               <Button onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? t("saving") : t("save")}</Button>
@@ -166,7 +166,7 @@ function CreateTourForm({ onClose, onCreated }: { onClose: () => void; onCreated
       onClose();
       onCreated(tour);
     },
-    onError: () => toast({ title: "Failed to create tour", variant: "destructive" }),
+    onError: () => toast({ title: t("failed_to_create_tour"), variant: "destructive" }),
   });
 
   return (
@@ -174,9 +174,9 @@ function CreateTourForm({ onClose, onCreated }: { onClose: () => void; onCreated
       <div><Label>{t("title")}</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} data-testid="input-new-tour-title" /></div>
       <div className="grid grid-cols-2 gap-3">
         <div><Label>{t("days")}</Label><Input type="number" min={1} value={duration} onChange={(e) => setDuration(parseInt(e.target.value) || 1)} /></div>
-        <div><Label>Base price ($)</Label><Input type="number" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} /></div>
+        <div><Label>{t("base_price_dollar_label")}</Label><Input type="number" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} /></div>
       </div>
-      <div><Label>Countries (comma separated)</Label><Input value={countries} onChange={(e) => setCountries(e.target.value)} placeholder="Greece, Italy" /></div>
+      <div><Label>{t("countries_comma_separated")}</Label><Input value={countries} onChange={(e) => setCountries(e.target.value)} placeholder="Greece, Italy" /></div>
       <div className="flex gap-2 pt-2">
         <Button onClick={() => create.mutate()} disabled={!title || create.isPending} data-testid="button-confirm-create-tour">
           {create.isPending ? t("adding") : t("create_tour")}

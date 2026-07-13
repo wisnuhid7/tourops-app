@@ -130,7 +130,7 @@ export default function CityManagerDashboard() {
               <TableRow>
                 <TableHead>{t("name_label")}</TableHead>
                 <TableHead>{t("population_label")}</TableHead>
-                <TableHead>Tourism city</TableHead>
+                <TableHead>{t("tourism_city_label")}</TableHead>
                 <TableHead>{t("status")}</TableHead>
                 <TableHead>{t("actions")}</TableHead>
               </TableRow>
@@ -142,7 +142,7 @@ export default function CityManagerDashboard() {
                     {city.name} {city.isCapital && <Badge variant="outline" className="ml-2 text-[10px] uppercase">{t("capital_label")}</Badge>}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">{city.population ? city.population.toLocaleString() : "-"}</TableCell>
-                  <TableCell>{city.isTourismCity ? <Badge>Yes</Badge> : <span className="text-muted-foreground text-sm">No</span>}</TableCell>
+                  <TableCell>{city.isTourismCity ? <Badge>{t("yes_label")}</Badge> : <span className="text-muted-foreground text-sm">{t("no_label")}</span>}</TableCell>
                   <TableCell><Badge variant={city.isActive ? "default" : "secondary"}>{city.isActive ? t("active_label") : t("inactive_label")}</Badge></TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
@@ -173,7 +173,7 @@ export default function CityManagerDashboard() {
               <Input type="number" value={population} onChange={(e) => setPopulation(e.target.value)} data-testid="input-city-population" />
             </div>
             <div className="flex items-center justify-between">
-              <Label>Tourism city</Label>
+              <Label>{t("tourism_city_label")}</Label>
               <Switch checked={isTourismCity} onCheckedChange={setIsTourismCity} data-testid="switch-city-tourism" />
             </div>
             <div className="flex items-center justify-between">

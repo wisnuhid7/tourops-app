@@ -22,12 +22,12 @@ export default function FlightAgentDashboard() {
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold font-serif flex items-center gap-2"><Plane className="h-6 w-6 text-primary" />{t("flight_dashboard")}</h1>
-        <p className="text-muted-foreground text-sm">Manage ticket issuance and date changes for all airline bookings.</p>
+        <p className="text-muted-foreground text-sm">{t("flight_agent_subtitle")}</p>
       </div>
       <Tabs defaultValue="tasks">
         <TabsList>
-          <TabsTrigger value="tasks">Airline tasks</TabsTrigger>
-          <TabsTrigger value="rates">Airline rate cards</TabsTrigger>
+          <TabsTrigger value="tasks">{t("airline_tasks")}</TabsTrigger>
+          <TabsTrigger value="rates">{t("airline_rate_cards")}</TabsTrigger>
         </TabsList>
         <TabsContent value="tasks"><AirlineTasks /></TabsContent>
         <TabsContent value="rates"><AirlineRates /></TabsContent>
@@ -96,7 +96,7 @@ function AirlineRates() {
     mutationFn: (id: string) => apiRequest("DELETE", `/api/rates/airline/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rates/airline"] });
-      toast({ title: "Rate deleted" });
+      toast({ title: t("rate_deleted_toast") });
     },
   });
 
@@ -152,16 +152,16 @@ function AirlineRateForm({ rate, onClose }: { rate: any; onClose: () => void }) 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/rates/airline"] });
-      toast({ title: "Rate saved" });
+      toast({ title: t("rate_saved_toast") });
       onClose();
     },
   });
 
   return (
     <div className="space-y-3">
-      <div><Label>Airline</Label><Input value={airlineName} onChange={(e) => setAirlineName(e.target.value)} /></div>
-      <div><Label>Route</Label><Input value={route} onChange={(e) => setRoute(e.target.value)} placeholder="ATH-JFK" /></div>
-      <div><Label>Price ($)</Label><Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} /></div>
+      <div><Label>{t("airline_field_label")}</Label><Input value={airlineName} onChange={(e) => setAirlineName(e.target.value)} /></div>
+      <div><Label>{t("route_field_label")}</Label><Input value={route} onChange={(e) => setRoute(e.target.value)} placeholder="ATH-JFK" /></div>
+      <div><Label>{t("price_dollar_label")}</Label><Input type="number" value={price} onChange={(e) => setPrice(e.target.value)} /></div>
       <div className="flex gap-2 pt-2">
         <Button onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? t("saving") : t("save")}</Button>
         <Button variant="outline" onClick={onClose}>{t("cancel")}</Button>

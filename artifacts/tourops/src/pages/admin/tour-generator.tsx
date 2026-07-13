@@ -208,9 +208,9 @@ function TourGeneratorInner() {
         if (draft.days && Array.isArray(draft.days)) {
            setDays(draft.days);
         }
-        toast({ title: "Draft restored successfully." });
+        toast({ title: t("draft_restored_success") });
       } catch (e) {
-        toast({ title: "Failed to restore draft", variant: "destructive" });
+        toast({ title: t("draft_restore_failed"), variant: "destructive" });
       }
     }
     setHasDraft(false);
@@ -223,7 +223,7 @@ function TourGeneratorInner() {
     setHasDraft(false);
     skipDraftRef.current = true;
     initializedRef.current = true;
-    toast({ title: "Draft discarded." });
+    toast({ title: t("draft_discarded") });
   };
 
   useEffect(() => {
@@ -325,7 +325,7 @@ function TourGeneratorInner() {
       const selectedCountry = countries?.find(c => c.code === countryCode);
       const countryId = selectedCountry?.id || countries?.[0]?.id;
       if (!countryId) {
-        toast({ title: "Error", description: "No country found in the system.", variant: "destructive" });
+        toast({ title: t("error_title"), description: t("no_country_in_system"), variant: "destructive" });
         return;
       }
       
@@ -904,7 +904,7 @@ function TourGeneratorInner() {
                           updateDay(index, "translations", { ...trans, [activeLang]: { ...trans[activeLang], title: e.target.value } });
                         }
                       }}
-                      placeholder="Day Title"
+                      placeholder={t("day_title_placeholder")}
                       className="text-lg font-bold border-none p-0 focus-visible:ring-0 placeholder:text-muted-foreground/30"
                     />
                   </div>

@@ -1017,7 +1017,12 @@ function TourGeneratorInner() {
                             <SelectContent>
                               {(() => {
                                 const city = cities?.find(c => c.name === day.city);
-                                const filtered = hotels?.filter(h => h.cityId === city?.id && h.name) || [];
+                                // Show all registered active hotels (mirrors the guide dropdown).
+                                const activeHotels = hotels?.filter(h => h.name && h.isActive !== false) || [];
+                                // Prefer hotels in the day's city, but fall back to the full
+                                // active list so the dropdown is never empty when hotels exist.
+                                const cityHotels = city ? activeHotels.filter(h => h.cityId === city.id) : [];
+                                const filtered = cityHotels.length > 0 ? cityHotels : activeHotels;
                                 if (filtered.length === 0) {
                                   return <SelectItem value="__none__" disabled>{t("no_hotels_found")}</SelectItem>;
                                 }

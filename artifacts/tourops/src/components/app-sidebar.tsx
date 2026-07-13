@@ -15,7 +15,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import type { UserProfile } from "@workspace/db";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { 
   LayoutDashboard, Globe, BookOpen, Users, 
   BarChart3, Settings, LogOut, Plane, 
@@ -63,6 +63,12 @@ export function AppSidebar() {
     queryKey: ["/api/user-profile"],
   });
   const [location] = useLocation();
+  const search = useSearch();
+  const currentUrl = search ? `${location}?${search}` : location;
+  // Query-based items (e.g. /admin/master-data?tab=hotels) must match the full
+  // URL so they only light up on their tab; plain items match on pathname so
+  // they stay active even when the page has unrelated query params.
+  const isItemActive = (url: string) => (url.includes("?") ? currentUrl === url : location === url);
   const { language, setLanguage, t } = useLanguage();
 
   const getNav = () => {
@@ -80,6 +86,7 @@ export function AppSidebar() {
         { title: t("rate_cards"), url: "/admin/rate-cards", icon: CreditCard },
         { title: t("pricing"), url: "/admin/pricing", icon: Percent },
         { title: t("master_data"), url: "/admin/master-data", icon: Database },
+        { title: t("hotels"), url: "/admin/master-data?tab=hotels", icon: Hotel },
         { title: t("nav_documents"), url: "/admin/documents", icon: FileText },
         { title: t("nav_payments"), url: "/admin/payments", icon: DollarSign },
         { title: t("nav_messages"), url: "/admin/messages", icon: Mail },
@@ -140,15 +147,15 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
                     asChild 
-                    isActive={location === item.url}
+                    isActive={isItemActive(item.url)}
                     tooltip={item.title} 
                     className="hover:bg-primary/5 active:scale-95 transition-all rounded-lg py-6 group"
                   >
                     <Link href={item.url} className="flex items-center gap-3">
-                      <div className={`p-2 rounded-md transition-colors ${location === item.url ? 'bg-primary text-white shadow-md' : 'bg-slate-100 dark:bg-slate-900 group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                      <div className={`p-2 rounded-md transition-colors ${isItemActive(item.url) ? 'bg-primary text-white shadow-md' : 'bg-slate-100 dark:bg-slate-900 group-hover:bg-primary/10 group-hover:text-primary'}`}>
                         <item.icon className="h-4 w-4" />
                       </div>
-                      <span className={`font-medium text-sm transition-colors ${location === item.url ? 'text-primary font-bold' : 'text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white'}`}>
+                      <span className={`font-medium text-sm transition-colors ${isItemActive(item.url) ? 'text-primary font-bold' : 'text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white'}`}>
                         {item.title}
                       </span>
                     </Link>

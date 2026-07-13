@@ -87,6 +87,7 @@ export function AppSidebar() {
         { title: t("pricing"), url: "/admin/pricing", icon: Percent },
         { title: t("master_data"), url: "/admin/master-data", icon: Database },
         { title: t("hotels"), url: "/admin/master-data?tab=hotels", icon: Hotel },
+        { title: t("guides"), url: "/supplier?tab=guide_rates", icon: UserCheck2 },
         { title: t("nav_documents"), url: "/admin/documents", icon: FileText },
         { title: t("nav_payments"), url: "/admin/payments", icon: DollarSign },
         { title: t("nav_messages"), url: "/admin/messages", icon: Mail },

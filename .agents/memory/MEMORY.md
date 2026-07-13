@@ -7,3 +7,4 @@
 - [TourOps i18n](tourops-i18n.md) — single en/es/id dict in use-language.tsx; find missing keys via `tourops typecheck` (TS2345 → renders raw in ALL langs); build won't catch them.
 - [TourOps supplier isolation (own_only)](tourops-supplier-isolation.md) — per-supplier createdBy scoping; recurring holes: PATCH lets client reset createdBy, and master GETs gated only by isAuthenticated leak catalog to customers.
 - [Shadowed route registrations](shadowed-route-registrations.md) — Express uses the first-registered method+path; an ungated route above a later gated duplicate silently wins. Grep for every registration when auditing auth.
+- [TourOps numeric price forms](tourops-numeric-price-forms.md) — numeric() cols want STRING in insert schema; rate forms' parseInt makes POST 400 while PATCH (sanitizeRateUpdate, no schema) succeeds.

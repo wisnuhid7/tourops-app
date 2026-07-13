@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { WORKFLOW_STATUSES } from "@/lib/constants";
 import type { BookingWorkflow, Booking, UserProfile, Traveler, Document } from "@workspace/db";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -59,6 +59,11 @@ export default function SupplierDashboard() {
       toast({ title: t("workflow_updated") });
     },
   });
+
+  const search = useSearch();
+  // Deep-link support: /supplier?tab=guide_rates opens directly on that tab
+  // (used by the admin/super_admin "Guides" sidebar link).
+  const initialTab = new URLSearchParams(search).get("tab") || "tasks";
 
   const { data: hotelRates } = useQuery<any[]>({ queryKey: ["/api/rates/hotel"] });
   const canRegisterHotels = profile?.role === "hotel_manager" || profile?.role === "admin" || profile?.role === "super_admin";
@@ -263,7 +268,7 @@ export default function SupplierDashboard() {
         </motion.div>
       </div>
 
-      <Tabs defaultValue="tasks" className="mt-8">
+      <Tabs defaultValue={initialTab} className="mt-8">
         <TabsList className="mb-6 bg-white/50 backdrop-blur-sm border shadow-sm p-1">
           <TabsTrigger value="tasks" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
             <ClipboardList className="h-4 w-4 mr-2" />
@@ -618,9 +623,9 @@ export default function SupplierDashboard() {
                        <TableCell>{r.validFrom} to {r.validTo}</TableCell>
                        <TableCell><Badge variant="outline" className="capitalize">{r.status}</Badge></TableCell>
                        <TableCell className="text-right flex justify-end gap-2">
-                         <Button variant="ghost" size="icon" onClick={() => openRateDialog("guide", r)}><Plus className="h-4 w-4 rotate-45" /></Button>
-                         <Button variant="ghost" size="icon" className="text-destructive" onClick={() => {
-                           if(confirm(t("confirm_delete_rate"))) deleteRate.mutate({ type: "guide", id: r.id });
+                         <Button variant="ghost" size="icon" onClick={() => openRateDialog("guide", r)} data-testid={`button-edit-guide-${r.id}`}><Pencil className="h-4 w-4" /></Button>
+                         <Button variant="ghost" size="icon" className="text-destructive" data-testid={`button-delete-guide-${r.id}`} onClick={() => {
+                           if(confirm(t("delete_guide_confirm"))) deleteRate.mutate({ type: "guide", id: r.id });
                          }}><Trash2 className="h-4 w-4" /></Button>
                        </TableCell>
                      </TableRow>
@@ -971,7 +976,13 @@ export default function SupplierDashboard() {
             } else if (rateType === "guide") {
               data.guideName = fd.get("guideName");
               data.language = fd.get("language");
-              data.price = parseInt(fd.get("price") as string);
+              // price maps to a numeric column -> the insert schema expects a string
+              data.price = fd.get("price");
+              data.email = fd.get("email") || null;
+              data.phone = fd.get("phone") || null;
+              data.photoUrl = fd.get("photoUrl") || null;
+              const ageVal = fd.get("age") as string;
+              data.age = ageVal ? parseInt(ageVal) : null;
             } else if (rateType === "airline") {
               data.airlineName = fd.get("airlineName");
               data.routeFrom = fd.get("routeFrom");
@@ -993,9 +1004,19 @@ export default function SupplierDashboard() {
             )}
             {rateType === "guide" && (
               <>
-                <div className="space-y-2"><Label>{t("guide_name")}</Label><Input name="guideName" defaultValue={editingRate?.guideName} required /></div>
-                <div className="space-y-2"><Label>{t("language")}</Label><Input name="language" defaultValue={editingRate?.language} required /></div>
-                <div className="space-y-2"><Label>{t("price")}</Label><Input type="number" name="price" defaultValue={editingRate?.price} required /></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2"><Label>{t("guide_name")}</Label><Input name="guideName" defaultValue={editingRate?.guideName} required /></div>
+                  <div className="space-y-2"><Label>{t("language")}</Label><Input name="language" defaultValue={editingRate?.language} required /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2"><Label>{t("guide_email")}</Label><Input type="email" name="email" defaultValue={editingRate?.email} /></div>
+                  <div className="space-y-2"><Label>{t("guide_phone")}</Label><Input name="phone" defaultValue={editingRate?.phone} /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2"><Label>{t("guide_age")}</Label><Input type="number" name="age" defaultValue={editingRate?.age ?? ""} /></div>
+                  <div className="space-y-2"><Label>{t("price")}</Label><Input type="number" name="price" defaultValue={editingRate?.price} required /></div>
+                </div>
+                <div className="space-y-2"><Label>{t("guide_photo_url")}</Label><Input name="photoUrl" defaultValue={editingRate?.photoUrl} placeholder="https://..." /></div>
               </>
             )}
             {rateType === "sights" && (

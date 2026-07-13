@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
-import { FileText, MapPin, Calendar, Search, X, Plus, Loader2, Image as ImageIcon } from "lucide-react";
+import { FileText, MapPin, Calendar, Search, X, Plus, Loader2, Image as ImageIcon, Languages, Sparkles } from "lucide-react";
 import type { Tour } from "@workspace/db";
 
 export default function ContentEditorDashboard() {
@@ -103,6 +103,16 @@ function ContentForm({ tour, onClose }: { tour: Tour; onClose: () => void }) {
   const [newTag, setNewTag] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
+  type TrFields = { title?: string; description?: string; highlights?: string; inclusions?: string; exclusions?: string };
+  const initialTr = (tour.translations as any) || {};
+  const [trLang, setTrLang] = useState<"es" | "id">("es");
+  const [esTr, setEsTr] = useState<TrFields>(initialTr.es || {});
+  const [idTr, setIdTr] = useState<TrFields>(initialTr.id || {});
+  const curTr = trLang === "es" ? esTr : idTr;
+  const setCurTr = trLang === "es" ? setEsTr : setIdTr;
+  const setTrField = (field: keyof TrFields, value: string) =>
+    setCurTr((prev) => ({ ...prev, [field]: value }));
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, onDone: (url: string) => void) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -125,6 +135,7 @@ function ContentForm({ tour, onClose }: { tour: Tour; onClose: () => void }) {
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/tours/${tour.id}`, {
       description, highlights, inclusions, exclusions, imageUrl, galleryUrls, tags,
+      translations: { es: esTr, id: idTr },
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tours"] });
@@ -132,6 +143,24 @@ function ContentForm({ tour, onClose }: { tour: Tour; onClose: () => void }) {
       onClose();
     },
     onError: () => toast({ title: t("failed_to_save"), variant: "destructive" }),
+  });
+
+  const autoTranslate = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/ai/translate-tour/${tour.id}`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      const tr = data?.tour?.translations;
+      if (tr) {
+        setEsTr(tr.es || {});
+        setIdTr(tr.id || {});
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/tours"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tours", tour.id, "days"] });
+      toast({ title: t("translations_updated") });
+    },
+    onError: () => toast({ title: t("translation_failed"), variant: "destructive" }),
   });
 
   return (
@@ -197,6 +226,47 @@ function ContentForm({ tour, onClose }: { tour: Tour; onClose: () => void }) {
             </Badge>
           ))}
         </div>
+      </div>
+
+      <div className="border rounded-md p-3 space-y-3">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Languages className="h-4 w-4 text-primary" />
+            <Label className="m-0">{t("translations_label")}</Label>
+          </div>
+          <Button type="button" size="sm" variant="outline" onClick={() => autoTranslate.mutate()} disabled={autoTranslate.isPending} data-testid="button-auto-translate">
+            {autoTranslate.isPending
+              ? <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />{t("translating")}</>
+              : <><Sparkles className="h-3.5 w-3.5 mr-1" />{t("auto_translate")}</>}
+          </Button>
+        </div>
+        <div className="flex gap-1">
+          <Button type="button" size="sm" variant={trLang === "es" ? "default" : "outline"} onClick={() => setTrLang("es")} className="h-7 px-3 text-xs" data-testid="button-tr-lang-es">Español</Button>
+          <Button type="button" size="sm" variant={trLang === "id" ? "default" : "outline"} onClick={() => setTrLang("id")} className="h-7 px-3 text-xs" data-testid="button-tr-lang-id">Bahasa Indonesia</Button>
+        </div>
+        <div>
+          <Label className="text-xs">{t("title")}</Label>
+          <Input value={curTr.title || ""} onChange={(e) => setTrField("title", e.target.value)} data-testid="input-tr-title" />
+        </div>
+        <div>
+          <Label className="text-xs">{t("description")}</Label>
+          <Textarea value={curTr.description || ""} onChange={(e) => setTrField("description", e.target.value)} rows={3} data-testid="textarea-tr-description" />
+        </div>
+        <div>
+          <Label className="text-xs">{t("highlights")}</Label>
+          <Textarea value={curTr.highlights || ""} onChange={(e) => setTrField("highlights", e.target.value)} rows={2} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label className="text-xs">{t("inclusions")}</Label>
+            <Textarea value={curTr.inclusions || ""} onChange={(e) => setTrField("inclusions", e.target.value)} rows={2} />
+          </div>
+          <div>
+            <Label className="text-xs">{t("exclusions")}</Label>
+            <Textarea value={curTr.exclusions || ""} onChange={(e) => setTrField("exclusions", e.target.value)} rows={2} />
+          </div>
+        </div>
+        <p className="text-[11px] text-muted-foreground">{t("translations_hint")}</p>
       </div>
 
       <div className="flex gap-2 pt-2">

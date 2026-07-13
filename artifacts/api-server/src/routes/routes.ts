@@ -481,6 +481,89 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  // Auto-fill ES/ID translations for a tour and all of its itinerary days using
+  // AI, then persist them to the translations jsonb columns. Anyone who can edit
+  // tour content can trigger this.
+  app.post("/api/ai/translate-tour/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, TOUR_CONTENT_ROLES)) return;
+
+      const tour = await storage.getTour(req.params.id as string);
+      if (!tour) return res.status(404).json({ message: "Tour not found" });
+
+      const days = await storage.getTourDays(req.params.id as string);
+
+      const TOUR_KEYS = ["title", "description", "highlights", "inclusions", "exclusions"];
+      const DAY_KEYS = ["title", "description", "activities"];
+
+      // Only send fields that actually have source (English) content.
+      const pickFilled = (obj: Record<string, any>, keys: string[]) => {
+        const out: Record<string, string> = {};
+        for (const k of keys) {
+          const v = obj[k];
+          if (typeof v === "string" && v.trim()) out[k] = v;
+        }
+        return out;
+      };
+
+      // Never trust the model's output shape: keep only expected keys whose
+      // values are strings before writing anything to the DB.
+      const asStrings = (obj: any, keys: string[]) => {
+        const out: Record<string, string> = {};
+        if (obj && typeof obj === "object") {
+          for (const k of keys) {
+            if (typeof obj[k] === "string") out[k] = obj[k];
+          }
+        }
+        return out;
+      };
+
+      const tourInput = pickFilled(tour as any, TOUR_KEYS);
+      // Key days by their unique id (dayNumber is not guaranteed unique per tour).
+      const dayInputs = days.map((d) => ({
+        id: d.id,
+        ...pickFilled(d as any, DAY_KEYS),
+      }));
+
+      const translated = await aiService.translateTourBundle({
+        tour: tourInput,
+        days: dayInputs,
+      });
+
+      // Merge into any existing translations so we never drop other languages.
+      const mergeLang = (existing: any, fresh: { es: any; id: any }) => ({
+        ...(existing && typeof existing === "object" ? existing : {}),
+        es: { ...(existing?.es || {}), ...fresh.es },
+        id: { ...(existing?.id || {}), ...fresh.id },
+      });
+
+      const tourTranslations = mergeLang((tour as any).translations, {
+        es: asStrings(translated.es?.tour, TOUR_KEYS),
+        id: asStrings(translated.id?.tour, TOUR_KEYS),
+      });
+
+      const updatedTour = await storage.updateTour(
+        req.params.id as string,
+        { translations: tourTranslations } as any,
+        getUserId(req),
+        await getUserName(req),
+      );
+
+      const updatedDays = [];
+      for (const day of days) {
+        const dayTranslations = mergeLang((day as any).translations, {
+          es: asStrings(translated.es?.days?.[day.id], DAY_KEYS),
+          id: asStrings(translated.id?.days?.[day.id], DAY_KEYS),
+        });
+        updatedDays.push(
+          await storage.updateTourDay(day.id, { translations: dayTranslations } as any),
+        );
+      }
+
+      res.json({ success: true, tour: updatedTour, days: updatedDays });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   // ---- Tour Days ----
   async function ensureCityExists(cityName: string | null | undefined, countryCode: string | null | undefined) {
     if (!cityName || !cityName.trim()) return;

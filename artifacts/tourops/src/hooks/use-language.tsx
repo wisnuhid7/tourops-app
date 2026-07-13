@@ -1349,6 +1349,9 @@ const translations = {
     // Ops
     content_saved: "Content saved",
     failed_to_save: "Failed to save",
+    translations_label: "Translations",
+    translations_updated: "Translations updated",
+    translations_hint: "Leave a field blank to fall back to English.",
     cover_image_label: "Cover image",
     gallery_label: "Gallery",
     tags_label: "Tags",
@@ -2847,6 +2850,9 @@ const translations = {
     // Ops
     content_saved: "Contenido guardado",
     failed_to_save: "No se pudo guardar",
+    translations_label: "Traducciones",
+    translations_updated: "Traducciones actualizadas",
+    translations_hint: "Deja un campo vacío para usar el inglés como respaldo.",
     cover_image_label: "Imagen de portada",
     gallery_label: "Galería",
     tags_label: "Etiquetas",
@@ -4345,6 +4351,9 @@ const translations = {
     // Ops
     content_saved: "Konten disimpan",
     failed_to_save: "Gagal menyimpan",
+    translations_label: "Terjemahan",
+    translations_updated: "Terjemahan diperbarui",
+    translations_hint: "Biarkan kolom kosong untuk memakai bahasa Inggris.",
     cover_image_label: "Gambar sampul",
     gallery_label: "Galeri",
     tags_label: "Tag",

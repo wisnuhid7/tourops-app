@@ -42,6 +42,20 @@ which reads as "the switcher doesn't work." Populating that jsonb (manual editor
 or an AI translate step) is a data task, not a code fix. `t()` dictionary and the
 `translations` jsonb are independent — fixing one does nothing for the other.
 
+**Populating dynamic translations:** an AI auto-fill endpoint (`/api/ai/translate-tour/:id`,
+gated by TOUR_CONTENT_ROLES) translates a tour + all its days in ONE gpt-4o call and persists
+to the `translations` jsonb; manual ES/ID fields also exist in the content editor and the
+itinerary day edit form. **Key days by their unique `id`, never by dayNumber** (dayNumber is
+not unique per tour). Always sanitize AI output to string-only expected keys before DB write,
+and merge into existing translations (don't blind-replace) so other langs survive.
+
+**TourOps AI runs through Replit AI Integrations (OpenAI proxy):** `ai.ts` inits the OpenAI
+client with `AI_INTEGRATIONS_OPENAI_BASE_URL` + `AI_INTEGRATIONS_OPENAI_API_KEY` (falls back to
+a raw `OPENAI_API_KEY` if ever set) and gates real calls on an `AI_ENABLED` flag; otherwise
+`generateItinerary` returns a local fallback. Model stays `gpt-4o` (don't upgrade legacy models
+without being asked). **Why:** no raw OPENAI_API_KEY is configured — re-adding one is not needed;
+provision via `setupReplitAIIntegrations({providerSlug:"openai"})`.
+
 **Language provider must stay reactive:** `LanguageProvider.setLanguage` should update
 React state (so consumers re-render instantly); do NOT reintroduce `window.location.reload()`.
 Guard `localStorage`/`navigator`/`document` access in try/catch — they throw in the

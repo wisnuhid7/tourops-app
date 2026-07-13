@@ -1,10 +1,22 @@
 import OpenAI from "openai";
 import { storage } from "../storage";
 
-// Initialize OpenAI client (may be unused if OPENAI_API_KEY is not set)
+// Initialize OpenAI client. Prefer the Replit AI Integrations proxy (no API key
+// required, billed to Replit credits); fall back to a raw OPENAI_API_KEY if set.
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || "sk-placeholder-not-configured",
+  apiKey:
+    process.env.AI_INTEGRATIONS_OPENAI_API_KEY ||
+    process.env.OPENAI_API_KEY ||
+    "sk-placeholder-not-configured",
+  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL || undefined,
 });
+
+// True when a usable AI backend is configured (integration proxy or raw key).
+const AI_ENABLED = !!(
+  (process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
+    process.env.AI_INTEGRATIONS_OPENAI_API_KEY) ||
+  process.env.OPENAI_API_KEY
+);
 
 export interface TourGenerationParams {
   destination: string;
@@ -95,8 +107,8 @@ export class AIService {
     `;
 
     try {
-      if (!process.env.OPENAI_API_KEY) {
-        console.warn("OPENAI_API_KEY is not set. Generating fallback itinerary.");
+      if (!AI_ENABLED) {
+        console.warn("No AI backend configured. Generating fallback itinerary.");
         return generateFallbackItinerary(params, verifiedSights, verifiedHotels);
       }
 
@@ -225,6 +237,62 @@ export class AIService {
     } catch (error) {
       console.error("AI translation failed:", error);
       throw new Error("Failed to translate content with AI");
+    }
+  }
+
+  /**
+   * Translates a whole tour (marketing fields) plus its itinerary days into
+   * Spanish (es) and Indonesian (id) in a single AI call. Days are keyed by
+   * their dayNumber so ordering can never be misaligned on the way back.
+   */
+  async translateTourBundle(input: {
+    tour: Record<string, string>;
+    days: Array<Record<string, string | number>>;
+  }): Promise<{
+    es: { tour: Record<string, string>; days: Record<string, Record<string, string>> };
+    id: { tour: Record<string, string>; days: Record<string, Record<string, string>> };
+  }> {
+    if (!AI_ENABLED) {
+      throw new Error("No AI backend configured for translation");
+    }
+
+    const prompt = `
+      You are an expert travel translator.
+      Translate the provided tour content into Spanish ("es") and Indonesian ("id").
+
+      RULES:
+      1. Preserve formatting exactly (line breaks, bullet separators, commas).
+      2. Do NOT translate proper nouns (city, hotel, brand names) unless they have a
+         well-established localized form.
+      3. Keep the EXACT same content JSON keys as the input for every object.
+      4. Every day in input.days MUST appear in both "es".days and "id".days, keyed by
+         its "id" value (a string). Do NOT translate or alter the id.
+      5. All translated values MUST be plain strings.
+
+      INPUT (JSON):
+      ${JSON.stringify(input, null, 2)}
+
+      OUTPUT FORMAT — return ONLY this JSON shape:
+      {
+        "es": { "tour": { <same content keys as input.tour> }, "days": { "<day id>": { <same content keys as each day except id> } } },
+        "id": { "tour": { ... }, "days": { "<day id>": { ... } } }
+      }
+    `;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+      });
+
+      const result = response.choices[0].message.content;
+      if (!result) throw new Error("AI returned empty translation");
+
+      return JSON.parse(result);
+    } catch (error) {
+      console.error("AI tour translation failed:", error);
+      throw new Error("Failed to translate tour with AI");
     }
   }
 }

@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
-import { Plus, Search, MapPin, Pencil, Trash2, X, Clock, Utensils, Plane, Hotel, Activity, Loader2, UserCheck } from "lucide-react";
+import { Plus, Search, MapPin, Pencil, Trash2, X, Clock, Utensils, Plane, Hotel, Activity, Loader2, UserCheck, Languages } from "lucide-react";
 import type { TourDay, TourDayItem } from "@workspace/db";
 
 export interface City {
@@ -494,6 +494,15 @@ function EditDayForm({ day, onSave, onCancel, isPending }: { day: TourDay; onSav
   const [dayNumber, setDayNumber] = useState(day.dayNumber);
   const [isUploading, setIsUploading] = useState(false);
 
+  type DayTr = { title?: string; description?: string; activities?: string };
+  const initialTr = (day.translations as any) || {};
+  const [trLang, setTrLang] = useState<"es" | "id">("es");
+  const [esTr, setEsTr] = useState<DayTr>(initialTr.es || {});
+  const [idTr, setIdTr] = useState<DayTr>(initialTr.id || {});
+  const curTr = trLang === "es" ? esTr : idTr;
+  const setCurTr = trLang === "es" ? setEsTr : setIdTr;
+  const setTrField = (f: keyof DayTr, v: string) => setCurTr((prev) => ({ ...prev, [f]: v }));
+
   const { data: citiesList } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
   const { data: countries } = useQuery<any[]>({ queryKey: ["/api/master/countries"] });
 
@@ -608,8 +617,24 @@ function EditDayForm({ day, onSave, onCancel, isPending }: { day: TourDay; onSav
       </div>
       <div><Label>{t("description")}</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} /></div>
       <div><Label>{t("activities")}</Label><Textarea value={activities} onChange={(e) => setActivities(e.target.value)} /></div>
+
+      <div className="border rounded-md p-3 space-y-3">
+        <div className="flex items-center gap-2">
+          <Languages className="h-4 w-4 text-primary" />
+          <Label className="m-0">{t("translations_label")}</Label>
+        </div>
+        <div className="flex gap-1">
+          <Button type="button" size="sm" variant={trLang === "es" ? "default" : "outline"} onClick={() => setTrLang("es")} className="h-7 px-3 text-xs">Español</Button>
+          <Button type="button" size="sm" variant={trLang === "id" ? "default" : "outline"} onClick={() => setTrLang("id")} className="h-7 px-3 text-xs">Bahasa Indonesia</Button>
+        </div>
+        <div><Label className="text-xs">{t("title")}</Label><Input value={curTr.title || ""} onChange={(e) => setTrField("title", e.target.value)} /></div>
+        <div><Label className="text-xs">{t("description")}</Label><Textarea value={curTr.description || ""} onChange={(e) => setTrField("description", e.target.value)} /></div>
+        <div><Label className="text-xs">{t("activities")}</Label><Textarea value={curTr.activities || ""} onChange={(e) => setTrField("activities", e.target.value)} /></div>
+        <p className="text-[11px] text-muted-foreground">{t("translations_hint")}</p>
+      </div>
+
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => onSave({ dayNumber, title, description, countryCode: countryCode || undefined, city: city || undefined, activities: activities || undefined, imageUrl: imageUrl || undefined })} disabled={!title || isPending}>
+        <Button onClick={() => onSave({ dayNumber, title, description, countryCode: countryCode || undefined, city: city || undefined, activities: activities || undefined, imageUrl: imageUrl || undefined, translations: { es: esTr, id: idTr } })} disabled={!title || isPending}>
           {isPending ? t("saving") : t("save")}
         </Button>
         <Button variant="outline" onClick={onCancel}>{t("cancel")}</Button>

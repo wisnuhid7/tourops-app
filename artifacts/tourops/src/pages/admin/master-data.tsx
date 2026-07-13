@@ -1276,6 +1276,11 @@ function HotelsTab() {
   const [currency, setCurrency] = useState("USD");
   const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [website, setWebsite] = useState("");
+  const [roomDescription, setRoomDescription] = useState("");
   const [isActive, setIsActive] = useState(true);
 
   const { data: items, isLoading } = useQuery<Hotel[]>({ queryKey: ["/api/hotels"] });
@@ -1289,12 +1294,15 @@ function HotelsTab() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
-  const resetForm = () => { setName(""); setCityId(""); setStarRating("3"); setBasePrice(""); setCurrency("USD"); setAddress(""); setDescription(""); setIsActive(true); };
+  const resetForm = () => { setName(""); setCityId(""); setStarRating("3"); setBasePrice(""); setCurrency("USD"); setAddress(""); setDescription(""); setImageUrl(""); setContactPhone(""); setContactEmail(""); setWebsite(""); setRoomDescription(""); setIsActive(true); };
 
   const openEdit = (item: Hotel) => {
     setEditItem(item); setName(item.name); setCityId(item.cityId); setStarRating(String(item.starRating || 3));
     setBasePrice(item.basePrice || ""); setCurrency(item.currency || "USD");
-    setAddress(item.address || ""); setDescription(item.description || ""); setIsActive(item.isActive ?? true); setShowForm(true);
+    setAddress(item.address || ""); setDescription(item.description || "");
+    setImageUrl(item.imageUrl || ""); setContactPhone(item.contactPhone || ""); setContactEmail(item.contactEmail || ""); setWebsite(item.website || "");
+    setRoomDescription((item.roomTypes as any)?.description || "");
+    setIsActive(item.isActive ?? true); setShowForm(true);
   };
 
   const openCreate = () => { setEditItem(null); resetForm(); setShowForm(true); };
@@ -1318,7 +1326,13 @@ function HotelsTab() {
   });
 
   const handleSubmit = () => {
-    const data = { name, cityId, starRating: parseInt(starRating), basePrice: basePrice || undefined, currency, address, description, isActive };
+    const data = {
+      name, cityId, starRating: parseInt(starRating), basePrice: basePrice || undefined, currency,
+      address: address || undefined, description: description || undefined,
+      imageUrl: imageUrl || undefined, contactPhone: contactPhone || undefined, contactEmail: contactEmail || undefined, website: website || undefined,
+      roomTypes: roomDescription ? { description: roomDescription } : undefined,
+      isActive,
+    };
     if (editItem) updateMutation.mutate({ id: editItem.id, ...data });
     else createMutation.mutate(data);
   };
@@ -1414,6 +1428,14 @@ function HotelsTab() {
               <div><Label>{t("currency_label")}</Label><Input value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="USD" /></div>
             </div>
             <div><Label>{t("address_label")}</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Street..." /></div>
+            <div><Label>{t("image_url_label")}</Label><Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>{t("contact_phone_label")}</Label><Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+1-555-0123" /></div>
+              <div><Label>{t("contact_email_label")}</Label><Input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="hotel@example.com" /></div>
+            </div>
+            <div><Label>{t("website_label")}</Label><Input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://hotel.com" /></div>
+            <div><Label>{t("description_label")}</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} /></div>
+            <div><Label>{t("room_description_label")}</Label><Textarea value={roomDescription} onChange={(e) => setRoomDescription(e.target.value)} rows={2} /></div>
             <div className="flex items-center gap-2">
               <Switch checked={isActive} onCheckedChange={setIsActive} />
               <Label>{t("active_label")}</Label>

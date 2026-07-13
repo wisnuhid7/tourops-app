@@ -24,6 +24,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
@@ -65,14 +66,14 @@ export default function SupplierDashboard() {
   const { data: cities } = useQuery<any[]>({ queryKey: ["/api/master/cities"], enabled: canRegisterHotels });
 
   const [hotelDialogOpen, setHotelDialogOpen] = useState(false);
-  const [hotelForm, setHotelForm] = useState({ name: "", cityId: "", starRating: "3", basePrice: "", currency: "USD", address: "" });
+  const [hotelForm, setHotelForm] = useState({ name: "", cityId: "", starRating: "3", basePrice: "", currency: "USD", address: "", imageUrl: "", contactPhone: "", contactEmail: "", website: "", description: "", roomDescription: "" });
   const registerHotel = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/hotels", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/hotels"] });
       toast({ title: t("hotel_registered") });
       setHotelDialogOpen(false);
-      setHotelForm({ name: "", cityId: "", starRating: "3", basePrice: "", currency: "USD", address: "" });
+      setHotelForm({ name: "", cityId: "", starRating: "3", basePrice: "", currency: "USD", address: "", imageUrl: "", contactPhone: "", contactEmail: "", website: "", description: "", roomDescription: "" });
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -438,6 +439,14 @@ export default function SupplierDashboard() {
               <div><Label>{t("currency_label")}</Label><Input value={hotelForm.currency} onChange={(e) => setHotelForm({ ...hotelForm, currency: e.target.value })} placeholder="USD" /></div>
             </div>
             <div><Label>{t("address_label")}</Label><Input value={hotelForm.address} onChange={(e) => setHotelForm({ ...hotelForm, address: e.target.value })} placeholder="123 Street..." /></div>
+            <div><Label>{t("image_url_label")}</Label><Input value={hotelForm.imageUrl} onChange={(e) => setHotelForm({ ...hotelForm, imageUrl: e.target.value })} placeholder="https://..." /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>{t("contact_phone_label")}</Label><Input value={hotelForm.contactPhone} onChange={(e) => setHotelForm({ ...hotelForm, contactPhone: e.target.value })} placeholder="+1-555-0123" /></div>
+              <div><Label>{t("contact_email_label")}</Label><Input type="email" value={hotelForm.contactEmail} onChange={(e) => setHotelForm({ ...hotelForm, contactEmail: e.target.value })} placeholder="hotel@example.com" /></div>
+            </div>
+            <div><Label>{t("website_label")}</Label><Input value={hotelForm.website} onChange={(e) => setHotelForm({ ...hotelForm, website: e.target.value })} placeholder="https://hotel.com" /></div>
+            <div><Label>{t("description_label")}</Label><Textarea value={hotelForm.description} onChange={(e) => setHotelForm({ ...hotelForm, description: e.target.value })} rows={2} /></div>
+            <div><Label>{t("room_description_label")}</Label><Textarea value={hotelForm.roomDescription} onChange={(e) => setHotelForm({ ...hotelForm, roomDescription: e.target.value })} rows={2} /></div>
           </div>
           <DialogFooter>
             <Button
@@ -447,7 +456,13 @@ export default function SupplierDashboard() {
                 starRating: parseInt(hotelForm.starRating),
                 basePrice: hotelForm.basePrice || undefined,
                 currency: hotelForm.currency,
-                address: hotelForm.address,
+                address: hotelForm.address || undefined,
+                imageUrl: hotelForm.imageUrl || undefined,
+                contactPhone: hotelForm.contactPhone || undefined,
+                contactEmail: hotelForm.contactEmail || undefined,
+                website: hotelForm.website || undefined,
+                description: hotelForm.description || undefined,
+                roomTypes: hotelForm.roomDescription ? { description: hotelForm.roomDescription } : undefined,
               })}
               disabled={!hotelForm.name || !hotelForm.cityId || registerHotel.isPending}
             >

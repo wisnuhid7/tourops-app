@@ -31,3 +31,18 @@ one sub-component calling `t()` without the hook → `TS2304: Cannot find name '
 **Known unrelated noise:** `src/components/ui/calendar.tsx` has 3 pre-existing tsc
 errors (shadcn vs react-day-picker version mismatch, `IconLeft`/implicit-any) — not
 i18n, ignore them when judging i18n completeness.
+
+**Dynamic DB content translations are a separate axis from `t()`:** tour & tour-day
+content (title/description/highlights/inclusions/exclusions/itinerary) is stored in a
+per-row `translations` jsonb column keyed by lang (`translations.es.title`, etc.), read
+in the UI as `row.translations?.[language]?.field || row.field` (English fallback). The
+customer pages are already wired this way — BUT the column is empty for every row, so
+switching to ES/ID shows translated section *labels* (from `t()`) over English content,
+which reads as "the switcher doesn't work." Populating that jsonb (manual editor field
+or an AI translate step) is a data task, not a code fix. `t()` dictionary and the
+`translations` jsonb are independent — fixing one does nothing for the other.
+
+**Language provider must stay reactive:** `LanguageProvider.setLanguage` should update
+React state (so consumers re-render instantly); do NOT reintroduce `window.location.reload()`.
+Guard `localStorage`/`navigator`/`document` access in try/catch — they throw in the
+sandboxed preview iframe and previously broke switching entirely.

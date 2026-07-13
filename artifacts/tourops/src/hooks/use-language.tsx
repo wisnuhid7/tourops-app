@@ -4523,12 +4523,21 @@ const LanguageContext = createContext<LanguageContextType | undefined>(undefined
 
 function getStoredLanguage(): Language {
   if (typeof window === "undefined") return "en";
-  const stored = localStorage.getItem("tourops-language");
-  if (stored === "en" || stored === "es" || stored === "id") return stored;
+  // localStorage can throw in sandboxed iframes / privacy mode — guard it.
+  try {
+    const stored = localStorage.getItem("tourops-language");
+    if (stored === "en" || stored === "es" || stored === "id") return stored;
+  } catch {
+    /* storage unavailable — fall through to browser detection */
+  }
   // Auto-detect from browser
-  const browserLang = navigator.language.slice(0, 2);
-  if (browserLang === "es") return "es";
-  if (browserLang === "id") return "id";
+  try {
+    const browserLang = navigator.language.slice(0, 2);
+    if (browserLang === "es") return "es";
+    if (browserLang === "id") return "id";
+  } catch {
+    /* navigator unavailable */
+  }
   return "en";
 }
 
@@ -4536,13 +4545,23 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>(getStoredLanguage);
 
   const setLanguage = (lang: Language) => {
-    localStorage.setItem("tourops-language", lang);
-    document.documentElement.lang = lang;
-    window.location.reload();
+    // Update React state so every consumer re-renders immediately —
+    // no full page reload required.
+    setLanguageState(lang);
+    try {
+      localStorage.setItem("tourops-language", lang);
+    } catch {
+      /* persistence unavailable (sandboxed iframe / privacy mode) — ignore */
+    }
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = lang;
+    }
   };
 
   useEffect(() => {
-    document.documentElement.lang = language;
+    if (typeof document !== "undefined") {
+      document.documentElement.lang = language;
+    }
   }, [language]);
 
   const t = (key: TranslationKey): string => {

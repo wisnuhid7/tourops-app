@@ -50,14 +50,16 @@ function PublicGroupsList({ departureId }: { departureId: string }) {
 
 function DayHotelGuideInfo({ dayId }: { dayId: string }) {
   const { data: items } = useQuery<any[]>({ queryKey: ["/api/tour-days", dayId, "items"] });
-  const relevant = items?.filter((i) => i.itemType === "hotel" || i.itemType === "guide") || [];
+  // Guide badges intentionally excluded — guides are presented only in the
+  // "Meet Your Guides" section at the bottom of the page.
+  const relevant = items?.filter((i) => i.itemType === "hotel") || [];
   if (relevant.length === 0) return null;
 
   return (
     <div className="mt-3 pt-3 border-t border-slate-200/50 dark:border-slate-700/50 flex flex-wrap gap-2">
       {relevant.map((item) => (
         <Badge key={item.id} variant="outline" className="gap-1.5 font-normal text-xs">
-          {item.itemType === "hotel" ? <Bed className="h-3 w-3" /> : <User className="h-3 w-3" />}
+          <Bed className="h-3 w-3" />
           {item.title}
         </Badge>
       ))}

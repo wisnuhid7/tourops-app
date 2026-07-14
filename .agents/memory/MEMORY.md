@@ -1,3 +1,4 @@
+- [Preview iframe storage & session cookies](iframe-storage-and-session-cookies.md) — iframe partitioning breaks localStorage AND SameSite=Lax session cookies; fix = None+Secure+Partitioned, which then requires the Origin CSRF guard.
 - [Porting legacy Express apps into artifacts](porting-legacy-express-apps.md) — keep `registerRoutes(server, app)` monolith pattern instead of forcing scaffold's router; watch for nested-dir copy bugs and SSRF/cookie regressions in ported code.
 - [Role config/sidebar consistency](role-config-sidebar-consistency.md) — role-based dashboards define behavior in 3 separate maps (routing, dashboard config, sidebar) that can silently drift; audit all 3 per role.
 - [Role-gated PATCH endpoints need field allowlists](role-gated-patch-field-allowlists.md) — role-gating a PATCH route is not enough if it passes req.body straight to storage; add a server-side field allowlist per role.

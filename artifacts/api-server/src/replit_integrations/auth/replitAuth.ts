@@ -25,8 +25,15 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      // "auto": Secure is set whenever the request is HTTPS (trust proxy is
+      // enabled, so proxied HTTPS counts). Plain-HTTP tools like curl still work.
+      secure: "auto",
+      // The Replit preview embeds the app in a cross-origin iframe, where
+      // browsers drop SameSite=Lax cookies. SameSite=None (+Secure) plus
+      // Partitioned (CHIPS) lets the session cookie survive iframe storage
+      // partitioning; on plain HTTP these attributes are simply ignored.
+      sameSite: "none",
+      partitioned: true,
       maxAge: sessionTtl,
     }
   });

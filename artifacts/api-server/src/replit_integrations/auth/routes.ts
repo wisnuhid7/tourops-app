@@ -145,19 +145,34 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
+  // Clear the session cookie with the same attributes it was set with —
+  // browsers only reliably remove a cookie when path/SameSite/Secure/
+  // Partitioned match the original Set-Cookie.
+  const clearSessionCookie = (res: Parameters<Parameters<Express["post"]>[1]>[1]) => {
+    res.clearCookie("connect.sid", {
+      path: "/",
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      partitioned: true,
+    });
+    // Also clear the non-Partitioned/non-Secure variant set over plain HTTP.
+    res.clearCookie("connect.sid", { path: "/" });
+  };
+
   app.post("/api/auth/logout", (req, res) => {
     req.session.destroy((err) => {
       if (err) {
         return res.status(500).json({ message: "Logout failed" });
       }
-      res.clearCookie("connect.sid");
+      clearSessionCookie(res);
       res.json({ success: true });
     });
   });
 
   app.get("/api/logout", (req, res) => {
     req.session.destroy(() => {
-      res.clearCookie("connect.sid");
+      clearSessionCookie(res);
       res.redirect("/");
     });
   });

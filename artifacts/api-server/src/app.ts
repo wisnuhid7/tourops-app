@@ -30,6 +30,31 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// CSRF guard: the session cookie is SameSite=None (required for the Replit
+// preview iframe), so browsers will attach it to cross-site requests. Reject
+// state-changing requests whose Origin doesn't match the host we're serving.
+// Requests without an Origin header (curl, server-to-server) are allowed.
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+app.use((req, res, next) => {
+  if (!MUTATING_METHODS.has(req.method)) return next();
+  const origin = req.get("origin");
+  if (!origin || origin === "null") {
+    // No Origin: non-browser client. "null" origin: sandboxed/opaque context —
+    // allow it since the preview iframe can report an opaque origin, and such
+    // contexts don't carry our credentialed cookie unless partitioned to us.
+    return next();
+  }
+  try {
+    const originHost = new URL(origin).host;
+    const requestHost =
+      req.get("x-forwarded-host")?.split(",")[0]?.trim() || req.get("host");
+    if (originHost === requestHost) return next();
+  } catch {
+    // Unparseable Origin — fall through to rejection.
+  }
+  return res.status(403).json({ message: "Cross-origin request blocked" });
+});
+
 app.use("/api", router);
 
 // Serve uploaded images (multer writes to <cwd>/uploads/images).

@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import { PublicHeader } from "@/components/public-header";
-import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer, Plane, Flag, Bed, Bus, Utensils, User, CircleDollarSign } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer, Plane, Flag, Bed, Bus, Utensils, User, CircleDollarSign, Languages } from "lucide-react";
 import { getFullImageUrl } from "@/lib/utils";
 import { Link } from "wouter";
 import { useState } from "react";
@@ -61,6 +61,57 @@ function DayHotelGuideInfo({ dayId }: { dayId: string }) {
           {item.title}
         </Badge>
       ))}
+    </div>
+  );
+}
+
+function TourGuidesSummary({ tourId }: { tourId: string }) {
+  const { t } = useLanguage();
+  const { data: guides } = useQuery<any[]>({ queryKey: ["/api/tours", tourId, "guides"] });
+  if (!guides || guides.length === 0) return null;
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold font-serif mb-4">{t("meet_your_guides")}</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {guides.map((g) => (
+          <Card
+            key={g.id}
+            data-testid={`card-tour-guide-${g.id}`}
+            className="bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-850 shadow-sm rounded-xl"
+          >
+            <CardContent className="p-5 flex items-center gap-4">
+              {g.photoUrl ? (
+                <img
+                  src={getFullImageUrl(g.photoUrl)}
+                  alt={g.guideName}
+                  className="h-16 w-16 rounded-full object-cover border-2 border-white dark:border-slate-700 shadow-sm flex-shrink-0"
+                  onError={(e) => {
+                    // Fall back to the generic avatar if the photo fails to load
+                    e.currentTarget.outerHTML =
+                      '<div class="h-16 w-16 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center flex-shrink-0"></div>';
+                  }}
+                />
+              ) : (
+                <div className="h-16 w-16 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
+                  <User className="h-7 w-7 text-slate-400" />
+                </div>
+              )}
+              <div className="min-w-0">
+                <p className="font-semibold text-slate-900 dark:text-slate-50 truncate" data-testid={`text-guide-name-${g.id}`}>
+                  {g.guideName}
+                </p>
+                {g.language && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5" data-testid={`text-guide-language-${g.id}`}>
+                    <Languages className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span className="truncate">{g.language}</span>
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
@@ -390,6 +441,8 @@ export default function TourDetail() {
           </div>
         </div>
       )}
+
+      {tourId && <TourGuidesSummary tourId={tourId} />}
 
       <div>
         <h2 className="text-xl font-bold font-serif mb-4">{t("available_departures")}</h2>

@@ -21,7 +21,8 @@ import {
 import { WORKFLOW_STATUSES } from "@/lib/constants";
 import type { BookingWorkflow, Booking, UserProfile, Traveler, Document } from "@workspace/db";
 import { Link, useSearch } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getFullImageUrl } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -176,6 +177,33 @@ export default function SupplierDashboard() {
   const [rateDialogOpen, setRateDialogOpen] = useState(false);
   const [rateType, setRateType] = useState<"hotel" | "guide" | "sights" | "airline">("hotel");
   const [editingRate, setEditingRate] = useState<any>(null);
+  const [guidePhotoUrl, setGuidePhotoUrl] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  // Sync the guide photo with whichever record the rate dialog opens for.
+  useEffect(() => {
+    if (rateDialogOpen) setGuidePhotoUrl(editingRate?.photoUrl || null);
+  }, [rateDialogOpen, editingRate]);
+
+  const handleGuidePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingPhoto(true);
+    const formData = new FormData();
+    formData.append("image", file);
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed");
+      const uploaded = await res.json();
+      setGuidePhotoUrl(uploaded.url);
+      toast({ title: t("image_uploaded_successfully") });
+    } catch {
+      toast({ title: t("failed_to_upload_image"), variant: "destructive" });
+    } finally {
+      setIsUploadingPhoto(false);
+      e.target.value = "";
+    }
+  };
 
   const openRateDialog = (type: "hotel" | "guide" | "sights" | "airline", rate?: any) => {
     setRateType(type);
@@ -1000,7 +1028,7 @@ export default function SupplierDashboard() {
               data.price = fd.get("price");
               data.email = fd.get("email") || null;
               data.phone = fd.get("phone") || null;
-              data.photoUrl = fd.get("photoUrl") || null;
+              data.photoUrl = guidePhotoUrl || null;
               const ageVal = fd.get("age") as string;
               data.age = ageVal ? parseInt(ageVal) : null;
             } else if (rateType === "airline") {
@@ -1037,7 +1065,31 @@ export default function SupplierDashboard() {
                   <div className="space-y-2"><Label>{t("guide_age")}</Label><Input type="number" name="age" defaultValue={editingRate?.age ?? ""} /></div>
                   <div className="space-y-2"><Label>{t("price")}</Label><Input type="number" name="price" defaultValue={editingRate?.price} required /></div>
                 </div>
-                <div className="space-y-2"><Label>{t("guide_photo_url")}</Label><Input name="photoUrl" defaultValue={editingRate?.photoUrl} placeholder="https://..." /></div>
+                <div className="space-y-2">
+                  <Label>{t("guide_photo")}</Label>
+                  {guidePhotoUrl && (
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={getFullImageUrl(guidePhotoUrl)}
+                        alt=""
+                        className="h-16 w-16 rounded-full object-cover border shadow-sm"
+                        onError={(e) => { e.currentTarget.style.display = "none"; }}
+                        data-testid="img-guide-photo-preview"
+                      />
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setGuidePhotoUrl(null)} data-testid="button-remove-guide-photo">
+                        {t("remove_photo")}
+                      </Button>
+                    </div>
+                  )}
+                  <Input
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
+                    disabled={isUploadingPhoto}
+                    onChange={handleGuidePhotoUpload}
+                    data-testid="input-guide-photo-file"
+                  />
+                  {isUploadingPhoto && <p className="text-xs text-muted-foreground">{t("uploading")}</p>}
+                </div>
               </>
             )}
             {rateType === "sights" && (

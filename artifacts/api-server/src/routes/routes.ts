@@ -618,6 +618,23 @@ export async function registerRoutes(
     catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  // Public: consolidated list of unique guides assigned across all days of a tour.
+  // Deduped server-side by guide id; exposes only public-safe profile fields
+  // (never pricing, contact info, or the wider guide catalog).
+  app.get("/api/tours/:id/guides", async (req, res) => {
+    try {
+      const items = await storage.getTourDayItemsByTourId(req.params.id as string);
+      const guideIds = [...new Set(
+        items.filter((i) => i.itemType === "guide" && i.guideId).map((i) => i.guideId as string)
+      )];
+      const rows = await Promise.all(guideIds.map((gid) => storage.getGuideRate(gid)));
+      const guides = rows
+        .filter((g): g is NonNullable<typeof g> => !!g)
+        .map((g) => ({ id: g.id, guideName: g.guideName, language: g.language, photoUrl: g.photoUrl }));
+      res.json(guides);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   app.post("/api/tours/:id/days", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, TOUR_BUILDER_ROLES)) return;

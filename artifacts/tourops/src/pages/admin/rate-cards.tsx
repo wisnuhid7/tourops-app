@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { getFullImageUrl } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -683,6 +684,8 @@ function GuideRatesTab() {
   const [language, setLanguage] = useState("");
   const [rateUnit, setRateUnit] = useState("");
   const [currency, setCurrency] = useState("USD");
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [validFrom, setValidFrom] = useState("");
   const [validTo, setValidTo] = useState("");
   const [price, setPrice] = useState("");
@@ -696,7 +699,7 @@ function GuideRatesTab() {
   const resetForm = () => {
     setCountryCode(""); setCityBase(""); setGuideName(""); setGuideCode(""); setLanguage("");
     setRateUnit(""); setCurrency("USD"); setValidFrom(""); setValidTo(""); setPrice("");
-    setLicenseLevel(""); setNotes(""); setStatus("draft");
+    setLicenseLevel(""); setNotes(""); setStatus("draft"); setPhotoUrl("");
   };
 
   const openCreate = () => { setEditItem(null); resetForm(); setShowForm(true); };
@@ -707,7 +710,28 @@ function GuideRatesTab() {
     setCurrency(item.currency || "USD"); setValidFrom(item.validFrom || ""); setValidTo(item.validTo || "");
     setPrice(item.price || ""); setLicenseLevel(item.licenseLevel || ""); setNotes(item.notes || "");
     setStatus((item.status as RateStatus) || "draft");
+    setPhotoUrl(item.photoUrl || "");
     setShowForm(true);
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingPhoto(true);
+    const formData = new FormData();
+    formData.append("image", file);
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed");
+      const uploaded = await res.json();
+      setPhotoUrl(uploaded.url);
+      toast({ title: t("image_uploaded_successfully") });
+    } catch {
+      toast({ title: t("failed_to_upload_image"), variant: "destructive" });
+    } finally {
+      setIsUploadingPhoto(false);
+      e.target.value = "";
+    }
   };
 
   const createMutation = useMutation({
@@ -755,6 +779,7 @@ function GuideRatesTab() {
       guideCode: guideCode || undefined, language: language || undefined, rateUnit: rateUnit || undefined,
       currency, validFrom: validFrom || undefined, validTo: validTo || undefined,
       price: price || undefined, licenseLevel: licenseLevel || undefined, notes: notes || undefined,
+      photoUrl: photoUrl || null,
       // Send the tracked status as-is so an untouched "archived" guide isn't
       // silently downgraded to draft; the switch only flips active<->draft.
       status,
@@ -858,6 +883,31 @@ function GuideRatesTab() {
             <div><Label>{t("valid_to")}</Label><Input type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} data-testid="input-guide-valid-to" /></div>
             <div><Label>{t("license_level")}</Label><Input value={licenseLevel} onChange={(e) => setLicenseLevel(e.target.value)} data-testid="input-guide-license" /></div>
             <div className="md:col-span-2"><Label>{t("notes")}</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} data-testid="input-guide-notes" /></div>
+            <div className="md:col-span-2 space-y-2">
+              <Label>{t("guide_photo")}</Label>
+              {photoUrl && (
+                <div className="flex items-center gap-3">
+                  <img
+                    src={getFullImageUrl(photoUrl)}
+                    alt=""
+                    className="h-16 w-16 rounded-full object-cover border shadow-sm"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                    data-testid="img-guide-photo-preview"
+                  />
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setPhotoUrl("")} data-testid="button-remove-guide-photo">
+                    {t("remove_photo")}
+                  </Button>
+                </div>
+              )}
+              <Input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp"
+                disabled={isUploadingPhoto}
+                onChange={handlePhotoUpload}
+                data-testid="input-guide-photo-file"
+              />
+              {isUploadingPhoto && <p className="text-xs text-muted-foreground">{t("uploading")}</p>}
+            </div>
             <div className="md:col-span-2 flex items-center gap-3">
               <Switch
                 checked={status === "active"}

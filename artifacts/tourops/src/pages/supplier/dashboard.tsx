@@ -2,6 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -161,6 +162,14 @@ export default function SupplierDashboard() {
     onSuccess: (_, { type }) => {
       queryClient.invalidateQueries({ queryKey: [`/api/rates/${type}`] });
       toast({ title: t("rate_deleted"), variant: "destructive" });
+    },
+  });
+
+  const guideStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string, status: string }) => apiRequest("PATCH", `/api/rates/guide/${id}`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rates/guide"] });
+      toast({ title: t("guide_status_updated") });
     },
   });
 
@@ -621,7 +630,18 @@ export default function SupplierDashboard() {
                        <TableCell>{r.language}</TableCell>
                        <TableCell>{r.currency} {r.price}</TableCell>
                        <TableCell>{r.validFrom} to {r.validTo}</TableCell>
-                       <TableCell><Badge variant="outline" className="capitalize">{r.status}</Badge></TableCell>
+                       <TableCell>
+                         <div className="flex items-center gap-2">
+                           <Switch
+                           checked={r.status === "active"}
+                           onCheckedChange={(checked) => guideStatusMutation.mutate({ id: r.id, status: checked ? "active" : "draft" })}
+                           disabled={guideStatusMutation.isPending || r.status === "archived"}
+                           aria-label={t("status")}
+                           data-testid={`switch-guide-status-${r.id}`}
+                           />
+                           <Badge variant="outline" className="capitalize">{r.status}</Badge>
+                         </div>
+                       </TableCell>
                        <TableCell className="text-right flex justify-end gap-2">
                          <Button variant="ghost" size="icon" onClick={() => openRateDialog("guide", r)} data-testid={`button-edit-guide-${r.id}`}><Pencil className="h-4 w-4" /></Button>
                          <Button variant="ghost" size="icon" className="text-destructive" data-testid={`button-delete-guide-${r.id}`} onClick={() => {

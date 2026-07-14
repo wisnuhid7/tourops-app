@@ -51,3 +51,29 @@ export const getGoogleMapsEmbedUrl = (url?: string | null, fallbackQuery?: strin
   if (fallbackQuery) return embed(fallbackQuery);
   return null;
 };
+
+// Safe localStorage wrappers: property access alone can throw when storage is
+// blocked (sandboxed iframes, strict privacy settings), so guard every call.
+export const safeStorage = {
+  getItem(key: string): string | null {
+    try {
+      return window.localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem(key: string, value: string): void {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      // Storage unavailable — value simply won't persist.
+    }
+  },
+  removeItem(key: string): void {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // Storage unavailable — nothing to remove.
+    }
+  },
+};

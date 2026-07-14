@@ -25,7 +25,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { getFullImageUrl } from "@/lib/utils";
+import { getFullImageUrl, safeStorage } from "@/lib/utils";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -169,7 +169,7 @@ function TourGeneratorInner() {
     setHasDraft(false);
 
     const draftKey = `tour-draft-${selectedTourId}`;
-    const draft = localStorage.getItem(draftKey);
+    const draft = safeStorage.getItem(draftKey);
     if (draft) {
       setHasDraft(true);
     } else {
@@ -186,7 +186,7 @@ function TourGeneratorInner() {
 
   const restoreDraft = () => {
     const draftKey = `tour-draft-${selectedTourId}`;
-    const draftStr = localStorage.getItem(draftKey);
+    const draftStr = safeStorage.getItem(draftKey);
     if (draftStr) {
       try {
         const draft = JSON.parse(draftStr);
@@ -219,7 +219,7 @@ function TourGeneratorInner() {
   };
 
   const discardDraft = () => {
-    localStorage.removeItem(`tour-draft-${selectedTourId}`);
+    safeStorage.removeItem(`tour-draft-${selectedTourId}`);
     setHasDraft(false);
     skipDraftRef.current = true;
     initializedRef.current = true;
@@ -240,7 +240,7 @@ function TourGeneratorInner() {
         basePrice, childPrice, singleSupplement,
         selectedCountries, tags, galleryUrls, imageUrl, days
       };
-      localStorage.setItem(draftKey, JSON.stringify(draftData));
+      safeStorage.setItem(draftKey, JSON.stringify(draftData));
     }, 2000);
 
     return () => clearTimeout(timeoutId);
@@ -275,7 +275,7 @@ function TourGeneratorInner() {
       return newTour.id;
     },
     onSuccess: (tourId) => {
-      localStorage.removeItem(`tour-draft-${selectedTourId}`);
+      safeStorage.removeItem(`tour-draft-${selectedTourId}`);
       queryClient.invalidateQueries({ queryKey: ["/api/tours"] });
       queryClient.invalidateQueries({ queryKey: [`/api/tours/${selectedTourId}/days`] });
       queryClient.invalidateQueries({ queryKey: [`/api/tours/${selectedTourId}/day-items`] });

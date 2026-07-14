@@ -31,6 +31,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { useLanguage } from "@/hooks/use-language";
+import { HotelFormFields, emptyHotelFormValues, hotelToFormValues, hotelFormToPayload, type HotelFormValues } from "@/components/hotel-form-fields";
 
 export default function SupplierDashboard() {
   const { t } = useLanguage();
@@ -75,18 +76,12 @@ export default function SupplierDashboard() {
   const [hotelDialogOpen, setHotelDialogOpen] = useState(false);
   const [editingHotelId, setEditingHotelId] = useState<string | null>(null);
   const [deleteHotelId, setDeleteHotelId] = useState<string | null>(null);
-  const emptyHotelForm = { name: "", cityId: "", starRating: "3", basePrice: "", currency: "USD", address: "", imageUrl: "", contactPhone: "", contactEmail: "", website: "", description: "", roomDescription: "" };
-  const [hotelForm, setHotelForm] = useState(emptyHotelForm);
+  const [hotelForm, setHotelForm] = useState<HotelFormValues>(emptyHotelFormValues);
 
-  const openCreateHotel = () => { setEditingHotelId(null); setHotelForm(emptyHotelForm); setHotelDialogOpen(true); };
+  const openCreateHotel = () => { setEditingHotelId(null); setHotelForm(emptyHotelFormValues); setHotelDialogOpen(true); };
   const openEditHotel = (h: any) => {
     setEditingHotelId(h.id);
-    setHotelForm({
-      name: h.name || "", cityId: h.cityId || "", starRating: String(h.starRating || 3),
-      basePrice: h.basePrice || "", currency: h.currency || "USD", address: h.address || "",
-      imageUrl: h.imageUrl || "", contactPhone: h.contactPhone || "", contactEmail: h.contactEmail || "",
-      website: h.website || "", description: h.description || "", roomDescription: h.roomTypes?.description || "",
-    });
+    setHotelForm(hotelToFormValues(h));
     setHotelDialogOpen(true);
   };
 
@@ -96,7 +91,7 @@ export default function SupplierDashboard() {
       queryClient.invalidateQueries({ queryKey: ["/api/hotels"] });
       toast({ title: t("hotel_registered") });
       setHotelDialogOpen(false);
-      setHotelForm(emptyHotelForm);
+      setHotelForm(emptyHotelFormValues);
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -108,7 +103,7 @@ export default function SupplierDashboard() {
       toast({ title: t("hotel_updated") });
       setHotelDialogOpen(false);
       setEditingHotelId(null);
-      setHotelForm(emptyHotelForm);
+      setHotelForm(emptyHotelFormValues);
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -124,20 +119,7 @@ export default function SupplierDashboard() {
   });
 
   const submitHotel = () => {
-    const payload = {
-      name: hotelForm.name,
-      cityId: hotelForm.cityId,
-      starRating: parseInt(hotelForm.starRating),
-      basePrice: hotelForm.basePrice || undefined,
-      currency: hotelForm.currency,
-      address: hotelForm.address || undefined,
-      imageUrl: hotelForm.imageUrl || undefined,
-      contactPhone: hotelForm.contactPhone || undefined,
-      contactEmail: hotelForm.contactEmail || undefined,
-      website: hotelForm.website || undefined,
-      description: hotelForm.description || undefined,
-      roomTypes: hotelForm.roomDescription ? { description: hotelForm.roomDescription } : undefined,
-    };
+    const payload = hotelFormToPayload(hotelForm);
     if (editingHotelId) updateHotel.mutate({ id: editingHotelId, ...payload });
     else registerHotel.mutate(payload);
   };
@@ -521,38 +503,7 @@ export default function SupplierDashboard() {
             <DialogDescription>{t("pending_approval")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 overflow-y-auto flex-1 pr-1 -mr-1">
-            <div><Label>{t("name_required_label")}</Label><Input value={hotelForm.name} onChange={(e) => setHotelForm({ ...hotelForm, name: e.target.value })} placeholder="Grand Plaza" /></div>
-            <div>
-              <Label>{t("city_label")} *</Label>
-              <Select value={hotelForm.cityId} onValueChange={(v) => setHotelForm({ ...hotelForm, cityId: v })}>
-                <SelectTrigger><SelectValue placeholder={t("select_city_placeholder")} /></SelectTrigger>
-                <SelectContent>
-                  {cities?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>{t("star_rating_label")}</Label>
-              <Select value={hotelForm.starRating} onValueChange={(v) => setHotelForm({ ...hotelForm, starRating: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {[1,2,3,4,5].map(s => <SelectItem key={s} value={String(s)}>{s} Stars</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>{t("base_price_label")}</Label><Input type="number" step="0.01" value={hotelForm.basePrice} onChange={(e) => setHotelForm({ ...hotelForm, basePrice: e.target.value })} placeholder="150.00" /></div>
-              <div><Label>{t("currency_label")}</Label><Input value={hotelForm.currency} onChange={(e) => setHotelForm({ ...hotelForm, currency: e.target.value })} placeholder="USD" /></div>
-            </div>
-            <div><Label>{t("address_label")}</Label><Input value={hotelForm.address} onChange={(e) => setHotelForm({ ...hotelForm, address: e.target.value })} placeholder="123 Street..." /></div>
-            <div><Label>{t("image_url_label")}</Label><Input value={hotelForm.imageUrl} onChange={(e) => setHotelForm({ ...hotelForm, imageUrl: e.target.value })} placeholder="https://..." /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>{t("contact_phone_label")}</Label><Input value={hotelForm.contactPhone} onChange={(e) => setHotelForm({ ...hotelForm, contactPhone: e.target.value })} placeholder="+1-555-0123" /></div>
-              <div><Label>{t("contact_email_label")}</Label><Input type="email" value={hotelForm.contactEmail} onChange={(e) => setHotelForm({ ...hotelForm, contactEmail: e.target.value })} placeholder="hotel@example.com" /></div>
-            </div>
-            <div><Label>{t("website_label")}</Label><Input value={hotelForm.website} onChange={(e) => setHotelForm({ ...hotelForm, website: e.target.value })} placeholder="https://hotel.com" /></div>
-            <div><Label>{t("description_label")}</Label><Textarea value={hotelForm.description} onChange={(e) => setHotelForm({ ...hotelForm, description: e.target.value })} rows={2} /></div>
-            <div><Label>{t("room_description_label")}</Label><Textarea value={hotelForm.roomDescription} onChange={(e) => setHotelForm({ ...hotelForm, roomDescription: e.target.value })} rows={2} /></div>
+            <HotelFormFields value={hotelForm} onChange={setHotelForm} cities={cities} />
           </div>
           <DialogFooter className="shrink-0 pt-2">
             <Button variant="outline" onClick={() => { setHotelDialogOpen(false); setEditingHotelId(null); }}>{t("cancel")}</Button>

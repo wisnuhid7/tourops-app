@@ -20,6 +20,7 @@ import type {
 } from "@workspace/db";
 import { CheckCircle } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { HotelFormFields, emptyHotelFormValues, hotelToFormValues, hotelFormToPayload, type HotelFormValues } from "@/components/hotel-form-fields";
 
 const SIGHT_CATEGORIES = ["museum", "landmark", "park", "religious", "entertainment", "nature", "historical", "other"];
 
@@ -1270,19 +1271,7 @@ function HotelsTab() {
   const [showForm, setShowForm] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const [name, setName] = useState("");
-  const [cityId, setCityId] = useState("");
-  const [starRating, setStarRating] = useState("3");
-  const [basePrice, setBasePrice] = useState("");
-  const [currency, setCurrency] = useState("USD");
-  const [googleMapsUrl, setGoogleMapsUrl] = useState("");
-  const [description, setDescription] = useState("");
-  const [imageUrl, setImageUrl] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [website, setWebsite] = useState("");
-  const [roomDescription, setRoomDescription] = useState("");
-  const [isActive, setIsActive] = useState(true);
+  const [form, setForm] = useState<HotelFormValues>(emptyHotelFormValues);
 
   const { data: items, isLoading } = useQuery<Hotel[]>({ queryKey: ["/api/hotels"] });
   const { data: citiesList } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
@@ -1295,15 +1284,12 @@ function HotelsTab() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
-  const resetForm = () => { setName(""); setCityId(""); setStarRating("3"); setBasePrice(""); setCurrency("USD"); setGoogleMapsUrl(""); setDescription(""); setImageUrl(""); setContactPhone(""); setContactEmail(""); setWebsite(""); setRoomDescription(""); setIsActive(true); };
+  const resetForm = () => setForm(emptyHotelFormValues);
 
   const openEdit = (item: Hotel) => {
-    setEditItem(item); setName(item.name); setCityId(item.cityId); setStarRating(String(item.starRating || 3));
-    setBasePrice(item.basePrice || ""); setCurrency(item.currency || "USD");
-    setGoogleMapsUrl((item as any).googleMapsUrl || ""); setDescription(item.description || "");
-    setImageUrl(item.imageUrl || ""); setContactPhone(item.contactPhone || ""); setContactEmail(item.contactEmail || ""); setWebsite(item.website || "");
-    setRoomDescription((item.roomTypes as any)?.description || "");
-    setIsActive(item.isActive ?? true); setShowForm(true);
+    setEditItem(item);
+    setForm(hotelToFormValues(item));
+    setShowForm(true);
   };
 
   const openCreate = () => { setEditItem(null); resetForm(); setShowForm(true); };
@@ -1333,13 +1319,7 @@ function HotelsTab() {
   });
 
   const handleSubmit = () => {
-    const data = {
-      name, cityId, starRating: parseInt(starRating), basePrice: basePrice || undefined, currency,
-      googleMapsUrl: googleMapsUrl || null, description: description || undefined,
-      imageUrl: imageUrl || undefined, contactPhone: contactPhone || undefined, contactEmail: contactEmail || undefined, website: website || undefined,
-      roomTypes: roomDescription ? { description: roomDescription } : undefined,
-      isActive,
-    };
+    const data = hotelFormToPayload(form);
     if (editItem) updateMutation.mutate({ id: editItem.id, ...data });
     else createMutation.mutate(data);
   };
@@ -1418,47 +1398,12 @@ function HotelsTab() {
         <DialogContent className="flex flex-col max-h-[85vh]">
           <DialogHeader className="shrink-0"><DialogTitle>{editItem ? "Edit Hotel" : "Add Hotel"}</DialogTitle></DialogHeader>
           <div className="space-y-4 overflow-y-auto flex-1 pr-1 -mr-1">
-            <div><Label>{t("name_required_label")}</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Grand Plaza" /></div>
-            <div>
-              <Label>{t("city_label")} *</Label>
-              <Select value={cityId} onValueChange={setCityId}>
-                <SelectTrigger><SelectValue placeholder={t("select_city_placeholder")} /></SelectTrigger>
-                <SelectContent>
-                  {citiesList?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>{t("star_rating_label")}</Label>
-              <Select value={starRating} onValueChange={setStarRating}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {[1,2,3,4,5].map(s => <SelectItem key={s} value={String(s)}>{s} Stars</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>{t("base_price_label")}</Label><Input type="number" step="0.01" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} placeholder="150.00" /></div>
-              <div><Label>{t("currency_label")}</Label><Input value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="USD" /></div>
-            </div>
-            <div><Label>{t("google_maps_url_label")}</Label><Input value={googleMapsUrl} onChange={(e) => setGoogleMapsUrl(e.target.value)} placeholder="https://maps.google.com/..." data-testid="input-hotel-maps-url" /></div>
-            <div><Label>{t("image_url_label")}</Label><Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>{t("contact_phone_label")}</Label><Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+1-555-0123" /></div>
-              <div><Label>{t("contact_email_label")}</Label><Input type="email" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} placeholder="hotel@example.com" /></div>
-            </div>
-            <div><Label>{t("website_label")}</Label><Input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://hotel.com" /></div>
-            <div><Label>{t("description_label")}</Label><Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} /></div>
-            <div><Label>{t("room_description_label")}</Label><Textarea value={roomDescription} onChange={(e) => setRoomDescription(e.target.value)} rows={2} /></div>
-            <div className="flex items-center gap-2">
-              <Switch checked={isActive} onCheckedChange={setIsActive} />
-              <Label>{t("active_label")}</Label>
-            </div>
+            <HotelFormFields value={form} onChange={setForm} cities={citiesList} />
           </div>
-          {(!name || !cityId) && <p className="text-xs text-muted-foreground text-right shrink-0">Fill in the required fields (*) to save</p>}
+          {(!form.name || !form.cityId) && <p className="text-xs text-muted-foreground text-right shrink-0">Fill in the required fields (*) to save</p>}
           <DialogFooter className="shrink-0 pt-2">
             <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={!name || !cityId || createMutation.isPending || updateMutation.isPending}>
+            <Button onClick={handleSubmit} disabled={!form.name || !form.cityId || createMutation.isPending || updateMutation.isPending}>
               {(createMutation.isPending || updateMutation.isPending) ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>

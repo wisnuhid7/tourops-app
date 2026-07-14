@@ -1415,9 +1415,9 @@ function HotelsTab() {
       </Table>
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editItem ? "Edit Hotel" : "Add Hotel"}</DialogTitle></DialogHeader>
-          <div className="space-y-4">
+        <DialogContent className="flex flex-col max-h-[85vh]">
+          <DialogHeader className="shrink-0"><DialogTitle>{editItem ? "Edit Hotel" : "Add Hotel"}</DialogTitle></DialogHeader>
+          <div className="space-y-4 overflow-y-auto flex-1 pr-1 -mr-1">
             <div><Label>{t("name_required_label")}</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Grand Plaza" /></div>
             <div>
               <Label>{t("city_label")} *</Label>
@@ -1455,8 +1455,8 @@ function HotelsTab() {
               <Label>{t("active_label")}</Label>
             </div>
           </div>
-          {(!name || !cityId) && <p className="text-xs text-muted-foreground text-right">Fill in the required fields (*) to save</p>}
-          <DialogFooter>
+          {(!name || !cityId) && <p className="text-xs text-muted-foreground text-right shrink-0">Fill in the required fields (*) to save</p>}
+          <DialogFooter className="shrink-0 pt-2">
             <Button variant="outline" onClick={() => setShowForm(false)}>Cancel</Button>
             <Button onClick={handleSubmit} disabled={!name || !cityId || createMutation.isPending || updateMutation.isPending}>
               {(createMutation.isPending || updateMutation.isPending) ? "Saving..." : "Save"}

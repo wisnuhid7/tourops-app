@@ -2861,7 +2861,7 @@ export async function registerRoutes(
   app.get("/api/rates/guide", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, GUIDE_MANAGE_ROLES)) return;
-      const { ownerId } = await ownerScope(req, ["guide_manager"]);
+      const { ownerId } = await ownerScope(req, []);
       let rows = await storage.getGuideRates();
       if (ownerId) rows = rows.filter(r => r.createdBy === ownerId);
       res.json(rows);
@@ -2872,7 +2872,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, GUIDE_MANAGE_ROLES)) return;
       const parsed = insertGuideRateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      const { userId } = await ownerScope(req, ["guide_manager"]);
+      const { userId } = await ownerScope(req, []);
       res.json(await storage.createGuideRate({ ...parsed.data, createdBy: userId }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -2881,14 +2881,14 @@ export async function registerRoutes(
       if (!await requireRole(req, res, GUIDE_MANAGE_ROLES)) return;
       const rows = z.array(insertGuideRateSchema).safeParse(req.body);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
-      const { userId } = await ownerScope(req, ["guide_manager"]);
+      const { userId } = await ownerScope(req, []);
       res.json(await storage.bulkCreateGuideRates(rows.data.map(r => ({ ...r, createdBy: userId }))));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.patch("/api/rates/guide/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, GUIDE_MANAGE_ROLES)) return;
-      const { ownerId } = await ownerScope(req, ["guide_manager"]);
+      const { ownerId } = await ownerScope(req, []);
       if (ownerId) {
         const existing = await storage.getGuideRate(req.params.id as string);
         if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
@@ -2901,7 +2901,7 @@ export async function registerRoutes(
   app.delete("/api/rates/guide/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, GUIDE_MANAGE_ROLES)) return;
-      const { ownerId } = await ownerScope(req, ["guide_manager"]);
+      const { ownerId } = await ownerScope(req, []);
       if (ownerId) {
         const existing = await storage.getGuideRate(req.params.id as string);
         if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });

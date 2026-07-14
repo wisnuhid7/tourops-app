@@ -5,7 +5,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useLanguage, LANGUAGE_LABELS, LANGUAGE_FLAGS, type Language } from "@/hooks/use-language";
+import { useLanguage } from "@/hooks/use-language";
+import { LANGUAGE_LABELS, LANGUAGE_FLAGS, type Language } from "@/hooks/translations";
 import { Globe } from "lucide-react";
 
 const LANGUAGES: Language[] = ["en", "es", "id"];

@@ -5,11 +5,23 @@ description: How TourOps translations are structured and how to find keys refere
 
 # TourOps i18n
 
-Dictionary lives in `artifacts/tourops/src/hooks/use-language.tsx` as a single
-`const translations = { en: {...}, es: {...}, id: {...} }` object; `TranslationKey`
-= `keyof typeof translations.en`, and `t(key)` is typed to that union. Three
-languages: English, Spanish, Indonesian — **every key must exist in all three**
-or the object shape / type breaks.
+Dictionary lives in `artifacts/tourops/src/hooks/translations.ts` (a **plain
+non-React module**) as a single `export const translations = { en:{...}, es:{...},
+id:{...} }` object, alongside `Language`, `LANGUAGE_LABELS`, `LANGUAGE_FLAGS`, and
+`TranslationKey = keyof typeof translations.en`. `use-language.tsx` imports from it
+and only exports the `LanguageProvider` component + `useLanguage` hook (plus type
+re-exports of `Language`/`TranslationKey` for back-compat). `t(key)` is typed to the
+`TranslationKey` union. Three languages: English, Spanish, Indonesian — **every key
+must exist in all three** or the object shape / type breaks.
+
+**Why the split (do NOT merge back):** when the huge `translations` object + the
+`LANGUAGE_FLAGS` const lived in the same file as the provider/hook, Vite react-refresh
+couldn't Fast-Refresh it. Every edit forced a module invalidation cascade, and
+consumers (e.g. `AppSidebar`) briefly got a null context → runtime crash
+`useLanguage must be used within a LanguageProvider`. Keeping data/constants out of the
+provider file makes it a clean refresh boundary. Add new keys in `translations.ts`;
+import value constants (`LANGUAGE_LABELS`/`LANGUAGE_FLAGS`) from `@/hooks/translations`,
+not from `@/hooks/use-language`.
 
 **Finding missing keys:** run `pnpm --filter @workspace/tourops run typecheck`.
 Any `t("foo")` whose key isn't in the dictionary shows as

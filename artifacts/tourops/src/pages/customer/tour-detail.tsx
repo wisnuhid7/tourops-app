@@ -14,8 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import { PublicHeader } from "@/components/public-header";
-import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer, Plane, Flag, Bed, Bus, Utensils, User, CircleDollarSign, Languages } from "lucide-react";
-import { getFullImageUrl } from "@/lib/utils";
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer, Plane, Flag, Bed, Bus, Utensils, User, CircleDollarSign, Languages, Star } from "lucide-react";
+import { getFullImageUrl, getGoogleMapsEmbedUrl } from "@/lib/utils";
 import { Link } from "wouter";
 import { useState } from "react";
 import type { Tour, TourDeparture, TourDay } from "@workspace/db";
@@ -111,6 +111,69 @@ function TourGuidesSummary({ tourId }: { tourId: string }) {
             </CardContent>
           </Card>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function TourHotelsSummary({ tourId }: { tourId: string }) {
+  const { t } = useLanguage();
+  const { data: hotels } = useQuery<any[]>({ queryKey: ["/api/tours", tourId, "hotels"] });
+  if (!hotels || hotels.length === 0) return null;
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold font-serif mb-4">{t("where_youll_stay")}</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {hotels.map((h) => {
+          const embedUrl = getGoogleMapsEmbedUrl(h.googleMapsUrl, h.googleMapsUrl ? h.name : undefined);
+          return (
+            <Card
+              key={h.id}
+              data-testid={`card-tour-hotel-${h.id}`}
+              className="bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-850 shadow-sm rounded-xl overflow-hidden"
+            >
+              {h.imageUrl && (
+                <div className="h-40 w-full overflow-hidden">
+                  <img
+                    src={getFullImageUrl(h.imageUrl)}
+                    alt={h.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => { e.currentTarget.parentElement!.style.display = "none"; }}
+                  />
+                </div>
+              )}
+              <CardContent className="p-5 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-semibold text-slate-900 dark:text-slate-50 leading-snug" data-testid={`text-hotel-name-${h.id}`}>
+                    {h.name}
+                  </p>
+                  {h.starRating ? (
+                    <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5" data-testid={`stars-hotel-${h.id}`} aria-label={`${h.starRating} stars`}>
+                      {Array.from({ length: h.starRating }).map((_, i) => (
+                        <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+                {embedUrl && (
+                  <div className="rounded-lg overflow-hidden border border-slate-200/60 dark:border-slate-700/60">
+                    <iframe
+                      src={embedUrl}
+                      title={`${h.name} map`}
+                      className="w-full h-44 block"
+                      style={{ border: 0 }}
+                      loading="lazy"
+                      allowFullScreen
+                      referrerPolicy="no-referrer-when-downgrade"
+                      data-testid={`map-hotel-${h.id}`}
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </div>
   );
@@ -443,6 +506,8 @@ export default function TourDetail() {
       )}
 
       {tourId && <TourGuidesSummary tourId={tourId} />}
+
+      {tourId && <TourHotelsSummary tourId={tourId} />}
 
       <div>
         <h2 className="text-xl font-bold font-serif mb-4">{t("available_departures")}</h2>

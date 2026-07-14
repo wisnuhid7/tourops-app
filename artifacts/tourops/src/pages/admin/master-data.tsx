@@ -1275,7 +1275,7 @@ function HotelsTab() {
   const [starRating, setStarRating] = useState("3");
   const [basePrice, setBasePrice] = useState("");
   const [currency, setCurrency] = useState("USD");
-  const [address, setAddress] = useState("");
+  const [googleMapsUrl, setGoogleMapsUrl] = useState("");
   const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -1295,12 +1295,12 @@ function HotelsTab() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
-  const resetForm = () => { setName(""); setCityId(""); setStarRating("3"); setBasePrice(""); setCurrency("USD"); setAddress(""); setDescription(""); setImageUrl(""); setContactPhone(""); setContactEmail(""); setWebsite(""); setRoomDescription(""); setIsActive(true); };
+  const resetForm = () => { setName(""); setCityId(""); setStarRating("3"); setBasePrice(""); setCurrency("USD"); setGoogleMapsUrl(""); setDescription(""); setImageUrl(""); setContactPhone(""); setContactEmail(""); setWebsite(""); setRoomDescription(""); setIsActive(true); };
 
   const openEdit = (item: Hotel) => {
     setEditItem(item); setName(item.name); setCityId(item.cityId); setStarRating(String(item.starRating || 3));
     setBasePrice(item.basePrice || ""); setCurrency(item.currency || "USD");
-    setAddress(item.address || ""); setDescription(item.description || "");
+    setGoogleMapsUrl((item as any).googleMapsUrl || ""); setDescription(item.description || "");
     setImageUrl(item.imageUrl || ""); setContactPhone(item.contactPhone || ""); setContactEmail(item.contactEmail || ""); setWebsite(item.website || "");
     setRoomDescription((item.roomTypes as any)?.description || "");
     setIsActive(item.isActive ?? true); setShowForm(true);
@@ -1335,7 +1335,7 @@ function HotelsTab() {
   const handleSubmit = () => {
     const data = {
       name, cityId, starRating: parseInt(starRating), basePrice: basePrice || undefined, currency,
-      address: address || undefined, description: description || undefined,
+      googleMapsUrl: googleMapsUrl || null, description: description || undefined,
       imageUrl: imageUrl || undefined, contactPhone: contactPhone || undefined, contactEmail: contactEmail || undefined, website: website || undefined,
       roomTypes: roomDescription ? { description: roomDescription } : undefined,
       isActive,
@@ -1371,7 +1371,7 @@ function HotelsTab() {
             <TableHead>{t("city_label")}</TableHead>
             <TableHead>{t("stars_label")}</TableHead>
             <TableHead>{t("base_price_label")}</TableHead>
-            <TableHead>{t("address_label")}</TableHead>
+            <TableHead>{t("google_maps_url_label")}</TableHead>
             <TableHead>{t("status")}</TableHead>
             <TableHead>{t("actions")}</TableHead>
           </TableRow>
@@ -1383,7 +1383,13 @@ function HotelsTab() {
               <TableCell className="text-muted-foreground">{getCityName(item.cityId)}</TableCell>
               <TableCell>{item.starRating} ⭐</TableCell>
               <TableCell className="font-mono text-xs">{item.basePrice} {item.currency}</TableCell>
-              <TableCell className="text-muted-foreground text-sm">{item.address || "-"}</TableCell>
+              <TableCell className="text-muted-foreground text-sm">
+                {(item as any).googleMapsUrl ? (
+                  <a href={(item as any).googleMapsUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline" data-testid={`link-hotel-map-${item.id}`}>
+                    {t("view_map")}
+                  </a>
+                ) : "-"}
+              </TableCell>
               <TableCell>
                 <Badge variant={item.status === "approved" || item.status === "published" ? "default" : "secondary"} className="capitalize">
                   {item.status === "approved" ? t("approved_status") : item.status === "draft" ? t("pending_approval") : item.status}
@@ -1435,7 +1441,7 @@ function HotelsTab() {
               <div><Label>{t("base_price_label")}</Label><Input type="number" step="0.01" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} placeholder="150.00" /></div>
               <div><Label>{t("currency_label")}</Label><Input value={currency} onChange={(e) => setCurrency(e.target.value)} placeholder="USD" /></div>
             </div>
-            <div><Label>{t("address_label")}</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="123 Street..." /></div>
+            <div><Label>{t("google_maps_url_label")}</Label><Input value={googleMapsUrl} onChange={(e) => setGoogleMapsUrl(e.target.value)} placeholder="https://maps.google.com/..." data-testid="input-hotel-maps-url" /></div>
             <div><Label>{t("image_url_label")}</Label><Input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." /></div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>{t("contact_phone_label")}</Label><Input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="+1-555-0123" /></div>

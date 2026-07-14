@@ -635,6 +635,29 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  // Public: consolidated list of unique hotels assigned across all days of a tour.
+  // Deduped server-side by hotel id; exposes only public-safe display fields
+  // (never contact info, pricing internals, or the wider hotel catalog).
+  app.get("/api/tours/:id/hotels", async (req, res) => {
+    try {
+      const items = await storage.getTourDayItemsByTourId(req.params.id as string);
+      const hotelIds = [...new Set(
+        items.filter((i) => i.itemType === "hotel" && i.hotelId).map((i) => i.hotelId as string)
+      )];
+      const rows = await Promise.all(hotelIds.map((hid) => storage.getHotel(hid)));
+      const hotels = rows
+        .filter((h): h is NonNullable<typeof h> => !!h)
+        .map((h) => ({
+          id: h.id,
+          name: h.name,
+          starRating: h.starRating,
+          imageUrl: h.imageUrl,
+          googleMapsUrl: h.googleMapsUrl,
+        }));
+      res.json(hotels);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   app.post("/api/tours/:id/days", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, TOUR_BUILDER_ROLES)) return;

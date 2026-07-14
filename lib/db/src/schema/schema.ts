@@ -472,6 +472,7 @@ export const hotels = pgTable("hotels", {
   name: text("name").notNull(),
   cityId: varchar("city_id").notNull(),
   address: text("address"),
+  googleMapsUrl: text("google_maps_url"),
   description: text("description"),
   slug: text("slug").unique(),
   status: varchar("status", { enum: ["draft", "approved", "published"] }).default("draft"),

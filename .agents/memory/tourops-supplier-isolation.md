@@ -40,10 +40,10 @@ the list GET has a staff-role gate, not just `isAuthenticated`.
 scoped suppliers won't see them (only full-access roles will). Acceptable, but note
 prod rows are the same after publish — backfill if suppliers must see legacy records.
 
-**Exception — guide rates are GLOBAL, not own_only.** Per explicit user request (July 2026),
-`/api/rates/guide` endpoints use `ownerScope(req, [])` so `guide_manager` sees and manages the
-same global list as admins — do NOT "fix" this by re-adding creator scoping. Role gate
-(`GUIDE_MANAGE_ROLES`) still applies.
+**Exception — guide AND hotel rates are GLOBAL, not own_only.** Per explicit user request
+(July 2026), `/api/rates/guide` and `/api/rates/hotel` endpoints use `ownerScope(req, [])` so
+`guide_manager`/`hotel_manager` see and manage the same global list as admins — do NOT "fix"
+this by re-adding creator scoping. Role gates still apply. Sights & airline rates remain own_only.
 
 **Exception — hotels are a SHARED master catalog, not own_only.** `/api/hotels` GET
 returns the full list to all staff, and `hotel_manager` can edit/delete ANY hotel

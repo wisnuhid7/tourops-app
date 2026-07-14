@@ -2768,7 +2768,7 @@ export async function registerRoutes(
   app.get("/api/rates/hotel", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, HOTEL_MANAGE_ROLES)) return;
-      const { ownerId } = await ownerScope(req, ["hotel_manager"]);
+      const { ownerId } = await ownerScope(req, []);
       let rows = await storage.getHotelRates();
       if (ownerId) rows = rows.filter(r => r.createdBy === ownerId);
       res.json(rows);
@@ -2779,7 +2779,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, HOTEL_MANAGE_ROLES)) return;
       const parsed = insertHotelRateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      const { userId } = await ownerScope(req, ["hotel_manager"]);
+      const { userId } = await ownerScope(req, []);
       res.json(await storage.createHotelRate({ ...parsed.data, createdBy: userId }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -2788,14 +2788,14 @@ export async function registerRoutes(
       if (!await requireRole(req, res, HOTEL_MANAGE_ROLES)) return;
       const rows = z.array(insertHotelRateSchema).safeParse(req.body);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
-      const { userId } = await ownerScope(req, ["hotel_manager"]);
+      const { userId } = await ownerScope(req, []);
       res.json(await storage.bulkCreateHotelRates(rows.data.map(r => ({ ...r, createdBy: userId }))));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.patch("/api/rates/hotel/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, HOTEL_MANAGE_ROLES)) return;
-      const { ownerId } = await ownerScope(req, ["hotel_manager"]);
+      const { ownerId } = await ownerScope(req, []);
       if (ownerId) {
         const existing = await storage.getHotelRate(req.params.id as string);
         if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
@@ -2808,7 +2808,7 @@ export async function registerRoutes(
   app.delete("/api/rates/hotel/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, HOTEL_MANAGE_ROLES)) return;
-      const { ownerId } = await ownerScope(req, ["hotel_manager"]);
+      const { ownerId } = await ownerScope(req, []);
       if (ownerId) {
         const existing = await storage.getHotelRate(req.params.id as string);
         if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });

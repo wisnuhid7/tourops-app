@@ -1047,6 +1047,8 @@ function TourGeneratorInner() {
                               {(() => {
                                 const filtered = guideRates?.filter(g =>
                                   g.guideName &&
+                                  // Only active guides may be assigned; drafts are excluded.
+                                  g.status === "active" &&
                                   (!g.cityBase || g.cityBase.toLowerCase() === day.city?.toLowerCase() ||
                                    !g.countryCode || g.countryCode.toUpperCase() === day.countryCode?.toUpperCase())
                                 ) || [];

@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -687,6 +688,7 @@ function GuideRatesTab() {
   const [price, setPrice] = useState("");
   const [licenseLevel, setLicenseLevel] = useState("");
   const [notes, setNotes] = useState("");
+  const [status, setStatus] = useState<RateStatus>("draft");
 
   const { data, isLoading } = useQuery<GuideRate[]>({ queryKey: ["/api/rates/guide"] });
   const filtered = data?.filter((r) => statusFilter === "all" || r.status === statusFilter) || [];
@@ -694,7 +696,7 @@ function GuideRatesTab() {
   const resetForm = () => {
     setCountryCode(""); setCityBase(""); setGuideName(""); setGuideCode(""); setLanguage("");
     setRateUnit(""); setCurrency("USD"); setValidFrom(""); setValidTo(""); setPrice("");
-    setLicenseLevel(""); setNotes("");
+    setLicenseLevel(""); setNotes(""); setStatus("draft");
   };
 
   const openCreate = () => { setEditItem(null); resetForm(); setShowForm(true); };
@@ -704,6 +706,7 @@ function GuideRatesTab() {
     setGuideCode(item.guideCode || ""); setLanguage(item.language || ""); setRateUnit(item.rateUnit || "");
     setCurrency(item.currency || "USD"); setValidFrom(item.validFrom || ""); setValidTo(item.validTo || "");
     setPrice(item.price || ""); setLicenseLevel(item.licenseLevel || ""); setNotes(item.notes || "");
+    setStatus((item.status as RateStatus) || "draft");
     setShowForm(true);
   };
 
@@ -737,12 +740,24 @@ function GuideRatesTab() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
+  // Toggle a guide between Active and Draft directly from the table row.
+  // Immediately persists the change to the database via PATCH.
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: RateStatus }) =>
+      apiRequest("PATCH", `/api/rates/guide/${id}`, { status }),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/rates/guide"] }); toast({ title: t("guide_status_updated") }); },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
   const handleSubmit = () => {
     const d: any = {
       countryCode: countryCode || undefined, cityBase: cityBase || undefined, guideName,
       guideCode: guideCode || undefined, language: language || undefined, rateUnit: rateUnit || undefined,
       currency, validFrom: validFrom || undefined, validTo: validTo || undefined,
       price: price || undefined, licenseLevel: licenseLevel || undefined, notes: notes || undefined,
+      // Send the tracked status as-is so an untouched "archived" guide isn't
+      // silently downgraded to draft; the switch only flips active<->draft.
+      status,
     };
     if (editItem) updateMutation.mutate({ id: editItem.id, ...d });
     else createMutation.mutate(d);
@@ -779,7 +794,18 @@ function GuideRatesTab() {
               <TableCell className="text-muted-foreground">{r.rateUnit || "-"}</TableCell>
               <TableCell data-testid={`text-guide-price-${r.id}`}>{r.price ? `${r.currency || ""} ${r.price}` : "-"}</TableCell>
               <TableCell className="text-muted-foreground text-sm">{r.validFrom || "?"} - {r.validTo || "?"}</TableCell>
-              <TableCell><StatusBadge status={r.status as RateStatus} /></TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={r.status === "active"}
+                    onCheckedChange={(checked) => statusMutation.mutate({ id: r.id, status: checked ? "active" : "draft" })}
+                    disabled={statusMutation.isPending}
+                    aria-label={t("status")}
+                    data-testid={`switch-guide-status-${r.id}`}
+                  />
+                  <StatusBadge status={r.status as RateStatus} />
+                </div>
+              </TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
                   <Button size="icon" variant="ghost" onClick={() => openEdit(r)} data-testid={`button-edit-guide-rate-${r.id}`}><Pencil className="h-4 w-4" /></Button>
@@ -832,6 +858,14 @@ function GuideRatesTab() {
             <div><Label>{t("valid_to")}</Label><Input type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} data-testid="input-guide-valid-to" /></div>
             <div><Label>{t("license_level")}</Label><Input value={licenseLevel} onChange={(e) => setLicenseLevel(e.target.value)} data-testid="input-guide-license" /></div>
             <div className="md:col-span-2"><Label>{t("notes")}</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} data-testid="input-guide-notes" /></div>
+            <div className="md:col-span-2 flex items-center gap-3">
+              <Switch
+                checked={status === "active"}
+                onCheckedChange={(checked) => setStatus(checked ? "active" : "draft")}
+                data-testid="switch-guide-form-status"
+              />
+              <Label>{status === "active" ? t("status_active") : t("status_draft")}</Label>
+            </div>
           </div>
           {!guideName && <p className="text-xs text-muted-foreground text-right">{t("fill_required_fields")}</p>}
           <DialogFooter>

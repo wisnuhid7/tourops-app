@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { getFullImageUrl } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -89,7 +90,7 @@ export default function AdminTours() {
             <Card key={tour.id} className="overflow-visible" data-testid={`card-tour-${tour.id}`}>
               {tour.imageUrl && (
                 <div className="aspect-video overflow-hidden rounded-t-md">
-                  <img src={tour.imageUrl} alt={tour.title} className="w-full h-full object-cover" />
+                  <img src={getFullImageUrl(tour.imageUrl)} alt={tour.title} className="w-full h-full object-cover" />
                 </div>
               )}
               <CardContent className="p-4 space-y-3">

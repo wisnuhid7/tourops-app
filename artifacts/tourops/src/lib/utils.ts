@@ -7,8 +7,14 @@ export function cn(...inputs: ClassValue[]) {
 
 export const getFullImageUrl = (url?: string) => {
   if (!url) return '';
-  if (url.startsWith('http') || url.startsWith('/')) return url;
-  return '/uploads/images/' + url;
+  if (url.startsWith('http')) return url;
+  // Uploaded files are served by the API server, which is only reachable
+  // under the /api prefix from the browser (bare /uploads hits the web app
+  // and returns index.html, breaking <img> tags). Normalize legacy
+  // "/uploads/..." values stored in the DB to the routable "/api/uploads/...".
+  if (url.startsWith('/uploads/')) return '/api' + url;
+  if (url.startsWith('/')) return url;
+  return '/api/uploads/images/' + url;
 };
 
 // Convert any Google Maps URL a user pastes (place link, coordinates link,

@@ -87,9 +87,9 @@ function TourGuidesSummary({ tourId }: { tourId: string }) {
                   alt={g.guideName}
                   className="h-16 w-16 rounded-full object-cover border-2 border-white dark:border-slate-700 shadow-sm flex-shrink-0"
                   onError={(e) => {
-                    // Fall back to the generic avatar if the photo fails to load
+                    // Fall back to the generic avatar (with icon) if the photo fails to load
                     e.currentTarget.outerHTML =
-                      '<div class="h-16 w-16 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center flex-shrink-0"></div>';
+                      '<div class="h-16 w-16 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-slate-400"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>';
                   }}
                 />
               ) : (

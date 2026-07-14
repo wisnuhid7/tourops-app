@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { getFullImageUrl } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +54,7 @@ export default function ContentEditorDashboard() {
             <Card key={tour.id} className="overflow-hidden cursor-pointer hover-elevate" onClick={() => setEditing(tour)} data-testid={`card-tour-${tour.id}`}>
               {tour.imageUrl ? (
                 <div className="aspect-video overflow-hidden">
-                  <img src={tour.imageUrl} alt={tour.title} className="w-full h-full object-cover" />
+                  <img src={getFullImageUrl(tour.imageUrl)} alt={tour.title} className="w-full h-full object-cover" />
                 </div>
               ) : (
                 <div className="aspect-video bg-muted flex items-center justify-center">
@@ -171,7 +172,7 @@ function ContentForm({ tour, onClose }: { tour: Tour; onClose: () => void }) {
           <Input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, setImageUrl)} disabled={isUploading} />
           {isUploading && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
         </div>
-        {imageUrl && <img src={imageUrl} alt="cover" className="mt-2 h-24 rounded border object-cover" />}
+        {imageUrl && <img src={getFullImageUrl(imageUrl)} alt="cover" className="mt-2 h-24 rounded border object-cover" />}
       </div>
 
       <div>

@@ -32,7 +32,15 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
 
-// Serve uploaded images (multer writes to <cwd>/uploads/images)
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+// Serve uploaded images (multer writes to <cwd>/uploads/images).
+// Exposed under /api/uploads so the shared proxy routes browser requests here
+// (only /api/* reaches this server; bare /uploads is swallowed by the web app).
+// The bare /uploads mount is kept for direct/local access back-compat.
+const uploadsStatic = express.static(path.join(process.cwd(), "uploads"), {
+  fallthrough: false,
+  setHeaders: (res) => res.setHeader("X-Content-Type-Options", "nosniff"),
+});
+app.use("/api/uploads", uploadsStatic);
+app.use("/uploads", uploadsStatic);
 
 export default app;

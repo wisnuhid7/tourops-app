@@ -842,7 +842,7 @@ function TourGeneratorInner() {
                 {imageUrl && (
                   <div className="border rounded-md overflow-hidden bg-muted h-32 w-full max-w-sm relative group">
                     <img
-                      src={imageUrl}
+                      src={getFullImageUrl(imageUrl)}
                       alt="Cover Preview"
                       className="object-cover w-full h-full cursor-pointer hover:opacity-90 transition-opacity"
                       onClick={() => window.open(imageUrl, '_blank')}
@@ -1117,7 +1117,7 @@ function TourGeneratorInner() {
                     {day.imageUrl && (
                       <div className="mt-2 border rounded overflow-hidden h-16 w-full bg-muted relative group">
                         <img
-                          src={day.imageUrl}
+                          src={getFullImageUrl(day.imageUrl)}
                           alt="Preview"
                           className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
                           onClick={() => window.open(day.imageUrl ?? undefined, '_blank')}

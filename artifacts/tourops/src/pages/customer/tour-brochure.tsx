@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRoute } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getFullImageUrl } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -208,7 +209,7 @@ export default function TourBrochure() {
                 <div className="flex flex-wrap items-start gap-6">
                   <div className="flex flex-col items-center gap-3">
                     <Avatar className="h-24 w-24">
-                      <AvatarImage src={leaderPhotoUrl} alt="Leader" />
+                      <AvatarImage src={getFullImageUrl(leaderPhotoUrl)} alt="Leader" />
                       <AvatarFallback className="text-2xl">
                         {leaderName ? leaderName.charAt(0).toUpperCase() : <Image className="h-8 w-8" />}
                       </AvatarFallback>
@@ -252,7 +253,7 @@ export default function TourBrochure() {
           <div className={`text-center space-y-4 pb-8 border-b rounded-md p-8 ${ts.headerBg} ${ts.headerText}`}>
             {tour.imageUrl && (
               <div className="aspect-video overflow-hidden rounded-md max-h-72 mx-auto">
-                <img src={tour.imageUrl} alt={displayTitle} className="w-full h-full object-cover" />
+                <img src={getFullImageUrl(tour.imageUrl)} alt={displayTitle} className="w-full h-full object-cover" />
               </div>
             )}
             <h1 className={`text-4xl font-bold ${ts.font}`} data-testid="text-brochure-title">{displayTitle}</h1>
@@ -269,7 +270,7 @@ export default function TourBrochure() {
               <div className="flex items-center justify-center gap-3 pt-4 border-t border-current/20">
                 {leaderPhotoUrl && (
                   <Avatar className="h-12 w-12 border-2 border-current/20">
-                    <AvatarImage src={leaderPhotoUrl} alt={leaderName} />
+                    <AvatarImage src={getFullImageUrl(leaderPhotoUrl)} alt={leaderName} />
                     <AvatarFallback>{leaderName?.charAt(0)}</AvatarFallback>
                   </Avatar>
                 )}

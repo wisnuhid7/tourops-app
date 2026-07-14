@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { getFullImageUrl } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -52,7 +53,7 @@ function TourCatalog() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map(tour => (
           <Card key={tour.id} className="overflow-hidden" data-testid={`card-tour-${tour.id}`}>
-            {tour.imageUrl && <div className="aspect-video overflow-hidden"><img src={tour.imageUrl} alt={tour.title} className="w-full h-full object-cover" /></div>}
+            {tour.imageUrl && <div className="aspect-video overflow-hidden"><img src={getFullImageUrl(tour.imageUrl)} alt={tour.title} className="w-full h-full object-cover" /></div>}
             <CardContent className="p-4 space-y-2">
               <h3 className="font-semibold">{tour.title}</h3>
               <div className="flex items-center gap-3 text-xs text-muted-foreground">

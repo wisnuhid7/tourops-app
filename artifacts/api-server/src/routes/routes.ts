@@ -630,14 +630,22 @@ export async function registerRoutes(
       const rows = await Promise.all(guideIds.map((gid) => storage.getGuideRate(gid)));
       const guides = rows
         .filter((g): g is NonNullable<typeof g> => !!g)
-        .map((g) => ({ id: g.id, guideName: g.guideName, language: g.language, photoUrl: g.photoUrl }));
+        .map((g) => ({
+          id: g.id,
+          guideName: g.guideName,
+          language: g.language,
+          photoUrl: g.photoUrl,
+          age: g.age,
+          email: g.email,
+          phone: g.phone,
+        }));
       res.json(guides);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   // Public: consolidated list of unique hotels assigned across all days of a tour.
-  // Deduped server-side by hotel id; exposes only public-safe display fields
-  // (never contact info, pricing internals, or the wider hotel catalog).
+  // Deduped server-side by hotel id; exposes display + contact fields (per product
+  // requirement) but never pricing internals or the wider hotel catalog.
   app.get("/api/tours/:id/hotels", async (req, res) => {
     try {
       const items = await storage.getTourDayItemsByTourId(req.params.id as string);
@@ -653,6 +661,9 @@ export async function registerRoutes(
           starRating: h.starRating,
           imageUrl: h.imageUrl,
           googleMapsUrl: h.googleMapsUrl,
+          contactPhone: h.contactPhone,
+          contactEmail: h.contactEmail,
+          description: h.description,
         }));
       res.json(hotels);
     } catch (e: any) { res.status(500).json({ message: e.message }); }

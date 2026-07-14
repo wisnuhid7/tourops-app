@@ -685,6 +685,9 @@ function GuideRatesTab() {
   const [rateUnit, setRateUnit] = useState("");
   const [currency, setCurrency] = useState("USD");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [age, setAge] = useState("");
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [validFrom, setValidFrom] = useState("");
   const [validTo, setValidTo] = useState("");
@@ -700,6 +703,7 @@ function GuideRatesTab() {
     setCountryCode(""); setCityBase(""); setGuideName(""); setGuideCode(""); setLanguage("");
     setRateUnit(""); setCurrency("USD"); setValidFrom(""); setValidTo(""); setPrice("");
     setLicenseLevel(""); setNotes(""); setStatus("draft"); setPhotoUrl("");
+    setEmail(""); setPhone(""); setAge("");
   };
 
   const openCreate = () => { setEditItem(null); resetForm(); setShowForm(true); };
@@ -711,6 +715,7 @@ function GuideRatesTab() {
     setPrice(item.price || ""); setLicenseLevel(item.licenseLevel || ""); setNotes(item.notes || "");
     setStatus((item.status as RateStatus) || "draft");
     setPhotoUrl(item.photoUrl || "");
+    setEmail(item.email || ""); setPhone(item.phone || ""); setAge(item.age != null ? String(item.age) : "");
     setShowForm(true);
   };
 
@@ -780,6 +785,9 @@ function GuideRatesTab() {
       currency, validFrom: validFrom || undefined, validTo: validTo || undefined,
       price: price || undefined, licenseLevel: licenseLevel || undefined, notes: notes || undefined,
       photoUrl: photoUrl || null,
+      email: email || null,
+      phone: phone || null,
+      age: age !== "" && !Number.isNaN(parseInt(age, 10)) ? parseInt(age, 10) : null,
       // Send the tracked status as-is so an untouched "archived" guide isn't
       // silently downgraded to draft; the switch only flips active<->draft.
       status,
@@ -856,6 +864,9 @@ function GuideRatesTab() {
             <div><Label>{t("guide_name")} *</Label><Input value={guideName} onChange={(e) => setGuideName(e.target.value)} data-testid="input-guide-name" /></div>
             <div><Label>{t("guide_code")}</Label><Input value={guideCode} onChange={(e) => setGuideCode(e.target.value)} data-testid="input-guide-code" /></div>
             <div><Label>{t("language")}</Label><Input value={language} onChange={(e) => setLanguage(e.target.value)} placeholder={t("language_placeholder")} data-testid="input-guide-language" /></div>
+            <div><Label>{t("guide_email")}</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} data-testid="input-guide-email" /></div>
+            <div><Label>{t("guide_phone")}</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} data-testid="input-guide-phone" /></div>
+            <div><Label>{t("guide_age")}</Label><Input type="number" min="18" value={age} onChange={(e) => setAge(e.target.value)} data-testid="input-guide-age" /></div>
             <div>
               <Label>{t("rate_unit")}</Label>
               <Select value={rateUnit} onValueChange={setRateUnit}>

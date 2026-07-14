@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import { PublicHeader } from "@/components/public-header";
-import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer, Plane, Flag, Bed, Bus, Utensils, User, CircleDollarSign, Languages, Star } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer, Plane, Flag, Bed, Bus, Utensils, User, CircleDollarSign, Languages, Star, Mail, Phone, Cake } from "lucide-react";
 import { getFullImageUrl, getGoogleMapsEmbedUrl } from "@/lib/utils";
 import { Link } from "wouter";
 import { useState } from "react";
@@ -80,7 +80,7 @@ function TourGuidesSummary({ tourId }: { tourId: string }) {
             data-testid={`card-tour-guide-${g.id}`}
             className="bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-850 shadow-sm rounded-xl"
           >
-            <CardContent className="p-5 flex items-center gap-4">
+            <CardContent className="p-5 flex items-start gap-4">
               {g.photoUrl ? (
                 <img
                   src={getFullImageUrl(g.photoUrl)}
@@ -97,14 +97,32 @@ function TourGuidesSummary({ tourId }: { tourId: string }) {
                   <User className="h-7 w-7 text-slate-400" />
                 </div>
               )}
-              <div className="min-w-0">
+              <div className="min-w-0 space-y-1">
                 <p className="font-semibold text-slate-900 dark:text-slate-50 truncate" data-testid={`text-guide-name-${g.id}`}>
                   {g.guideName}
                 </p>
                 {g.language && (
-                  <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5" data-testid={`text-guide-language-${g.id}`}>
+                  <p className="text-sm text-muted-foreground flex items-center gap-1.5" data-testid={`text-guide-language-${g.id}`}>
                     <Languages className="h-3.5 w-3.5 flex-shrink-0" />
                     <span className="truncate">{g.language}</span>
+                  </p>
+                )}
+                {g.age != null && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-1.5" data-testid={`text-guide-age-${g.id}`}>
+                    <Cake className="h-3.5 w-3.5 flex-shrink-0" />
+                    <span>{t("guide_age")}: {g.age}</span>
+                  </p>
+                )}
+                {g.email && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-1.5" data-testid={`text-guide-email-${g.id}`}>
+                    <Mail className="h-3.5 w-3.5 flex-shrink-0" />
+                    <a href={`mailto:${g.email}`} className="truncate hover:underline">{g.email}</a>
+                  </p>
+                )}
+                {g.phone && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-1.5" data-testid={`text-guide-phone-${g.id}`}>
+                    <Phone className="h-3.5 w-3.5 flex-shrink-0" />
+                    <a href={`tel:${g.phone}`} className="truncate hover:underline">{g.phone}</a>
                   </p>
                 )}
               </div>
@@ -156,6 +174,25 @@ function TourHotelsSummary({ tourId }: { tourId: string }) {
                     </div>
                   ) : null}
                 </div>
+                <div className="space-y-1">
+                  {h.contactPhone && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-1.5" data-testid={`text-hotel-phone-${h.id}`}>
+                      <Phone className="h-3.5 w-3.5 flex-shrink-0" />
+                      <a href={`tel:${h.contactPhone}`} className="truncate hover:underline">{h.contactPhone}</a>
+                    </p>
+                  )}
+                  {h.contactEmail && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-1.5" data-testid={`text-hotel-email-${h.id}`}>
+                      <Mail className="h-3.5 w-3.5 flex-shrink-0" />
+                      <a href={`mailto:${h.contactEmail}`} className="truncate hover:underline">{h.contactEmail}</a>
+                    </p>
+                  )}
+                </div>
+                {h.description && (
+                  <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line" data-testid={`text-hotel-description-${h.id}`}>
+                    {h.description}
+                  </p>
+                )}
                 {embedUrl && (
                   <div className="rounded-lg overflow-hidden border border-slate-200/60 dark:border-slate-700/60">
                     <iframe

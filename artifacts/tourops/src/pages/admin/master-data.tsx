@@ -276,8 +276,6 @@ function CountriesTab() {
   const [continent, setContinent] = useState("");
   const [region, setRegion] = useState("");
   const [subregion, setSubregion] = useState("");
-  const [currencyCode, setCurrencyCode] = useState("");
-  const [currencyName, setCurrencyName] = useState("");
   const [phoneCode, setPhoneCode] = useState("");
   const [population, setPopulation] = useState("");
   const [latitude, setLatitude] = useState("");
@@ -288,7 +286,7 @@ function CountriesTab() {
 
   const resetForm = () => { 
     setCode(""); setIso3(""); setName(""); setCapitalCity(""); setContinent(""); 
-    setRegion(""); setSubregion(""); setCurrencyCode(""); setCurrencyName(""); 
+    setRegion(""); setSubregion(""); 
     setPhoneCode(""); setPopulation(""); setLatitude(""); setLongitude(""); setIsActive(true); 
   };
 
@@ -297,7 +295,6 @@ function CountriesTab() {
     setCode(item.code); setIso3(item.iso3 || ""); setName(item.name); 
     setCapitalCity(item.capitalCity || ""); setContinent(item.continent || "");
     setRegion(item.region || ""); setSubregion(item.subregion || "");
-    setCurrencyCode(item.currencyCode || ""); setCurrencyName(item.currencyName || "");
     setPhoneCode(item.phoneCode || ""); setPopulation(String(item.population || ""));
     setLatitude(String(item.latitude || "")); setLongitude(String(item.longitude || ""));
     setIsActive(item.isActive ?? true);
@@ -336,7 +333,7 @@ function CountriesTab() {
   const handleSubmit = () => {
     const data = { 
       code, iso3, name, capitalCity, continent, region, subregion, 
-      currencyCode, currencyName, phoneCode, 
+      phoneCode, 
       population: population ? parseInt(population) : undefined,
       latitude: latitude || undefined, longitude: longitude || undefined, isActive
     };
@@ -420,10 +417,6 @@ function CountriesTab() {
             <div className="grid grid-cols-2 gap-3">
               <div><Label>{t("region_label")}</Label><Input value={region} onChange={(e) => setRegion(e.target.value)} placeholder="Americas" data-testid="input-country-region" /></div>
               <div><Label>{t("subregion_label")}</Label><Input value={subregion} onChange={(e) => setSubregion(e.target.value)} placeholder="Northern America" data-testid="input-country-subregion" /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>{t("currency_code_label")}</Label><Input value={currencyCode} onChange={(e) => setCurrencyCode(e.target.value)} placeholder="USD" data-testid="input-country-currency-code" /></div>
-              <div><Label>{t("currency_name_label")}</Label><Input value={currencyName} onChange={(e) => setCurrencyName(e.target.value)} placeholder="US Dollar" data-testid="input-country-currency-name" /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>{t("phone_code_label")}</Label><Input value={phoneCode} onChange={(e) => setPhoneCode(e.target.value)} placeholder="+1" data-testid="input-country-phone" /></div>

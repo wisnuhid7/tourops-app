@@ -99,14 +99,14 @@ function TourGuidesSummary({ tourId }: { tourId: string }) {
                   <User className="h-7 w-7 text-slate-400" />
                 </div>
               )}
-              <div className="min-w-0 space-y-1">
-                <p className="font-semibold text-slate-900 dark:text-slate-50 truncate" data-testid={`text-guide-name-${g.id}`}>
+              <div className="flex-1 min-w-0 space-y-1">
+                <p className="font-semibold text-slate-900 dark:text-slate-50 break-words" data-testid={`text-guide-name-${g.id}`}>
                   {g.guideName}
                 </p>
                 {g.language && (
-                  <p className="text-sm text-muted-foreground flex items-center gap-1.5" data-testid={`text-guide-language-${g.id}`}>
-                    <Languages className="h-3.5 w-3.5 flex-shrink-0" />
-                    <span className="truncate">{g.language}</span>
+                  <p className="text-sm text-muted-foreground flex items-start gap-1.5" data-testid={`text-guide-language-${g.id}`}>
+                    <Languages className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                    <span className="min-w-0 break-words">{g.language}</span>
                   </p>
                 )}
                 {g.age != null && (
@@ -116,15 +116,15 @@ function TourGuidesSummary({ tourId }: { tourId: string }) {
                   </p>
                 )}
                 {g.email && (
-                  <p className="text-sm text-muted-foreground flex items-center gap-1.5" data-testid={`text-guide-email-${g.id}`}>
-                    <Mail className="h-3.5 w-3.5 flex-shrink-0" />
-                    <a href={`mailto:${g.email}`} className="truncate hover:underline">{g.email}</a>
+                  <p className="text-sm text-muted-foreground flex items-start gap-1.5" data-testid={`text-guide-email-${g.id}`}>
+                    <Mail className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                    <a href={`mailto:${g.email}`} className="min-w-0 break-all hover:underline">{g.email}</a>
                   </p>
                 )}
                 {g.phone && (
-                  <p className="text-sm text-muted-foreground flex items-center gap-1.5" data-testid={`text-guide-phone-${g.id}`}>
-                    <Phone className="h-3.5 w-3.5 flex-shrink-0" />
-                    <a href={`tel:${g.phone}`} className="truncate hover:underline">{g.phone}</a>
+                  <p className="text-sm text-muted-foreground flex items-start gap-1.5" data-testid={`text-guide-phone-${g.id}`}>
+                    <Phone className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
+                    <a href={`tel:${g.phone}`} className="min-w-0 break-all hover:underline">{g.phone}</a>
                   </p>
                 )}
               </div>

@@ -20,7 +20,7 @@ import {
   LayoutDashboard, Globe, BookOpen, Users, 
   BarChart3, Settings, LogOut, Plane, 
   Hotel, Bus, UserCheck, Ticket, Database,
-  UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart, Wand2, Percent, DollarSign, Building2
+  UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart, Wand2, Percent, DollarSign, Building2, Flag
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -88,6 +88,7 @@ export function AppSidebar() {
         { title: t("master_data"), url: "/admin/master-data", icon: Database },
         { title: t("hotels"), url: "/admin/master-data?tab=hotels", icon: Hotel },
         { title: t("guides"), url: "/supplier?tab=guide_rates", icon: UserCheck2 },
+        { title: t("entity_countries_plural"), url: "/admin/master-data?tab=countries", icon: Flag },
         { title: t("entity_cities_plural"), url: "/admin/master-data?tab=cities", icon: Building2 },
         { title: t("nav_documents"), url: "/admin/documents", icon: FileText },
         { title: t("nav_payments"), url: "/admin/payments", icon: DollarSign },

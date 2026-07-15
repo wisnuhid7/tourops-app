@@ -405,9 +405,9 @@ function CountriesTab() {
       </Table>
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editItem ? `${t("edit")} ${t("country")}` : `${t("add_new")} ${t("country")}`}</DialogTitle></DialogHeader>
-          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+        <DialogContent className="flex flex-col max-h-[85vh]">
+          <DialogHeader className="shrink-0"><DialogTitle>{editItem ? `${t("edit")} ${t("country")}` : `${t("add_new")} ${t("country")}`}</DialogTitle></DialogHeader>
+          <div className="space-y-4 overflow-y-auto flex-1 pr-1 -mr-1">
             <div className="grid grid-cols-2 gap-3">
               <div><Label>{t("iso2_code")} *</Label><Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="US" data-testid="input-country-code" /></div>
               <div><Label>{t("iso3_code")}</Label><Input value={iso3} onChange={(e) => setIso3(e.target.value)} placeholder="USA" data-testid="input-country-iso3" /></div>
@@ -438,8 +438,8 @@ function CountriesTab() {
               <Label>{t("active_label")}</Label>
             </div>
           </div>
-          {(!code || !name) && <p className="text-xs text-muted-foreground text-right">{t("fill_required_fields")}</p>}
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
+            {(!code || !name) && <p className="text-xs text-muted-foreground self-center mr-auto">{t("fill_required_fields")}</p>}
             <Button variant="outline" onClick={() => setShowForm(false)} data-testid="button-cancel-country">{t("cancel")}</Button>
             <Button onClick={handleSubmit} disabled={!code || !name || createMutation.isPending || updateMutation.isPending} data-testid="button-save-country">
               {(createMutation.isPending || updateMutation.isPending) ? t("saving") : t("save")}

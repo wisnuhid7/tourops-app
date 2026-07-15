@@ -21,6 +21,7 @@ import type {
 import { CheckCircle } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { HotelFormFields, emptyHotelFormValues, hotelToFormValues, hotelFormToPayload, type HotelFormValues } from "@/components/hotel-form-fields";
+import { CityFormFields, emptyCityFormValues, cityToFormValues, cityFormToPayload, type CityFormValues } from "@/components/city-form-fields";
 
 const SIGHT_CATEGORIES = ["museum", "landmark", "park", "religious", "entertainment", "nature", "historical", "other"];
 
@@ -461,29 +462,17 @@ function CitiesTab() {
   const [showImport, setShowImport] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const [name, setName] = useState("");
-  const [asciiName, setAsciiName] = useState("");
-  const [countryId, setCountryId] = useState("");
-  const [population, setPopulation] = useState("");
-  const [latitude, setLatitude] = useState("");
-  const [longitude, setLongitude] = useState("");
-  const [isCapital, setIsCapital] = useState(false);
-  const [isTourismCity, setIsTourismCity] = useState(false);
-  const [isActive, setIsActive] = useState(true);
+  const [form, setForm] = useState<CityFormValues>(emptyCityFormValues);
 
   const { data: items, isLoading } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
   const { data: countriesList } = useQuery<Country[]>({ queryKey: ["/api/master/countries"] });
 
-  const resetForm = () => { 
-    setName(""); setAsciiName(""); setCountryId(""); setPopulation(""); 
-    setLatitude(""); setLongitude(""); setIsCapital(false); setIsTourismCity(false); setIsActive(true); 
-  };
+  const resetForm = () => setForm(emptyCityFormValues);
 
   const openEdit = (item: City) => {
-    setEditItem(item); setName(item.name); setAsciiName(item.asciiName || ""); setCountryId(item.countryId);
-    setPopulation(String(item.population || "")); setLatitude(String(item.latitude || "")); setLongitude(String(item.longitude || ""));
-    setIsCapital(item.isCapital ?? false); setIsTourismCity(item.isTourismCity ?? false);
-    setIsActive(item.isActive ?? true); setShowForm(true);
+    setEditItem(item);
+    setForm(cityToFormValues(item));
+    setShowForm(true);
   };
 
   const openCreate = () => { setEditItem(null); resetForm(); setShowForm(true); };
@@ -519,11 +508,7 @@ function CitiesTab() {
   });
 
   const handleSubmit = () => {
-    const data = { 
-      name, asciiName, countryId, 
-      population: population ? parseInt(population) : undefined,
-      latitude: latitude || undefined, longitude: longitude || undefined, isCapital, isTourismCity, isActive
-    };
+    const data = cityFormToPayload(form);
     if (editItem) updateMutation.mutate({ id: editItem.id, ...data });
     else createMutation.mutate(data);
   };
@@ -585,50 +570,21 @@ function CitiesTab() {
             </TableRow>
           ))}
           {(!items || items.length === 0) && (
-            <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">{t("no_cities_found")}</TableCell></TableRow>
+            <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("no_cities_found")}</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>{editItem ? `${t("edit")} ${t("city_label")}` : `${t("add_new")} ${t("city_label")}`}</DialogTitle></DialogHeader>
-          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
-            <div><Label>{t("name_label")} *</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Jakarta" data-testid="input-city-name" /></div>
-            <div><Label>{t("ascii_name_label")}</Label><Input value={asciiName} onChange={(e) => setAsciiName(e.target.value)} placeholder="Jakarta" data-testid="input-city-ascii" /></div>
-            <div>
-              <Label>{t("country")} *</Label>
-              <Select value={countryId} onValueChange={setCountryId}>
-                <SelectTrigger data-testid="select-city-country"><SelectValue placeholder={t("select_country_placeholder")} /></SelectTrigger>
-                <SelectContent>
-                  {countriesList?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name} ({c.code})</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div><Label>{t("population_label")}</Label><Input type="number" value={population} onChange={(e) => setPopulation(e.target.value)} placeholder="10000000" data-testid="input-city-population" /></div>
-            <div className="grid grid-cols-2 gap-3">
-              <div><Label>{t("latitude_label")}</Label><Input value={latitude} onChange={(e) => setLatitude(e.target.value)} placeholder="-6.2088" data-testid="input-city-lat" /></div>
-              <div><Label>{t("longitude_label")}</Label><Input value={longitude} onChange={(e) => setLongitude(e.target.value)} placeholder="106.8456" data-testid="input-city-lng" /></div>
-            </div>
-            <div className="flex items-center gap-4 py-2">
-              <div className="flex items-center gap-2">
-                <Switch checked={isCapital} onCheckedChange={setIsCapital} data-testid="switch-city-capital" />
-                <Label>{t("capital_city_label")}</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={isTourismCity} onCheckedChange={setIsTourismCity} data-testid="switch-city-tourism" />
-                <Label>{t("tourism_city_label")}</Label>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch checked={isActive} onCheckedChange={setIsActive} data-testid="switch-city-active" />
-              <Label>{t("active_label")}</Label>
-            </div>
+        <DialogContent className="flex flex-col max-h-[85vh]">
+          <DialogHeader className="shrink-0"><DialogTitle>{editItem ? `${t("edit")} ${t("city_label")}` : `${t("add_new")} ${t("city_label")}`}</DialogTitle></DialogHeader>
+          <div className="space-y-4 overflow-y-auto flex-1 pr-1 -mr-1">
+            <CityFormFields value={form} onChange={setForm} countries={countriesList} />
           </div>
-          {(!name || !countryId) && <p className="text-xs text-muted-foreground text-right">{t("fill_required_fields")}</p>}
-          <DialogFooter>
+          <DialogFooter className="shrink-0">
+            {(!form.name || !form.countryId) && <p className="text-xs text-muted-foreground self-center mr-auto">{t("fill_required_fields")}</p>}
             <Button variant="outline" onClick={() => setShowForm(false)} data-testid="button-cancel-city">{t("cancel")}</Button>
-            <Button onClick={handleSubmit} disabled={!name || !countryId || createMutation.isPending || updateMutation.isPending} data-testid="button-save-city">
+            <Button onClick={handleSubmit} disabled={!form.name || !form.countryId || createMutation.isPending || updateMutation.isPending} data-testid="button-save-city">
               {(createMutation.isPending || updateMutation.isPending) ? t("saving") : t("save")}
             </Button>
           </DialogFooter>

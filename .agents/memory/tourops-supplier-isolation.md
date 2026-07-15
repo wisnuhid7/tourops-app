@@ -56,3 +56,12 @@ through `insertHotelSchema.partial()` as a field allowlist so internal columns
 (id/createdAt/etc.) can't be mass-assigned. **Why:** widening PATCH/DELETE to
 hotel_manager without those two guards would let a manager self-approve or mutate
 internal fields — flagged in architect review.
+
+**Exception — cities are GLOBAL too.** Per explicit user request (July 2026),
+`/api/master/cities` GET/POST/PATCH/DELETE have NO country- or creator-based scoping:
+`city_manager` sees and manages the same global list as admins (the old
+`profile.countryCode` → country filter and the PATCH `countryId` strip were removed).
+Write role gate stays (super_admin/admin/country_manager/city_manager); GET stays
+`isAuthenticated` because cities feed dropdowns app-wide. CSV import remains without
+city_manager. Do NOT "fix" by re-adding country scoping. Both roles share
+`city-form-fields.tsx` (like `hotel-form-fields.tsx` for hotels).

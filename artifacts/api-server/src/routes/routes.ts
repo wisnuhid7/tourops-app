@@ -2150,37 +2150,19 @@ export async function registerRoutes(
   });
 
   // ---- Master Data: Cities ----
-  app.get("/api/master/cities", isAuthenticated, async (req, res) => {
+  // Cities are a GLOBAL shared master table: super_admin/admin/country_manager/
+  // city_manager all operate on the same rows with no country- or creator-based
+  // scoping (intentional — changes by any manager are visible to all).
+  app.get("/api/master/cities", isAuthenticated, async (_req, res) => {
     try {
-      const profile = await storage.getOrCreateProfile(getUserId(req) as string);
-      const allCities = await storage.getAllCities();
-      if (profile.role === "city_manager") {
-        const ownCountryId = await resolveCityManagerCountryId(getUserId(req) as string);
-        return res.json(ownCountryId ? allCities.filter(c => c.countryId === ownCountryId) : []);
-      }
-      res.json(allCities);
+      res.json(await storage.getAllCities());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
-  // city_manager may only create/edit/delete cities within their own assigned
-  // country (profile.countryCode); admins/country_manager are unrestricted.
-  async function resolveCityManagerCountryId(userId: string): Promise<string | null> {
-    const profile = await storage.getProfileByUserId(userId);
-    if (!profile?.countryCode) return null;
-    const [country] = await db.select().from(countries).where(eq(countries.code, profile.countryCode.toUpperCase())).limit(1);
-    return country?.id || null;
-  }
 
   app.post("/api/master/cities", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["super_admin", "admin", "country_manager", "city_manager"])) return;
-      const profile = await storage.getOrCreateProfile(getUserId(req) as string);
-      const body = { ...req.body };
-      if (profile.role === "city_manager") {
-        const ownCountryId = await resolveCityManagerCountryId(getUserId(req) as string);
-        if (!ownCountryId) return res.status(403).json({ message: "No country assigned to this account" });
-        body.countryId = ownCountryId;
-      }
-      const parsed = insertCitySchema.safeParse(body);
+      const parsed = insertCitySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createCity(parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2188,31 +2170,14 @@ export async function registerRoutes(
   app.patch("/api/master/cities/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["super_admin", "admin", "country_manager", "city_manager"])) return;
-      const profile = await storage.getOrCreateProfile(getUserId(req) as string);
       const parsed = insertCitySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      if (profile.role === "city_manager") {
-        const ownCountryId = await resolveCityManagerCountryId(getUserId(req) as string);
-        const existing = await storage.getCity(req.params.id as string);
-        if (!ownCountryId || !existing || existing.countryId !== ownCountryId) {
-          return res.status(403).json({ message: "Forbidden: city is outside your assigned country" });
-        }
-        delete (parsed.data as any).countryId; // cannot move a city to another country
-      }
       res.json(await storage.updateCity(req.params.id as string, parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.delete("/api/master/cities/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["super_admin", "admin", "country_manager", "city_manager"])) return;
-      const profile = await storage.getOrCreateProfile(getUserId(req) as string);
-      if (profile.role === "city_manager") {
-        const ownCountryId = await resolveCityManagerCountryId(getUserId(req) as string);
-        const existing = await storage.getCity(req.params.id as string);
-        if (!ownCountryId || !existing || existing.countryId !== ownCountryId) {
-          return res.status(403).json({ message: "Forbidden: city is outside your assigned country" });
-        }
-      }
       await storage.deleteCity(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }

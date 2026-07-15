@@ -15,7 +15,6 @@ export interface HotelFormValues {
   starRating: string;
   basePrice: string;
   currency: string;
-  address: string;
   googleMapsUrl: string;
   imageUrl: string;
   contactPhone: string;
@@ -32,7 +31,6 @@ export const emptyHotelFormValues: HotelFormValues = {
   starRating: "3",
   basePrice: "",
   currency: "USD",
-  address: "",
   googleMapsUrl: "",
   imageUrl: "",
   contactPhone: "",
@@ -50,7 +48,6 @@ export function hotelToFormValues(h: any): HotelFormValues {
     starRating: String(h?.starRating || 3),
     basePrice: h?.basePrice || "",
     currency: h?.currency || "USD",
-    address: h?.address || "",
     googleMapsUrl: h?.googleMapsUrl || "",
     imageUrl: h?.imageUrl || "",
     contactPhone: h?.contactPhone || "",
@@ -69,7 +66,6 @@ export function hotelFormToPayload(f: HotelFormValues) {
     starRating: parseInt(f.starRating),
     basePrice: f.basePrice || undefined,
     currency: f.currency,
-    address: f.address || undefined,
     googleMapsUrl: f.googleMapsUrl || null,
     imageUrl: f.imageUrl || undefined,
     contactPhone: f.contactPhone || undefined,
@@ -118,7 +114,6 @@ export function HotelFormFields({
         <div><Label>{t("base_price_label")}</Label><Input type="number" step="0.01" value={value.basePrice} onChange={(e) => set({ basePrice: e.target.value })} placeholder="150.00" data-testid="input-hotel-price" /></div>
         <div><Label>{t("currency_label")}</Label><Input value={value.currency} onChange={(e) => set({ currency: e.target.value })} placeholder="USD" data-testid="input-hotel-currency" /></div>
       </div>
-      <div><Label>{t("address_label")}</Label><Input value={value.address} onChange={(e) => set({ address: e.target.value })} placeholder="123 Street..." data-testid="input-hotel-address" /></div>
       <div><Label>{t("google_maps_url_label")}</Label><Input value={value.googleMapsUrl} onChange={(e) => set({ googleMapsUrl: e.target.value })} placeholder="https://maps.google.com/..." data-testid="input-hotel-maps-url" /></div>
       <div><Label>{t("image_url_label")}</Label><Input value={value.imageUrl} onChange={(e) => set({ imageUrl: e.target.value })} placeholder="https://..." data-testid="input-hotel-image" /></div>
       <div className="grid grid-cols-2 gap-3">

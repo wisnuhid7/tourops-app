@@ -87,6 +87,7 @@ export function AppSidebar() {
         { title: t("entity_countries_plural"), url: "/admin/master-data?tab=countries", icon: Flag },
         { title: t("entity_cities_plural"), url: "/admin/master-data?tab=cities", icon: Building2 },
         { title: t("nav_sights"), url: "/supplier?tab=sights_catalog", icon: Landmark },
+        { title: t("nav_airlines"), url: "/supplier?tab=airlines_catalog", icon: Plane },
         { title: t("nav_documents"), url: "/admin/documents", icon: FileText },
         { title: t("nav_payments"), url: "/admin/payments", icon: DollarSign },
         { title: t("nav_messages"), url: "/admin/messages", icon: Mail },

@@ -3210,7 +3210,7 @@ export async function registerRoutes(
 
   app.get("/api/flights/search", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, [...ADMIN_ROLES, "flight_agent"])) return;
+      if (!await requireRole(req, res, [...ADMIN_ROLES, "flight_agent", "airline_supplier", "country_manager"])) return;
       const { origin, destination, date, passengers, cabinClass } = req.query;
       if (!origin || !destination || !date) {
         return res.status(400).json({ message: "origin, destination, and date are required" });

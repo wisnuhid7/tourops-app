@@ -78,7 +78,6 @@ export function AppSidebar() {
         { title: t("users"), url: "/admin/users", icon: Users },
         { title: t("transport"), url: "/admin/transport", icon: Bus },
         { title: t("tour_generator"), url: "/admin/tour-generator", icon: Wand2 },
-        { title: t("airline_search"), url: "/admin/airline-search", icon: Plane },
         { title: t("rate_cards"), url: "/admin/rate-cards", icon: CreditCard },
         { title: t("pricing"), url: "/admin/pricing", icon: Percent },
         { title: t("master_data"), url: "/admin/master-data", icon: Database },

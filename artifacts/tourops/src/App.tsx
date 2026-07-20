@@ -15,7 +15,6 @@ import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
 import StaffLoginPage from "@/pages/staff-login";
 import AdminLoginPage from "@/pages/admin-login";
-import AirlineSearch from "./pages/admin/airline-search";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminTours from "@/pages/admin/tours";
 import AdminDepartures from "@/pages/admin/departures";
@@ -128,7 +127,6 @@ function AuthenticatedLayout() {
             <Route path="/admin/affiliates" component={AdminAffiliates} />
             <Route path="/admin/tour-generator" component={TourGenerator} />
             <Route path="/admin/tours/:id" component={TourDetail} />
-            <Route path="/admin/airline-search" component={AirlineSearch} />
             <Route path="/admin/master-data" component={AdminMasterData} />
             <Route path="/admin/pricing" component={AdminPricingSettings} />
             <Route path="/admin/transport" component={AdminTransport} />
@@ -164,6 +162,9 @@ function AuthenticatedLayout() {
             <Route path="/ops/workflows/:id" component={AdminWorkflowDetail} />
 
             {/* Redirects */}
+            <Route path="/admin/airline-search">
+              {() => <Redirect to="/supplier?tab=airline_search" />}
+            </Route>
             <Route path="/admin/login">
               {() => <Redirect to="/admin" />}
             </Route>

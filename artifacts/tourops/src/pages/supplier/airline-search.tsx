@@ -36,7 +36,7 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
   }
 }
 
-export default function AirlineSearch() {
+export function AirlineSearchTab() {
   const { t } = useLanguage();
   const [legs, setLegs] = useState([{ origin: "", destination: "", date: "" }]);
   const [searching, setSearching] = useState(false);
@@ -85,7 +85,7 @@ export default function AirlineSearch() {
 
   return (
     <ErrorBoundary>
-      <div className="p-6 space-y-6 max-w-6xl mx-auto">
+      <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold font-serif flex items-center gap-2">

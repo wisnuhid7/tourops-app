@@ -157,6 +157,15 @@ export default function SupplierDashboard() {
     },
   });
 
+  const sightsStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string, status: string }) => apiRequest("PATCH", `/api/rates/sights/${id}`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rates/sights"] });
+      toast({ title: t("rate_saved_successfully") });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
   const [rateDialogOpen, setRateDialogOpen] = useState(false);
   const [rateType, setRateType] = useState<"hotel" | "guide" | "sights" | "airline">("hotel");
   const [editingRate, setEditingRate] = useState<any>(null);
@@ -669,10 +678,21 @@ export default function SupplierDashboard() {
                        <TableCell>{r.ticketType}</TableCell>
                        <TableCell>{r.currency} {r.pricePerPerson}</TableCell>
                        <TableCell>{r.validFrom} to {r.validTo}</TableCell>
-                       <TableCell><Badge variant="outline" className="capitalize">{r.status}</Badge></TableCell>
+                       <TableCell>
+                         <div className="flex items-center gap-2">
+                           <Switch
+                             checked={r.status === "active"}
+                             onCheckedChange={(checked) => sightsStatusMutation.mutate({ id: r.id, status: checked ? "active" : "draft" })}
+                             disabled={sightsStatusMutation.isPending || r.status === "archived"}
+                             aria-label={t("status")}
+                             data-testid={`switch-sights-status-${r.id}`}
+                           />
+                           <Badge variant="outline" className="capitalize">{r.status}</Badge>
+                         </div>
+                       </TableCell>
                        <TableCell className="text-right flex justify-end gap-2">
-                         <Button variant="ghost" size="icon" onClick={() => openRateDialog("sights", r)}><Plus className="h-4 w-4 rotate-45" /></Button>
-                         <Button variant="ghost" size="icon" className="text-destructive" onClick={() => {
+                         <Button variant="ghost" size="icon" onClick={() => openRateDialog("sights", r)} data-testid={`button-edit-sights-${r.id}`}><Pencil className="h-4 w-4" /></Button>
+                         <Button variant="ghost" size="icon" className="text-destructive" data-testid={`button-delete-sights-${r.id}`} onClick={() => {
                            if(confirm(t("confirm_delete_rate"))) deleteRate.mutate({ type: "sights", id: r.id });
                          }}><Trash2 className="h-4 w-4" /></Button>
                        </TableCell>
@@ -967,8 +987,11 @@ export default function SupplierDashboard() {
             const data: any = {
               validFrom: fd.get("validFrom"),
               validTo: fd.get("validTo"),
-              status: "active",
             };
+            // The server forces new rates to "draft" (they're activated via the
+            // status switch afterwards). On edit, preserve the row's current
+            // status so saving unrelated fields doesn't silently change it.
+            if (editingRate) data.status = editingRate.status;
             if (rateType === "hotel") {
               data.hotelName = fd.get("hotelName");
               data.roomType = fd.get("roomType");

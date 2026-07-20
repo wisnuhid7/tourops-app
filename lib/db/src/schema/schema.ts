@@ -630,6 +630,7 @@ export const airlineAgencies = pgTable("airline_agencies", {
   contactName: text("contact_name"),
   contactPhone: text("contact_phone"),
   contactEmail: text("contact_email"),
+  website: text("website"),
   specializations: text("specializations").array(),
   isActive: boolean("is_active").default(true),
   createdBy: varchar("created_by"),

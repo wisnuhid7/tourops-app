@@ -2451,10 +2451,8 @@ export async function registerRoutes(
   app.get("/api/master/airline-agencies", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
-      const { ownerId } = await ownerScope(req, ["airline_supplier"]);
-      let rows = await storage.getAllAirlineAgencies();
-      if (ownerId) rows = rows.filter(r => r.createdBy === ownerId);
-      res.json(rows);
+      // Airlines catalog is shared/global by design: no per-owner filtering.
+      res.json(await storage.getAllAirlineAgencies());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/airline-agencies", isAuthenticated, async (req, res) => {
@@ -2469,11 +2467,7 @@ export async function registerRoutes(
   app.patch("/api/master/airline-agencies/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
-      const { ownerId } = await ownerScope(req, ["airline_supplier"]);
-      if (ownerId) {
-        const existing = await storage.getAirlineAgency(req.params.id as string);
-        if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
-      }
+      // Airlines catalog is shared/global by design: no ownership check.
       const parsed = insertAirlineAgencySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       const { createdBy: _ignoredCb, ...updateData } = parsed.data;
@@ -2483,11 +2477,7 @@ export async function registerRoutes(
   app.delete("/api/master/airline-agencies/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
-      const { ownerId } = await ownerScope(req, ["airline_supplier"]);
-      if (ownerId) {
-        const existing = await storage.getAirlineAgency(req.params.id as string);
-        if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
-      }
+      // Airlines catalog is shared/global by design: no ownership check.
       await storage.deleteAirlineAgency(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2925,10 +2915,8 @@ export async function registerRoutes(
   app.get("/api/rates/airline", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
-      const { ownerId } = await ownerScope(req, ["airline_supplier"]);
-      let rows = await storage.getAirlineRates();
-      if (ownerId) rows = rows.filter(r => r.createdBy === ownerId);
-      res.json(rows);
+      // Airline rates are shared/global by design: no per-owner filtering.
+      res.json(await storage.getAirlineRates());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/airline", isAuthenticated, async (req, res) => {
@@ -2952,11 +2940,7 @@ export async function registerRoutes(
   app.patch("/api/rates/airline/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
-      const { ownerId } = await ownerScope(req, ["airline_supplier"]);
-      if (ownerId) {
-        const existing = await storage.getAirlineRate(req.params.id as string);
-        if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
-      }
+      // Airline rates are shared/global by design: no ownership check.
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateAirlineRate(req.params.id as string, data));
@@ -2965,11 +2949,7 @@ export async function registerRoutes(
   app.delete("/api/rates/airline/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
-      const { ownerId } = await ownerScope(req, ["airline_supplier"]);
-      if (ownerId) {
-        const existing = await storage.getAirlineRate(req.params.id as string);
-        if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
-      }
+      // Airline rates are shared/global by design: no ownership check.
       await storage.deleteAirlineRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }

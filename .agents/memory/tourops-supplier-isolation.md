@@ -68,3 +68,6 @@ city_manager. Do NOT "fix" by re-adding country scoping. Both roles share
 
 ## Exception: sights rates are intentionally GLOBAL (July 2026)
 Per explicit user request, /api/rates/sights GET/PATCH/DELETE have NO per-owner (createdBy) scoping — superadmin and all sights_managers share one global rates table, same for /api/master/sights writes (SIGHTS_MANAGE_ROLES). Hotel/guide/airline rates keep own_only scoping. Don't "fix" sights back to own_only in future audits.
+
+## Exception: airlines catalog + airline rates also GLOBAL (July 2026)
+Per user request, /api/master/airline-agencies GET/PATCH/DELETE and /api/rates/airline GET/PATCH/DELETE have no ownerScope — superadmin and airline_supplier share global records (POST still stamps createdBy). Rate dialogs: sights attractionName and airline airlineName are catalog-fed Select dropdowns (no free text; master sights use field 'name', agencies 'name'). Only hotel/guide rates remain own_only.

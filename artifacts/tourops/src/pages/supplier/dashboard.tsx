@@ -19,6 +19,7 @@ import {
   DollarSign, ClipboardList, Bell, Plus, Trash2, Pencil, Landmark
 } from "lucide-react";
 import { SightsTab } from "@/pages/admin/master-data";
+import { AirlinesCatalogTab } from "@/pages/supplier/airlines-catalog";
 import { WORKFLOW_STATUSES } from "@/lib/constants";
 import type { BookingWorkflow, Booking, UserProfile, Traveler, Document } from "@workspace/db";
 import { Link, useSearch } from "wouter";
@@ -171,6 +172,15 @@ export default function SupplierDashboard() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
+  const airlineStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string, status: string }) => apiRequest("PATCH", `/api/rates/airline/${id}`, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/rates/airline"] });
+      toast({ title: t("rate_saved_successfully") });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
   const [rateDialogOpen, setRateDialogOpen] = useState(false);
   const [rateType, setRateType] = useState<"hotel" | "guide" | "sights" | "airline">("hotel");
   const [editingRate, setEditingRate] = useState<any>(null);
@@ -206,6 +216,7 @@ export default function SupplierDashboard() {
     setRateType(type);
     setEditingRate(rate || null);
     setSelectedAttraction(rate?.attractionName || "");
+    setSelectedAirline(rate?.airlineName || "");
     setRateDialogOpen(true);
   };
 
@@ -221,6 +232,19 @@ export default function SupplierDashboard() {
     if (selectedAttraction && !names.includes(selectedAttraction)) names.push(selectedAttraction);
     return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
   }, [catalogSights, selectedAttraction]);
+
+  // Airline rate dialog: airline must come from the Airlines Catalog (no free text)
+  const [selectedAirline, setSelectedAirline] = useState("");
+  const { data: catalogAirlines } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/master/airline-agencies"],
+    enabled: rateDialogOpen && rateType === "airline",
+  });
+  const airlineOptions = useMemo(() => {
+    const names = (catalogAirlines || []).map((a) => a.name).filter(Boolean);
+    // keep the current value selectable even if it no longer exists in the catalog
+    if (selectedAirline && !names.includes(selectedAirline)) names.push(selectedAirline);
+    return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
+  }, [catalogAirlines, selectedAirline]);
 
 
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
@@ -352,7 +376,13 @@ export default function SupplierDashboard() {
               {t("sights_rates_tab")}
             </TabsTrigger>
           )}
-          {(profile?.role === "airline_supplier" || profile?.role === "admin" || profile?.role === "super_admin") && (
+          {(profile?.role === "airline_supplier" || profile?.role === "country_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
+            <TabsTrigger value="airlines_catalog" data-testid="tab-airlines-catalog" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
+              <Plane className="h-4 w-4 mr-2" />
+              {t("airlines_catalog")}
+            </TabsTrigger>
+          )}
+          {(profile?.role === "airline_supplier" || profile?.role === "country_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
             <TabsTrigger value="airline_rates" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
               <Plane className="h-4 w-4 mr-2" />
               {t("airline_rates_tab")}
@@ -745,6 +775,18 @@ export default function SupplierDashboard() {
         </Card>
       </TabsContent>
 
+      <TabsContent value="airlines_catalog">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("airlines_catalog")}</CardTitle>
+            <CardDescription>{t("airlines_catalog_desc")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AirlinesCatalogTab />
+          </CardContent>
+        </Card>
+      </TabsContent>
+
       <TabsContent value="airline_rates">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -774,9 +816,20 @@ export default function SupplierDashboard() {
                        <TableCell>{r.routeFrom} → {r.routeTo}</TableCell>
                        <TableCell>{r.currency} {r.price}</TableCell>
                        <TableCell>{r.validFrom} to {r.validTo}</TableCell>
-                       <TableCell><Badge variant="outline" className="capitalize">{r.status}</Badge></TableCell>
+                       <TableCell>
+                         <div className="flex items-center gap-2">
+                           <Switch
+                             checked={r.status === "active"}
+                             onCheckedChange={(checked) => airlineStatusMutation.mutate({ id: r.id, status: checked ? "active" : "draft" })}
+                             disabled={airlineStatusMutation.isPending || r.status === "archived"}
+                             aria-label={t("status")}
+                             data-testid={`switch-airline-status-${r.id}`}
+                           />
+                           <Badge variant="outline" className="capitalize">{r.status}</Badge>
+                         </div>
+                       </TableCell>
                        <TableCell className="text-right flex justify-end gap-2">
-                         <Button variant="ghost" size="icon" onClick={() => openRateDialog("airline", r)}><Plus className="h-4 w-4 rotate-45" /></Button>
+                         <Button variant="ghost" size="icon" onClick={() => openRateDialog("airline", r)} data-testid={`button-edit-airline-rate-${r.id}`}><Pencil className="h-4 w-4" /></Button>
                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => {
                            if(confirm(t("confirm_delete_rate"))) deleteRate.mutate({ type: "airline", id: r.id });
                          }}><Trash2 className="h-4 w-4" /></Button>
@@ -1045,7 +1098,11 @@ export default function SupplierDashboard() {
               const ageVal = fd.get("age") as string;
               data.age = ageVal ? parseInt(ageVal) : null;
             } else if (rateType === "airline") {
-              data.airlineName = fd.get("airlineName");
+              if (!selectedAirline) {
+                toast({ title: t("select_airline"), variant: "destructive" });
+                return;
+              }
+              data.airlineName = selectedAirline;
               data.routeFrom = fd.get("routeFrom");
               data.routeTo = fd.get("routeTo");
               // price maps to a numeric column -> the insert schema expects a string
@@ -1135,7 +1192,22 @@ export default function SupplierDashboard() {
             )}
             {rateType === "airline" && (
               <>
-                <div className="space-y-2"><Label>{t("airline_name")}</Label><Input name="airlineName" defaultValue={editingRate?.airlineName} required /></div>
+                <div className="space-y-2">
+                  <Label>{t("airline_name")}</Label>
+                  <Select value={selectedAirline} onValueChange={setSelectedAirline} required>
+                    <SelectTrigger data-testid="select-airline-name">
+                      <SelectValue placeholder={t("select_airline")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {airlineOptions.length === 0 && (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">{t("no_airlines_in_catalog")}</div>
+                      )}
+                      {airlineOptions.map((name) => (
+                        <SelectItem key={name} value={name}>{name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2"><Label>{t("route_from")}</Label><Input name="routeFrom" defaultValue={editingRate?.routeFrom} required /></div>
                   <div className="space-y-2"><Label>{t("route_to")}</Label><Input name="routeTo" defaultValue={editingRate?.routeTo} required /></div>

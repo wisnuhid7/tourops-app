@@ -22,7 +22,7 @@ import { SightsTab } from "@/pages/admin/master-data";
 import { WORKFLOW_STATUSES } from "@/lib/constants";
 import type { BookingWorkflow, Booking, UserProfile, Traveler, Document } from "@workspace/db";
 import { Link, useSearch } from "wouter";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { getFullImageUrl } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -205,8 +205,22 @@ export default function SupplierDashboard() {
   const openRateDialog = (type: "hotel" | "guide" | "sights" | "airline", rate?: any) => {
     setRateType(type);
     setEditingRate(rate || null);
+    setSelectedAttraction(rate?.attractionName || "");
     setRateDialogOpen(true);
   };
+
+  // Sights rate dialog: attraction must come from the Sights Catalog (no free text)
+  const [selectedAttraction, setSelectedAttraction] = useState("");
+  const { data: catalogSights } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["/api/master/sights"],
+    enabled: rateDialogOpen && rateType === "sights",
+  });
+  const attractionOptions = useMemo(() => {
+    const names = (catalogSights || []).map((s) => s.name).filter(Boolean);
+    // keep the current value selectable even if it no longer exists in the catalog
+    if (selectedAttraction && !names.includes(selectedAttraction)) names.push(selectedAttraction);
+    return Array.from(new Set(names)).sort((a, b) => a.localeCompare(b));
+  }, [catalogSights, selectedAttraction]);
 
 
   const [selectedBookingId, setSelectedBookingId] = useState<string | null>(null);
@@ -1037,7 +1051,11 @@ export default function SupplierDashboard() {
               // price maps to a numeric column -> the insert schema expects a string
               data.price = fd.get("price");
             } else {
-              data.attractionName = fd.get("attractionName");
+              if (!selectedAttraction) {
+                toast({ title: t("select_attraction"), variant: "destructive" });
+                return;
+              }
+              data.attractionName = selectedAttraction;
               data.ticketType = fd.get("ticketType");
               // pricePerPerson maps to a numeric column -> the insert schema expects a string
               data.pricePerPerson = fd.get("price");
@@ -1095,7 +1113,22 @@ export default function SupplierDashboard() {
             )}
             {rateType === "sights" && (
               <>
-                <div className="space-y-2"><Label>{t("attraction_name")}</Label><Input name="attractionName" defaultValue={editingRate?.attractionName} required /></div>
+                <div className="space-y-2">
+                  <Label>{t("attraction_name")}</Label>
+                  <Select value={selectedAttraction} onValueChange={setSelectedAttraction} required>
+                    <SelectTrigger data-testid="select-attraction-name">
+                      <SelectValue placeholder={t("select_attraction")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {attractionOptions.length === 0 && (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">{t("no_sights_in_catalog")}</div>
+                      )}
+                      {attractionOptions.map((name) => (
+                        <SelectItem key={name} value={name}>{name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-2"><Label>{t("ticket_type_label")}</Label><Input name="ticketType" defaultValue={editingRate?.ticketType} required /></div>
                 <div className="space-y-2"><Label>{t("price")}</Label><Input type="number" name="price" defaultValue={editingRate?.pricePerPerson} required /></div>
               </>

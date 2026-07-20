@@ -1257,7 +1257,7 @@ export async function registerRoutes(
   app.post("/api/admin/scrape/sights/:cityId", isAuthenticated, async (req, res) => {
     let job;
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
       const cityId = req.params.cityId as string;
       const city = await storage.getCity(cityId);
       if (!city) return res.status(404).json({ message: "City not found" });
@@ -2297,7 +2297,7 @@ export async function registerRoutes(
   });
   app.post("/api/master/sights", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
       const parsed = insertSightSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createSight(parsed.data));
@@ -2305,7 +2305,7 @@ export async function registerRoutes(
   });
   app.patch("/api/master/sights/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
       const parsed = insertSightSchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateSight(req.params.id as string, parsed.data));
@@ -2313,14 +2313,14 @@ export async function registerRoutes(
   });
   app.delete("/api/master/sights/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
       await storage.deleteSight(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/sights/import", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
       const validCategories = ["museum", "landmark", "park", "religious", "entertainment", "nature", "historical", "other"];
       const categoryMap: Record<string, string> = {
         "cultural": "landmark", "historical": "historical", "religious": "religious",

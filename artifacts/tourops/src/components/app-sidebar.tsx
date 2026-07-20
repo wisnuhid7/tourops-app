@@ -20,7 +20,7 @@ import {
   LayoutDashboard, Globe, BookOpen, Users, 
   BarChart3, Settings, LogOut, Plane, 
   Hotel, Bus, UserCheck, Ticket, Database,
-  UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart, Wand2, Percent, DollarSign, Building2, Flag
+  UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart, Wand2, Percent, DollarSign, Building2, Flag, Landmark
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -65,10 +65,6 @@ export function AppSidebar() {
   const [location] = useLocation();
   const search = useSearch();
   const currentUrl = search ? `${location}?${search}` : location;
-  // Query-based items (e.g. /admin/master-data?tab=hotels) must match the full
-  // URL so they only light up on their tab; plain items match on pathname so
-  // they stay active even when the page has unrelated query params.
-  const isItemActive = (url: string) => (url.includes("?") ? currentUrl === url : location === url);
   const { language, setLanguage, t } = useLanguage();
 
   const getNav = () => {
@@ -90,6 +86,7 @@ export function AppSidebar() {
         { title: t("guides"), url: "/supplier?tab=guide_rates", icon: UserCheck2 },
         { title: t("entity_countries_plural"), url: "/admin/master-data?tab=countries", icon: Flag },
         { title: t("entity_cities_plural"), url: "/admin/master-data?tab=cities", icon: Building2 },
+        { title: t("nav_sights"), url: "/admin/master-data?tab=sights", icon: Landmark },
         { title: t("nav_documents"), url: "/admin/documents", icon: FileText },
         { title: t("nav_payments"), url: "/admin/payments", icon: DollarSign },
         { title: t("nav_messages"), url: "/admin/messages", icon: Mail },
@@ -113,7 +110,10 @@ export function AppSidebar() {
     if (role === "transport_manager") return [{ title: t("transport_dashboard"), url: "/ops/transport", icon: Bus }];
     if (role === "hotel_manager") return [{ title: t("hotel_dashboard"), url: "/supplier", icon: Hotel }];
     if (role === "guide_manager") return [{ title: t("guide_dashboard"), url: "/supplier", icon: UserCheck2 }];
-    if (role === "sights_manager") return [{ title: t("sights_dashboard"), url: "/supplier", icon: Ticket }];
+    if (role === "sights_manager") return [
+      { title: t("sights_dashboard"), url: "/supplier", icon: Ticket },
+      { title: t("nav_sights"), url: "/supplier?tab=sights_catalog", icon: Landmark },
+    ];
     if (role === "airline_supplier") return [{ title: t("airline_dashboard"), url: "/supplier", icon: Plane }];
     if (role === "city_manager") return [{ title: t("city_dashboard"), url: "/ops/city-manager", icon: Globe }];
     if (role === "content_editor") return [{ title: t("editor_dashboard"), url: "/ops/content-editor", icon: FileText }];
@@ -124,6 +124,16 @@ export function AppSidebar() {
     
     return [];
   };
+
+  const navItems = getNav();
+  // Query-based items (e.g. /admin/master-data?tab=hotels) must match the full
+  // URL so they only light up on their tab; plain items match on pathname so
+  // they stay active with unrelated query params — but they yield when a
+  // query-based sibling item is the exact match (prevents double-active state).
+  const isItemActive = (url: string) =>
+    url.includes("?")
+      ? currentUrl === url
+      : location === url && !navItems.some((i) => i.url.includes("?") && currentUrl === i.url);
 
   return (
     <Sidebar collapsible="icon" className="border-r shadow-lg bg-white dark:bg-slate-950">
@@ -146,7 +156,7 @@ export function AppSidebar() {
           <SidebarGroupLabel className="px-3 text-[10px] uppercase tracking-widest font-bold text-muted-foreground mb-2">Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {getNav().map((item) => (
+              {navItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton 
                     asChild 

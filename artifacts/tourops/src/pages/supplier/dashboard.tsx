@@ -16,8 +16,9 @@ import {
   Hotel, Bus, MapPin, Camera, Plane,
   ChevronRight, Calendar, User, Search, Globe,
   UserCheck, Ticket, Download, FileCheck, AlertTriangle,
-  DollarSign, ClipboardList, Bell, Plus, Trash2, Pencil
+  DollarSign, ClipboardList, Bell, Plus, Trash2, Pencil, Landmark
 } from "lucide-react";
+import { SightsTab } from "@/pages/admin/master-data";
 import { WORKFLOW_STATUSES } from "@/lib/constants";
 import type { BookingWorkflow, Booking, UserProfile, Traveler, Document } from "@workspace/db";
 import { Link, useSearch } from "wouter";
@@ -67,6 +68,10 @@ export default function SupplierDashboard() {
   // Deep-link support: /supplier?tab=guide_rates opens directly on that tab
   // (used by the admin/super_admin "Guides" sidebar link).
   const initialTab = new URLSearchParams(search).get("tab") || "tasks";
+  const [activeTab, setActiveTab] = useState(initialTab);
+  // Keep the active tab in sync when the URL changes while mounted
+  // (e.g. sidebar links switching between /supplier and /supplier?tab=...).
+  useEffect(() => { setActiveTab(initialTab); }, [initialTab]);
 
   const { data: hotelRates } = useQuery<any[]>({ queryKey: ["/api/rates/hotel"] });
   const canRegisterHotels = profile?.role === "hotel_manager" || profile?.role === "admin" || profile?.role === "super_admin";
@@ -297,7 +302,7 @@ export default function SupplierDashboard() {
         </motion.div>
       </div>
 
-      <Tabs defaultValue={initialTab} className="mt-8">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-8">
         <TabsList className="mb-6 bg-white/50 backdrop-blur-sm border shadow-sm p-1">
           <TabsTrigger value="tasks" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
             <ClipboardList className="h-4 w-4 mr-2" />
@@ -319,6 +324,12 @@ export default function SupplierDashboard() {
             <TabsTrigger value="guide_rates" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
               <UserCheck className="h-4 w-4 mr-2" />
               {t("guide_rates_tab")}
+            </TabsTrigger>
+          )}
+          {(profile?.role === "sights_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
+            <TabsTrigger value="sights_catalog" data-testid="tab-sights-catalog" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
+              <Landmark className="h-4 w-4 mr-2" />
+              {t("sights_catalog")}
             </TabsTrigger>
           )}
           {(profile?.role === "sights_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
@@ -645,6 +656,18 @@ export default function SupplierDashboard() {
                  </TableBody>
                </Table>
              </div>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="sights_catalog">
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("sights_catalog")}</CardTitle>
+            <CardDescription>{t("sights_catalog_desc")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SightsTab />
           </CardContent>
         </Card>
       </TabsContent>

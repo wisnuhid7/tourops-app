@@ -716,7 +716,7 @@ function AirportsTab() {
   );
 }
 
-function SightsTab() {
+export function SightsTab() {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [editItem, setEditItem] = useState<Sight | null>(null);
@@ -864,9 +864,9 @@ function SightsTab() {
       </Table>
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg flex flex-col max-h-[85vh]">
           <DialogHeader><DialogTitle>{editItem ? "Edit Sight" : "Add Sight"}</DialogTitle></DialogHeader>
-          <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+          <div className="space-y-4 flex-1 overflow-y-auto pr-2">
             <div><Label>{t("name_required_label")}</Label><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Acropolis" data-testid="input-sight-name" /></div>
             <div>
               <Label>{t("city_label")} *</Label>

@@ -138,6 +138,7 @@ export default function SupplierDashboard() {
       toast({ title: t("rate_saved_successfully") });
       setRateDialogOpen(false);
     },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
   const deleteRate = useMutation({
@@ -971,7 +972,8 @@ export default function SupplierDashboard() {
             if (rateType === "hotel") {
               data.hotelName = fd.get("hotelName");
               data.roomType = fd.get("roomType");
-              data.pricePerRoomPerNight = parseInt(fd.get("price") as string);
+              // price maps to a numeric column -> the insert schema expects a string
+              data.pricePerRoomPerNight = fd.get("price");
             } else if (rateType === "guide") {
               data.guideName = fd.get("guideName");
               data.language = fd.get("language");
@@ -986,11 +988,13 @@ export default function SupplierDashboard() {
               data.airlineName = fd.get("airlineName");
               data.routeFrom = fd.get("routeFrom");
               data.routeTo = fd.get("routeTo");
-              data.price = parseInt(fd.get("price") as string);
+              // price maps to a numeric column -> the insert schema expects a string
+              data.price = fd.get("price");
             } else {
               data.attractionName = fd.get("attractionName");
               data.ticketType = fd.get("ticketType");
-              data.pricePerPerson = parseInt(fd.get("price") as string);
+              // pricePerPerson maps to a numeric column -> the insert schema expects a string
+              data.pricePerPerson = fd.get("price");
             }
             saveRate.mutate({ type: rateType, id: editingRate?.id, data });
           }} className="flex flex-col overflow-hidden flex-1">

@@ -18,6 +18,13 @@ works — easy to miss without testing create and edit separately.
 as numbers. If create 400s but edit succeeds (or vice-versa), suspect this POST-vs-PATCH
 validation split.
 
+**Recurrence (July 2026):** the supplier dashboard's *shared* Rate Dialog had `parseInt` on
+hotel/airline/sights prices (guide already fixed) → "frozen Save button" on create. Its
+`saveRate` mutation also had no `onError`, so the 400 was fully silent. When fixing one
+rate type's price handling, sweep ALL branches of the shared dialog AND both form sites
+(supplier dashboard dialog + admin rate-cards tabs), and ensure every mutation has an
+onError toast.
+
 # Status switch in rate forms must not coerce
 
 The rate status enum is `draft|active|archived`. When adding a binary Active/Draft switch

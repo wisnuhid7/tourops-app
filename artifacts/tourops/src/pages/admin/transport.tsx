@@ -228,7 +228,7 @@ function CompaniesTab() {
       </div>
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) { setEditItem(null); resetForm(); } }}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editItem ? t("edit_company_profile") : t("add_company")}</DialogTitle></DialogHeader>
           <div className="grid gap-4 md:grid-cols-2">
             <div><Label>{t("name_label")} *</Label><Input value={name} onChange={(e) => setName(e.target.value)} data-testid="input-company-name" /></div>
@@ -388,7 +388,7 @@ function BusTypesTab() {
       )}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editItem ? t("edit_bus_type") : t("add_bus_type")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>{t("name_label")} *</Label><Input value={btName} onChange={(e) => setBtName(e.target.value)} data-testid="input-bustype-name" /></div>
@@ -528,7 +528,7 @@ function RoutesTab() {
       )}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editItem ? t("edit_route") : t("add_route")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>{t("name_label")} *</Label><Input value={rtName} onChange={(e) => setRtName(e.target.value)} data-testid="input-route-name" /></div>
@@ -681,7 +681,7 @@ function RoutePricingTab() {
       )}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editItem ? t("edit_pricing") : t("add_pricing")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
@@ -850,7 +850,7 @@ function BookingsTab() {
       )}
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("new_transport_booking")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
@@ -1085,7 +1085,7 @@ function InvoicesPaymentsTab() {
       </div>
 
       <Dialog open={showInvoiceForm} onOpenChange={setShowInvoiceForm}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("create_invoice")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
@@ -1107,7 +1107,7 @@ function InvoicesPaymentsTab() {
       </Dialog>
 
       <Dialog open={showPaymentForm} onOpenChange={setShowPaymentForm}>
-        <DialogContent>
+        <DialogContent className="max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{t("record_payment")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>

@@ -97,6 +97,8 @@ const GUIDE_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "guide_manager"];
 const SIGHTS_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "sights_manager"];
 const AIRLINE_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "airline_supplier"];
 const TRANSPORT_COMPANY_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "transport_manager"];
+// Finance mutations (invoices/payments): admins + transport_manager only — country_manager excluded.
+const TRANSPORT_FINANCE_ROLES = [...ADMIN_ROLES, "transport_manager"];
 
 // Tour builders assemble itineraries (days/items) and can create/edit tour structure & pricing
 const TOUR_BUILDER_ROLES = [...ADMIN_ROLES, "tour_builder"];
@@ -2400,10 +2402,8 @@ export async function registerRoutes(
   app.get("/api/master/transport-companies", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
-      const { ownerId, transportCompanyId } = await ownerScope(req, ["transport_manager"]);
-      let rows = await storage.getAllTransportCompanies();
-      if (ownerId) rows = rows.filter(r => r.createdBy === ownerId || r.id === transportCompanyId);
-      res.json(rows);
+      // Transport companies are shared/global by design: no per-owner filtering.
+      res.json(await storage.getAllTransportCompanies());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/transport-companies", isAuthenticated, async (req, res) => {
@@ -2418,11 +2418,7 @@ export async function registerRoutes(
   app.patch("/api/master/transport-companies/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, TRANSPORT_COMPANY_MANAGE_ROLES)) return;
-      const { ownerId, transportCompanyId } = await ownerScope(req, ["transport_manager"]);
-      if (ownerId) {
-        const existing = await storage.getTransportCompany(req.params.id as string);
-        if (!existing || (existing.createdBy !== ownerId && existing.id !== transportCompanyId)) return res.status(403).json({ message: "Forbidden: not your record" });
-      }
+      // Transport companies are shared/global by design: no ownership check.
       const parsed = insertTransportCompanySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       const { createdBy: _ignoredCb, ...updateData } = parsed.data;
@@ -2431,7 +2427,7 @@ export async function registerRoutes(
   });
   app.delete("/api/master/transport-companies/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, CATALOG_BASE_ROLES)) return;
+      if (!await requireRole(req, res, TRANSPORT_COMPANY_MANAGE_ROLES)) return;
       await storage.deleteTransportCompany(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2499,11 +2495,9 @@ export async function registerRoutes(
     if (!userId) { res.status(401).json({ message: "Unauthorized" }); return null; }
     const profile = await storage.getProfileByUserId(userId);
     if (!profile) { res.status(403).json({ message: "No profile" }); return null; }
-    if (profile.role === "admin" || profile.role === "super_admin" || profile.role === "country_manager") return { companyId: req.query.companyId as string | undefined, isAdmin: true };
-    if (profile.role === "transport_manager") {
-      if (!profile.transportCompanyId) { res.status(403).json({ message: "Not linked to a transport company" }); return null; }
-      return { companyId: profile.transportCompanyId, isAdmin: false };
-    }
+    // Transport data is shared/global by design: transport_manager gets the same
+    // unrestricted scope as admins (no per-company isolation).
+    if (profile.role === "admin" || profile.role === "super_admin" || profile.role === "country_manager" || profile.role === "transport_manager") return { companyId: req.query.companyId as string | undefined, isAdmin: true };
     res.status(403).json({ message: "Forbidden" }); return null;
   }
 
@@ -2678,7 +2672,7 @@ export async function registerRoutes(
   });
   app.patch("/api/transport/invoices/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, TRANSPORT_FINANCE_ROLES)) return;
       const data = { ...req.body };
       if (data.status === "approved" && !data.approvedAt) {
         data.approvedAt = new Date();
@@ -2697,7 +2691,7 @@ export async function registerRoutes(
   });
   app.post("/api/transport/payments", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, TRANSPORT_FINANCE_ROLES)) return;
       const parsed = insertTransportPaymentSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTransportPayment(parsed.data));
@@ -2705,7 +2699,7 @@ export async function registerRoutes(
   });
   app.patch("/api/transport/payments/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, TRANSPORT_FINANCE_ROLES)) return;
       res.json(await storage.updateTransportPayment(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });

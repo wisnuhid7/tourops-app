@@ -44,7 +44,6 @@ import TourBrochure from "@/pages/customer/tour-brochure";
 import ManagePassengers from "@/pages/customer/manage-passengers";
 import SupplierDashboard from "@/pages/supplier/dashboard";
 import OpsDashboard from "@/pages/ops/dashboard";
-import TransportDashboard from "@/pages/ops/transport-dashboard";
 import GenericRoleDashboard from "@/pages/ops/generic-dashboard";
 import TourBuilderDashboard from "@/pages/ops/tour-builder";
 import CityManagerDashboard from "@/pages/ops/city-manager";
@@ -155,7 +154,7 @@ function AuthenticatedLayout() {
 
             {/* Ops Routes */}
             <Route path="/ops" component={OpsDashboard} />
-            <Route path="/ops/transport" component={TransportDashboard} />
+            <Route path="/ops/transport" component={AdminTransport} />
             <Route path="/ops/role" component={GenericRoleDashboard} />
             <Route path="/ops/tour-builder" component={TourBuilderDashboard} />
             <Route path="/ops/content-editor" component={ContentEditorDashboard} />

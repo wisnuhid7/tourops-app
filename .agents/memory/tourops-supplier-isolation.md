@@ -71,3 +71,9 @@ Per explicit user request, /api/rates/sights GET/PATCH/DELETE have NO per-owner 
 
 ## Exception: airlines catalog + airline rates also GLOBAL (July 2026)
 Per user request, /api/master/airline-agencies GET/PATCH/DELETE and /api/rates/airline GET/PATCH/DELETE have no ownerScope — superadmin and airline_supplier share global records (POST still stamps createdBy). Rate dialogs: sights attractionName and airline airlineName are catalog-fed Select dropdowns (no free text; master sights use field 'name', agencies 'name'). Only hotel/guide rates remain own_only.
+
+## Transport is also global/shared (July 2026)
+- Transport companies, bus types, routes, route pricing, bookings, invoices, payments: NO per-company isolation. `getTransportScope` treats transport_manager as unrestricted admin scope by explicit user request — do not "fix" back.
+- /ops/transport route renders the shared admin Transportation Management page (6 tabs); the old ops/transport-dashboard.tsx is unrouted.
+- Finance mutations (invoice PATCH, payment POST/PATCH) use TRANSPORT_FINANCE_ROLES = admins + transport_manager only (country_manager deliberately excluded per review).
+- No DELETE route exists for transport invoices — test cleanup must go through SQL.

@@ -153,7 +153,7 @@ import { registerRoutes } from "../../routes/routes";
 const STAFF_ROLES = [
   "admin", "super_admin", "airline_supplier", "country_manager", "city_manager",
   "hotel_manager", "transport_manager", "guide_manager", "sights_manager",
-  "content_editor", "flight_agent", "tour_builder", "supplier", "travel_agent",
+  "content_editor", "flight_agent", "tour_builder", "supplier", "tour_leader",
 ];
 
 function resetStore() {

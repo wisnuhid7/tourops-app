@@ -6,7 +6,7 @@ import {
 import { eq, and } from "drizzle-orm";
 
 // Builds one fully-assembled, bookable tour: real hotel + guide + transport + sights
-// linked day-by-day, so tour_builder / content_editor / travel_agent all have a
+// linked day-by-day, so tour_builder / content_editor / tour_leader all have a
 // realistic, complete example to work with.
 async function seedAssembledTour() {
   console.log("🧩 Seeding fully-assembled demo tour...");

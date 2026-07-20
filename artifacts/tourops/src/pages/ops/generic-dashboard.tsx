@@ -27,7 +27,7 @@ export default function GenericRoleDashboard() {
     flight_agent: { title: t("flight_dashboard"), subtitle: t("manage_flight_routes"), entity: t("flight_route_entity") },
     tour_builder: { title: t("builder_dashboard"), subtitle: t("manage_tour_itineraries"), entity: t("itinerary") },
     supplier: { title: t("supplier_dashboard"), subtitle: t("manage_general_supply"), entity: t("supply_item") },
-    travel_agent: { title: t("agent_dashboard"), subtitle: t("manage_client_bookings"), entity: t("agent_client_entity") },
+    tour_leader: { title: t("agent_dashboard"), subtitle: t("manage_client_bookings"), entity: t("agent_client_entity") },
   };
 
   const config = dashboardMap[role] || { title: t("dashboard"), subtitle: t("welcome_to_portal"), entity: t("item_entity") };

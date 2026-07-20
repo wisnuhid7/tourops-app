@@ -30,3 +30,8 @@ description: Where the user's role actually lives, how frontend vs backend read 
 # Open security tradeoff (not yet resolved)
 
 - Rate/master endpoints are **globally scoped** (no per-supplier ownership column except transport's `transportCompanyId`). Granting a supplier role access lets it read/edit/delete **all** rows in that category, not just its own. True isolation needs ownership fields + scoped queries — a schema-level change. This overlaps the "keep supplier catalog data out of customer accounts" concern.
+
+## Role rename: travel_agent → tour_leader (July 2026)
+- The staff role `travel_agent` was renamed to `tour_leader` platform-wide (enum value via ALTER TYPE ... RENAME VALUE; seed user travelagent1 → tourleader1, user id user-tour_leader-1; ops route /ops/tour-leader).
+- Do NOT confuse with the separate customer-side `isTourLeader` boolean + /leader-dashboard — that concept is untouched and intentionally coexists.
+- lib/db exports point at src/, so lib/db/dist is stale build junk — ignore stale enum values found there.

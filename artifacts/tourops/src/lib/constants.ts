@@ -61,7 +61,7 @@ export const USER_ROLES: Record<string, string> = {
   flight_agent: "Flight Agent",
   tour_builder: "Tour Builder",
   supplier: "Supplier",
-  travel_agent: "Travel Agent",
+  tour_leader: "Tour Leader",
 };
 
 export const SERVICE_WORKFLOW_STEPS: Record<string, Array<{ code: string; name: string }>> = {

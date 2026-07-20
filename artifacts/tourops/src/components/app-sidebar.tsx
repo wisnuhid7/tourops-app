@@ -121,7 +121,7 @@ export function AppSidebar() {
     if (role === "flight_agent") return [{ title: t("flight_dashboard"), url: "/ops/flight-agent", icon: Plane }];
     if (role === "tour_builder") return [{ title: t("builder_dashboard"), url: "/ops/tour-builder", icon: Wand2 }];
     if (role === "supplier") return [{ title: t("supplier_dashboard"), url: "/supplier", icon: Database }];
-    if (role === "travel_agent") return [{ title: t("agent_dashboard"), url: "/ops/travel-agent", icon: Users }];
+    if (role === "tour_leader") return [{ title: t("agent_dashboard"), url: "/ops/tour-leader", icon: Users }];
     
     return [];
   };

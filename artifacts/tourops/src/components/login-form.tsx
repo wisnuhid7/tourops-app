@@ -17,7 +17,7 @@ function getRedirectUrl(role: string, portal: string): string {
     content_editor: "/ops/content-editor",
     flight_agent: "/ops/flight-agent",
     tour_builder: "/ops/tour-builder",
-    travel_agent: "/ops/travel-agent",
+    tour_leader: "/ops/tour-leader",
   };
   if (supplierRoles.includes(role)) return "/supplier";
   if (role in opsRoleHomes) return opsRoleHomes[role];

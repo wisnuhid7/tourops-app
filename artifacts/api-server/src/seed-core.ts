@@ -20,7 +20,7 @@ const roles = [
   "flight_agent",
   "tour_builder",
   "supplier",
-  "travel_agent",
+  "tour_leader",
 ];
 
 export interface SeededAccount {

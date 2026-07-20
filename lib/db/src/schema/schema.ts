@@ -20,7 +20,7 @@ export const userRoleEnum = pgEnum("user_role", [
   "flight_agent",
   "tour_builder",
   "supplier",
-  "travel_agent",
+  "tour_leader",
 ]);
 
 export const userProfiles = pgTable("user_profiles", {

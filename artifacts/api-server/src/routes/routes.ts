@@ -77,7 +77,7 @@ const ALL_STAFF_ROLES = [
   "airline_supplier", "country_manager", "city_manager",
   "hotel_manager", "transport_manager", "guide_manager",
   "sights_manager", "content_editor", "flight_agent",
-  "tour_builder", "supplier", "travel_agent",
+  "tour_builder", "supplier", "tour_leader",
 ];
 
 // Both admin and super_admin have full administrative access

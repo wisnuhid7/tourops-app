@@ -24,7 +24,7 @@ export default function TravelAgentDashboard() {
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold font-serif flex items-center gap-2"><Users className="h-6 w-6 text-primary" />{t("agent_dashboard")}</h1>
-        <p className="text-muted-foreground text-sm">{t("travel_agent_subtitle")}</p>
+        <p className="text-muted-foreground text-sm">{t("tour_leader_subtitle")}</p>
       </div>
       <Tabs defaultValue="tours">
         <TabsList>

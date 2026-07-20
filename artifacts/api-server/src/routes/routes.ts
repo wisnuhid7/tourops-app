@@ -2880,10 +2880,9 @@ export async function registerRoutes(
   app.get("/api/rates/sights", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
-      const { ownerId } = await ownerScope(req, ["sights_manager"]);
-      let rows = await storage.getSightsRates();
-      if (ownerId) rows = rows.filter(r => r.createdBy === ownerId);
-      res.json(rows);
+      // Sights rates are a shared global table: superadmin and sights managers
+      // all see and manage the same rows (no per-owner isolation by design).
+      res.json(await storage.getSightsRates());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/sights", isAuthenticated, async (req, res) => {
@@ -2907,11 +2906,7 @@ export async function registerRoutes(
   app.patch("/api/rates/sights/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
-      const { ownerId } = await ownerScope(req, ["sights_manager"]);
-      if (ownerId) {
-        const existing = await storage.getSightsRate(req.params.id as string);
-        if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
-      }
+      // Shared global table — no per-owner check (see GET above).
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateSightsRate(req.params.id as string, data));
@@ -2920,11 +2915,7 @@ export async function registerRoutes(
   app.delete("/api/rates/sights/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
-      const { ownerId } = await ownerScope(req, ["sights_manager"]);
-      if (ownerId) {
-        const existing = await storage.getSightsRate(req.params.id as string);
-        if (!existing || existing.createdBy !== ownerId) return res.status(403).json({ message: "Forbidden: not your record" });
-      }
+      // Shared global table — no per-owner check (see GET above).
       await storage.deleteSightsRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }

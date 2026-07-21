@@ -12,12 +12,15 @@ function getRedirectUrl(role: string, portal: string): string {
   const supplierRoles = ["airline_supplier", "hotel_manager", "guide_manager", "sights_manager", "supplier"];
   const opsRoleHomes: Record<string, string> = {
     country_manager: "/ops",
-    transport_manager: "/ops",
+    transport_manager: "/ops/transport",
     city_manager: "/ops/city-manager",
     content_editor: "/ops/content-editor",
     flight_agent: "/ops/flight-agent",
     tour_builder: "/ops/tour-builder",
     tour_leader: "/ops/tour-leader",
+    accounting: "/ops/accounting",
+    operations_manager: "/ops",
+    support_agent: "/ops/support",
   };
   if (supplierRoles.includes(role)) return "/supplier";
   if (role in opsRoleHomes) return opsRoleHomes[role];

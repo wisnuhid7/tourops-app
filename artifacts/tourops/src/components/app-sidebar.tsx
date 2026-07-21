@@ -19,7 +19,7 @@ import { Link, useLocation, useSearch } from "wouter";
 import { 
   LayoutDashboard, Globe, BookOpen, Users, 
   BarChart3, Settings, LogOut, Plane, 
-  Hotel, Bus, UserCheck, Ticket, Database,
+  Hotel, Bus, UserCheck, Ticket, Database, Headset,
   UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart, Wand2, Percent, DollarSign, Building2, Flag, Landmark
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -121,6 +121,12 @@ export function AppSidebar() {
     if (role === "tour_builder") return [{ title: t("builder_dashboard"), url: "/ops/tour-builder", icon: Wand2 }];
     if (role === "supplier") return [{ title: t("supplier_dashboard"), url: "/supplier", icon: Database }];
     if (role === "tour_leader") return [{ title: t("agent_dashboard"), url: "/ops/tour-leader", icon: Users }];
+    if (role === "accounting") return [{ title: t("finance_dashboard"), url: "/ops/accounting", icon: DollarSign }];
+    if (role === "support_agent") return [{ title: t("support_dashboard"), url: "/ops/support", icon: Headset }];
+    if (role === "operations_manager") return [
+      { title: t("dashboard"), url: "/ops", icon: LayoutDashboard },
+      { title: t("nav_assignments"), url: "/ops/assignments", icon: UserCheck },
+    ];
     
     return [];
   };

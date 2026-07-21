@@ -77,11 +77,46 @@ const ALL_STAFF_ROLES = [
   "airline_supplier", "country_manager", "city_manager",
   "hotel_manager", "transport_manager", "guide_manager",
   "sights_manager", "content_editor", "flight_agent",
-  "tour_builder", "supplier", "tour_leader",
+  "tour_builder", "supplier", "tour_leader", "accounting",
+  "operations_manager", "support_agent",
 ];
 
 // Both admin and super_admin have full administrative access
 const ADMIN_ROLES = ["admin", "super_admin"];
+
+// Internal staff = all staff EXCEPT external supplier roles. External suppliers
+// (airline_supplier) must not see the staff directory, global assignments,
+// hotels, or mutate global master data (countries/cities/airports) — they only
+// manage their own airline domain (per role spec).
+const EXTERNAL_SUPPLIER_ROLES = ["airline_supplier"];
+const INTERNAL_STAFF_ROLES = ALL_STAFF_ROLES.filter(r => !EXTERNAL_SUPPLIER_ROLES.includes(r));
+// city_manager's remit is a single assigned city (user_profiles.city_id) and
+// content_editor's remit is descriptive tour content (per role specs): neither
+// may read platform-wide bookings, the staff directory, assignments, or the
+// full hotel list — their dashboards don't need them.
+// guide_manager is likewise limited to its own guide domain (own-scoped guide
+// rates + assigned workflows via /api/supplier/*): no platform-wide reads.
+// hotel_manager is scoped to hotels it registered (hotels.created_by).
+// The generic "supplier" role is an external vendor: it only sees its own
+// assigned workflows via /api/supplier/* — no platform-wide reads and no
+// master-data mutations (supplier-tenant isolation per role spec).
+// tour_leader only sees its own led/created bookings (scoped in the bookings
+// GET handlers below) — never the whole platform.
+const PLATFORM_WIDE_READ_ROLES = INTERNAL_STAFF_ROLES.filter(r => !["city_manager", "content_editor", "guide_manager", "hotel_manager", "sights_manager", "accounting", "supplier", "support_agent", "tour_leader", "transport_manager"].includes(r));
+// support_agent assists customers on their bookings: read bookings, read the
+// booking conversation, see payment status — never mutate finance or operations.
+const SUPPORT_READ_ROLES = [...ADMIN_ROLES, "support_agent"];
+// accounting handles the financial lifecycle: bookings (read), invoices and
+// payments (read + record/confirm). No operational or master-data authority.
+const FINANCE_ROLES = ["super_admin", "admin", "accounting"];
+// Master records (countries/cities/airports and other global reference data)
+// may only be mutated by operational manager roles — not by city_manager
+// (single-city remit) or content_editor (content-only remit).
+const MASTER_RECORDS_MANAGE_ROLES = INTERNAL_STAFF_ROLES.filter(r => !["city_manager", "content_editor", "guide_manager", "hotel_manager", "sights_manager", "accounting", "operations_manager", "supplier", "support_agent", "tour_leader", "transport_manager"].includes(r));
+// operations_manager dispatches resources: broad operational reads plus
+// assignment/workflow management, but no pricing, finance, master-data or
+// user administration authority.
+const OPS_DISPATCH_ROLES = [...ADMIN_ROLES, "operations_manager"];
 
 // Catalog/master-data managers: base staff plus per-domain supplier roles.
 // Each supplier role manages its own catalog category (rates + master records).
@@ -226,15 +261,21 @@ export async function registerRoutes(
 
   app.get("/api/user-profiles", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
-      res.json(await storage.getAllProfiles());
+      if (!await requireRole(req, res, PLATFORM_WIDE_READ_ROLES)) return;
+      const requester = await storage.getOrCreateProfile(getUserId(req)!);
+      const all = await storage.getAllProfiles();
+      // country_manager only sees users assigned to its own country (per role spec).
+      if (requester.role === "country_manager") {
+        return res.json(all.filter(p => p.countryCode && requester.countryCode && p.countryCode.toUpperCase() === requester.countryCode.toUpperCase()));
+      }
+      res.json(all);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.patch("/api/user-profiles/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
-      const updateSchema = z.object({ role: z.string().optional(), phone: z.string().optional(), companyName: z.string().optional(), countryCode: z.string().optional(), isTourLeader: z.boolean().optional(), isActive: z.boolean().optional() });
+      const updateSchema = z.object({ role: z.string().optional(), phone: z.string().optional(), companyName: z.string().optional(), countryCode: z.string().optional(), cityId: z.string().nullable().optional(), isTourLeader: z.boolean().optional(), isActive: z.boolean().optional() });
       const parsed = updateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateProfile(req.params.id as string, parsed.data as any));
@@ -739,7 +780,14 @@ export async function registerRoutes(
   // ---- Bookings ----
   app.get("/api/bookings", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      const userId = getUserId(req);
+      const profile = userId ? await storage.getOrCreateProfile(userId) : null;
+      if (profile?.role === "tour_leader") {
+        // Tour leaders see only the bookings they lead or created for clients.
+        const all = await storage.getAllBookings();
+        return res.json(all.filter(b => b.customerId === userId || b.leaderUserId === userId));
+      }
+      if (!await requireRole(req, res, [...PLATFORM_WIDE_READ_ROLES, "accounting", "support_agent"])) return;
       res.json(await storage.getAllBookings());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -761,7 +809,18 @@ export async function registerRoutes(
 
   app.get("/api/bookings/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      // Suppliers use the assignment-scoped /api/supplier/bookings/:id instead.
+      const userId = getUserId(req);
+      const profile = userId ? await storage.getOrCreateProfile(userId) : null;
+      if (profile?.role === "tour_leader") {
+        const booking = await storage.getBooking(req.params.id as string);
+        if (!booking) return res.status(404).json({ message: "Booking not found" });
+        if (booking.customerId !== userId && booking.leaderUserId !== userId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        return res.json(booking);
+      }
+      if (!await requireRole(req, res, [...PLATFORM_WIDE_READ_ROLES, "accounting", "support_agent"])) return;
       const booking = await storage.getBooking(req.params.id as string);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       res.json(booking);
@@ -827,9 +886,17 @@ export async function registerRoutes(
 
   app.patch("/api/bookings/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, OPS_DISPATCH_ROLES)) return;
       const userId = getUserId(req);
       const profile = await storage.getProfileByUserIdWithEmail(userId!);
+      // operations_manager handles delivery, not commercial terms: restrict to
+      // operational fields (no price/currency/customer/tour changes).
+      if (profile?.role === "operations_manager") {
+        const OPS_FIELDS = ["status", "fulfillmentStatus", "notes", "internalNotes", "isUrgent"];
+        for (const key of Object.keys(req.body || {})) {
+          if (!OPS_FIELDS.includes(key)) delete req.body[key];
+        }
+      }
       const userName = (profile?.user?.firstName ? `${profile.user.firstName} ${profile.user.lastName || ""}` : profile?.user?.username) || "Admin";
 
       const oldBooking = await storage.getBooking(req.params.id as string);
@@ -1359,7 +1426,7 @@ export async function registerRoutes(
 
   app.post("/api/master-records", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      if (!await requireRole(req, res, MASTER_RECORDS_MANAGE_ROLES)) return;
       const record = await storage.createMasterRecord(req.body);
       
       // If it is a city manager creating a city, auto-insert into cities table
@@ -1402,7 +1469,7 @@ export async function registerRoutes(
 
   app.patch("/api/master-records/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      if (!await requireRole(req, res, MASTER_RECORDS_MANAGE_ROLES)) return;
       const oldRecord = await storage.getMasterRecord(req.params.id as string);
       const updated = await storage.updateMasterRecord(req.params.id as string, req.body);
       
@@ -1422,7 +1489,7 @@ export async function registerRoutes(
 
   app.delete("/api/master-records/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      if (!await requireRole(req, res, MASTER_RECORDS_MANAGE_ROLES)) return;
       const oldRecord = await storage.getMasterRecord(req.params.id as string);
       
       if (oldRecord && oldRecord.recordType === "city_manager") {
@@ -1448,11 +1515,15 @@ export async function registerRoutes(
   // ---- Hotels ----
   app.get("/api/hotels", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      if (!await requireRole(req, res, [...PLATFORM_WIDE_READ_ROLES, "hotel_manager"])) return;
+      // hotel_manager only sees hotels it registered (created_by ownership).
+      const { ownerId } = await ownerScope(req, ["hotel_manager"]);
       if (req.query.cityId) {
-        return res.json(await storage.getHotelsByCity(req.query.cityId as string));
+        const byCity = await storage.getHotelsByCity(req.query.cityId as string);
+        return res.json(ownerId ? byCity.filter(h => (h as any).createdBy === ownerId) : byCity);
       }
-      res.json(await storage.getAllHotels());
+      const all = await storage.getAllHotels();
+      res.json(ownerId ? all.filter(h => (h as any).createdBy === ownerId) : all);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -1463,7 +1534,7 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       // Registration always starts as "draft"; only admin/super_admin can approve.
       // Force the status server-side so a hotel_manager can't self-approve via the payload.
-      res.status(201).json(await storage.createHotel({ ...parsed.data, status: "draft" }));
+      res.status(201).json(await storage.createHotel({ ...parsed.data, status: "draft", createdBy: getUserId(req)! }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -1478,7 +1549,13 @@ export async function registerRoutes(
   app.patch("/api/hotels/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, HOTEL_EDIT_ROLES)) return;
-      const { role } = await ownerScope(req, []);
+      const { role, ownerId } = await ownerScope(req, ["hotel_manager"]);
+      if (ownerId) {
+        const target = (await storage.getAllHotels()).find(h => h.id === req.params.id);
+        if (!target || (target as any).createdBy !== ownerId) {
+          return res.status(403).json({ message: "Hotel managers can only edit their own hotels" });
+        }
+      }
       // Field allowlist: parse against the (partial) insert schema so only known
       // hotel columns can be updated — prevents mass-assignment of internal fields.
       const parsed = insertHotelSchema.partial().safeParse(req.body);
@@ -1487,6 +1564,8 @@ export async function registerRoutes(
       // Approval status is admin-only: strip it so a hotel_manager can't
       // self-approve by smuggling `status` into an ordinary edit payload.
       if (!ADMIN_ROLES.includes(role)) delete data.status;
+      // Ownership is server-managed; never accept it from the payload.
+      delete data.createdBy;
       res.json(await storage.updateHotel(req.params.id as string, data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1494,6 +1573,13 @@ export async function registerRoutes(
   app.delete("/api/hotels/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, HOTEL_EDIT_ROLES)) return;
+      const { ownerId } = await ownerScope(req, ["hotel_manager"]);
+      if (ownerId) {
+        const target = (await storage.getAllHotels()).find(h => h.id === req.params.id);
+        if (!target || (target as any).createdBy !== ownerId) {
+          return res.status(403).json({ message: "Hotel managers can only delete their own hotels" });
+        }
+      }
       await storage.deleteHotel(req.params.id as string);
       res.sendStatus(204);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -1643,21 +1729,21 @@ export async function registerRoutes(
   // ---- Assignments ----
   app.get("/api/assignments", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      if (!await requireRole(req, res, PLATFORM_WIDE_READ_ROLES)) return;
       res.json(await storage.getAllAssignments());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/bookings/:id/assignments", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      if (!await requireRole(req, res, PLATFORM_WIDE_READ_ROLES)) return;
       res.json(await storage.getAssignments(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.post("/api/bookings/:id/assignments", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, OPS_DISPATCH_ROLES)) return;
       const userId = getUserId(req);
       const assignData = { ...req.body, bookingId: req.params.id as string, assignedBy: userId };
       const assignment = await storage.createAssignment(assignData);
@@ -1713,14 +1799,14 @@ export async function registerRoutes(
 
   app.patch("/api/assignments/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, OPS_DISPATCH_ROLES)) return;
       res.json(await storage.updateAssignment(req.params.id as string, req.body));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.delete("/api/assignments/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, OPS_DISPATCH_ROLES)) return;
       await storage.deleteAssignment(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -1729,14 +1815,23 @@ export async function registerRoutes(
   // ---- Workflows ----
   app.get("/api/workflows", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      if (!await requireRole(req, res, PLATFORM_WIDE_READ_ROLES)) return;
       res.json(await storage.getAllWorkflows());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/bookings/:id/workflows", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      const userId = getUserId(req);
+      const profile = userId ? await storage.getOrCreateProfile(userId) : null;
+      if (profile?.role === "tour_leader") {
+        const booking = await storage.getBooking(req.params.id as string);
+        if (!booking || (booking.customerId !== userId && booking.leaderUserId !== userId)) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+        return res.json(await storage.getWorkflows(req.params.id as string));
+      }
+      if (!await requireRole(req, res, PLATFORM_WIDE_READ_ROLES)) return;
       res.json(await storage.getWorkflows(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1755,19 +1850,35 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  // Shared read guard: platform-wide readers, the assigned staff member, or a
+  // flight agent on airline workflows. Everyone else is denied.
+  async function canReadWorkflow(req: any, res: any, workflowId: string) {
+    const userId = getUserId(req);
+    if (!userId) { res.status(401).json({ message: "Unauthorized" }); return null; }
+    const wf = await storage.getWorkflow(workflowId);
+    if (!wf) { res.status(404).json({ message: "Workflow not found" }); return null; }
+    const profile = await storage.getOrCreateProfile(userId);
+    const allowed = PLATFORM_WIDE_READ_ROLES.includes(profile.role as any)
+      || wf.assignedUserId === userId
+      || (profile.role === "flight_agent" && wf.serviceType === "airline");
+    if (!allowed) { res.status(403).json({ message: "Forbidden" }); return null; }
+    return wf;
+  }
+
   app.get("/api/workflows/:id", isAuthenticated, async (req, res) => {
     try {
-      const userId = getUserId(req);
-      if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const wf = await storage.getWorkflow(req.params.id as string);
-      if (!wf) return res.status(404).json({ message: "Workflow not found" });
+      const wf = await canReadWorkflow(req, res, req.params.id as string);
+      if (!wf) return;
       res.json(wf);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/workflows/:id/steps", isAuthenticated, async (req, res) => {
-    try { res.json(await storage.getWorkflowSteps(req.params.id as string)); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
+    try {
+      const wf = await canReadWorkflow(req, res, req.params.id as string);
+      if (!wf) return;
+      res.json(await storage.getWorkflowSteps(req.params.id as string));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.patch("/api/workflows/:id", isAuthenticated, async (req, res) => {
@@ -1778,7 +1889,7 @@ export async function registerRoutes(
       const wf = await storage.getWorkflow(req.params.id as string);
       if (!wf) return res.status(404).json({ message: "Workflow not found" });
       const isFlightAgentOnAirlineWf = profile.role === "flight_agent" && wf.serviceType === "airline";
-      if (profile.role === "admin" || profile.role === "super_admin") {
+      if (profile.role === "admin" || profile.role === "super_admin" || profile.role === "operations_manager") {
         res.json(await storage.updateWorkflow(req.params.id as string, req.body));
       } else if (wf.assignedUserId === userId || isFlightAgentOnAirlineWf) {
         // Non-admin updaters (assigned staff, or flight_agent on airline tasks)
@@ -1809,7 +1920,7 @@ export async function registerRoutes(
   // ---- Documents ----
   app.get("/api/documents", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      if (!await requireRole(req, res, PLATFORM_WIDE_READ_ROLES)) return;
       res.json(await storage.getAllDocuments());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1821,8 +1932,10 @@ export async function registerRoutes(
       const booking = await storage.getBooking(req.params.id as string);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       const profile = await storage.getOrCreateProfile(userId);
-      const isStaff = ALL_STAFF_ROLES.includes(profile.role as any);
-      if (!isStaff && booking.customerId !== userId && booking.leaderUserId !== userId) {
+      // Only platform-wide readers (and support agents assisting a case) may
+      // see documents on arbitrary bookings; everyone else must own the booking.
+      const wideStaff = PLATFORM_WIDE_READ_ROLES.includes(profile.role as any) || profile.role === "support_agent";
+      if (!wideStaff && booking.customerId !== userId && booking.leaderUserId !== userId) {
         return res.status(403).json({ message: "Forbidden" });
       }
       res.json(await storage.getDocuments(req.params.id as string));
@@ -1836,8 +1949,8 @@ export async function registerRoutes(
       const booking = await storage.getBooking(req.params.id as string);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       const profile = await storage.getOrCreateProfile(userId);
-      const isStaff = ALL_STAFF_ROLES.includes(profile.role as any);
-      if (!isStaff && booking.customerId !== userId && booking.leaderUserId !== userId) {
+      const wideStaff = PLATFORM_WIDE_READ_ROLES.includes(profile.role as any);
+      if (!wideStaff && booking.customerId !== userId && booking.leaderUserId !== userId) {
         return res.status(403).json({ message: "Forbidden" });
       }
       const parsed = insertDocumentSchema.safeParse({ ...req.body, bookingId: req.params.id as string, uploadedBy: userId });
@@ -1885,7 +1998,7 @@ export async function registerRoutes(
 
   app.get("/api/bookings/:id/messages", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, SUPPORT_READ_ROLES)) return;
       res.json(await storage.getMessages(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -1915,21 +2028,21 @@ export async function registerRoutes(
   // ---- Payments ----
   app.get("/api/payments", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, FINANCE_ROLES)) return;
       res.json(await storage.getAllPayments());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/bookings/:id/invoices", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, [...FINANCE_ROLES, "support_agent"])) return;
       res.json(await storage.getInvoices(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.post("/api/bookings/:id/invoices", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, FINANCE_ROLES)) return;
       const parsed = insertInvoiceSchema.safeParse({ ...req.body, bookingId: req.params.id as string });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createInvoice(parsed.data));
@@ -1938,14 +2051,14 @@ export async function registerRoutes(
 
   app.get("/api/bookings/:id/payments", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, [...FINANCE_ROLES, "support_agent"])) return;
       res.json(await storage.getPayments(req.params.id as string));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.post("/api/bookings/:id/payments", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, FINANCE_ROLES)) return;
       const userId = getUserId(req);
       const parsed = insertPaymentSchema.safeParse({ ...req.body, bookingId: req.params.id as string, createdBy: userId });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
@@ -1955,7 +2068,7 @@ export async function registerRoutes(
 
   app.patch("/api/payments/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      if (!await requireRole(req, res, FINANCE_ROLES)) return;
       const updated = await storage.updatePayment(req.params.id as string, req.body);
       
       // Notify customer if payment is confirmed as paid (non-blocking)
@@ -2111,6 +2224,17 @@ export async function registerRoutes(
   });
 
   // ---- Master Data: Countries ----
+  // country_manager is scoped to ONE assigned country (user_profiles.country_code,
+  // per role spec): it may edit that country's row and manage cities inside it,
+  // but cannot create/delete countries or touch other countries' data.
+  async function getAssignedCountryScope(req: Request): Promise<{ isScoped: boolean; countryId: string | null }> {
+    const profile = await storage.getOrCreateProfile(getUserId(req)!);
+    if (profile.role !== "country_manager") return { isScoped: false, countryId: null };
+    if (!profile.countryCode) return { isScoped: true, countryId: null };
+    const [row] = await db.select().from(countries).where(eq(countries.code, profile.countryCode.toUpperCase())).limit(1);
+    return { isScoped: true, countryId: row?.id ?? null };
+  }
+
   app.get("/api/master/countries", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
@@ -2119,7 +2243,7 @@ export async function registerRoutes(
   });
   app.post("/api/master/countries", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin"])) return;
       const parsed = insertCountrySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createCountry(parsed.data));
@@ -2128,6 +2252,10 @@ export async function registerRoutes(
   app.patch("/api/master/countries/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      const scope = await getAssignedCountryScope(req);
+      if (scope.isScoped && scope.countryId !== req.params.id) {
+        return res.status(403).json({ message: "Country managers can only edit their assigned country" });
+      }
       const parsed = insertCountrySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateCountry(req.params.id as string, parsed.data));
@@ -2135,7 +2263,7 @@ export async function registerRoutes(
   });
   app.delete("/api/master/countries/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin"])) return;
       await storage.deleteCountry(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -2143,7 +2271,7 @@ export async function registerRoutes(
 
   app.post("/api/master/countries/import", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin"])) return;
       const data = coerceBooleans(req.body, ["isActive"]);
       const rows = z.array(insertCountrySchema).safeParse(data);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
@@ -2152,9 +2280,9 @@ export async function registerRoutes(
   });
 
   // ---- Master Data: Cities ----
-  // Cities are a GLOBAL shared master table: super_admin/admin/country_manager/
-  // city_manager all operate on the same rows with no country- or creator-based
-  // scoping (intentional — changes by any manager are visible to all).
+  // Cities master table: super_admin/admin/country_manager manage all rows.
+  // city_manager is row-scoped — it may only PATCH its single assigned city
+  // (user_profiles.city_id) and cannot create or delete cities (per role spec).
   app.get("/api/master/cities", isAuthenticated, async (_req, res) => {
     try {
       res.json(await storage.getAllCities());
@@ -2163,15 +2291,32 @@ export async function registerRoutes(
 
   app.post("/api/master/cities", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager", "city_manager"])) return;
+      // city_manager manages ONLY its assigned city — cannot create new cities.
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       const parsed = insertCitySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const scope = await getAssignedCountryScope(req);
+      if (scope.isScoped && parsed.data.countryId !== scope.countryId) {
+        return res.status(403).json({ message: "Country managers can only create cities in their assigned country" });
+      }
       res.json(await storage.createCity(parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.patch("/api/master/cities/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["super_admin", "admin", "country_manager", "city_manager"])) return;
+      // city_manager is row-scoped to its assigned city (user_profiles.city_id).
+      const cmProfile = await storage.getOrCreateProfile(getUserId(req)!);
+      if (cmProfile.role === "city_manager" && cmProfile.cityId !== req.params.id) {
+        return res.status(403).json({ message: "City managers can only edit their assigned city" });
+      }
+      const scope = await getAssignedCountryScope(req);
+      if (scope.isScoped) {
+        const target = (await storage.getAllCities()).find(c => c.id === req.params.id);
+        if (!target || target.countryId !== scope.countryId) {
+          return res.status(403).json({ message: "Country managers can only edit cities in their assigned country" });
+        }
+      }
       const parsed = insertCitySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateCity(req.params.id as string, parsed.data));
@@ -2179,14 +2324,22 @@ export async function registerRoutes(
   });
   app.delete("/api/master/cities/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager", "city_manager"])) return;
+      // city_manager cannot delete cities (only edit its own assigned city).
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      const scope = await getAssignedCountryScope(req);
+      if (scope.isScoped) {
+        const target = (await storage.getAllCities()).find(c => c.id === req.params.id);
+        if (!target || target.countryId !== scope.countryId) {
+          return res.status(403).json({ message: "Country managers can only delete cities in their assigned country" });
+        }
+      }
       await storage.deleteCity(req.params.id as string);
       res.json({ ok: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/master/cities/import", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin"])) return;
       const allCountries = await storage.getAllCountries();
       const countryNameMap = new Map<string, string>();
       for (const c of allCountries) countryNameMap.set(c.name.toLowerCase(), c.id);
@@ -2770,13 +2923,13 @@ export async function registerRoutes(
   // ---- Rate Cards: Transport Rates ----
   app.get("/api/rates/transport", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager", "transport_manager"])) return;
       res.json(await storage.getTransportRates());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
   app.post("/api/rates/transport", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager", "transport_manager"])) return;
       const parsed = insertTransportRateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTransportRate(parsed.data));
@@ -2784,7 +2937,7 @@ export async function registerRoutes(
   });
   app.post("/api/rates/transport/bulk", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager", "transport_manager"])) return;
       const rows = z.array(insertTransportRateSchema).safeParse(req.body);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       res.json(await storage.bulkCreateTransportRates(rows.data));
@@ -2792,7 +2945,7 @@ export async function registerRoutes(
   });
   app.patch("/api/rates/transport/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager", "transport_manager"])) return;
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateTransportRate(req.params.id as string, data));
@@ -2800,7 +2953,7 @@ export async function registerRoutes(
   });
   app.delete("/api/rates/transport/:id", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager", "transport_manager"])) return;
       await storage.deleteTransportRate(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -3103,8 +3256,10 @@ export async function registerRoutes(
   });
 
   // ---- Data Import & Scrapers ----
-  app.get("/api/hotels/search", async (req, res) => {
+  app.get("/api/hotels/search", isAuthenticated, async (req, res) => {
     try {
+      // Triggers external hotel-price searches — staff tooling only.
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       const { city, countryCode, from, to } = req.query;
       if (!city || !countryCode) return res.status(400).json({ message: "city and countryCode are required" });
       const hotels = await hotelService.searchPrices(city as string, countryCode as string, { 
@@ -3159,6 +3314,8 @@ export async function registerRoutes(
 
   app.post("/api/hotels/search-prices", isAuthenticated, async (req, res) => {
     try {
+      // Writes scraped hotels into the catalog — staff tooling, not for customers.
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       const { cityId, cityName } = req.body;
       if (!cityId || !cityName) return res.status(400).json({ message: "cityId and cityName are required" });
       
@@ -3230,6 +3387,8 @@ export async function registerRoutes(
 
   app.post("/api/ai/tour-generator", isAuthenticated, async (req, res) => {
     try {
+      // AI tour generation is an internal staff tool (admin Tour Generator page).
+      if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       const { destination, duration, travelerType, interests, budget, pace } = req.body;
       if (!destination || !duration) return res.status(400).json({ message: "destination and duration are required" });
       

@@ -49,15 +49,20 @@ import CityManagerDashboard from "@/pages/ops/city-manager";
 import ContentEditorDashboard from "@/pages/ops/content-editor";
 import FlightAgentDashboard from "@/pages/ops/flight-agent";
 import TourLeaderDashboard from "@/pages/ops/tour-leader";
+import AccountingDashboard from "@/pages/ops/accounting";
+import SupportDashboard from "@/pages/ops/support";
 import { Skeleton } from "@/components/ui/skeleton";
 
 function opsRoleHome(role: string | undefined): string {
-  if (role === "country_manager" || role === "transport_manager") return "/ops";
+  if (role === "country_manager" || role === "operations_manager") return "/ops";
+  if (role === "transport_manager") return "/ops/transport";
   if (role === "tour_builder") return "/ops/tour-builder";
   if (role === "content_editor") return "/ops/content-editor";
   if (role === "flight_agent") return "/ops/flight-agent";
   if (role === "tour_leader") return "/ops/tour-leader";
   if (role === "city_manager") return "/ops/city-manager";
+  if (role === "accounting") return "/ops/accounting";
+  if (role === "support_agent") return "/ops/support";
   return "/ops/role";
 }
 
@@ -159,6 +164,9 @@ function AuthenticatedLayout() {
             <Route path="/ops/city-manager" component={CityManagerDashboard} />
             <Route path="/ops/flight-agent" component={FlightAgentDashboard} />
             <Route path="/ops/tour-leader" component={TourLeaderDashboard} />
+            <Route path="/ops/accounting" component={AccountingDashboard} />
+            <Route path="/ops/assignments" component={AdminAssignments} />
+            <Route path="/ops/support" component={SupportDashboard} />
             <Route path="/ops/workflows/:id" component={AdminWorkflowDetail} />
 
             {/* Redirects */}
@@ -171,7 +179,7 @@ function AuthenticatedLayout() {
             <Route path="/staff/login">
               {() => {
                 const supplierRoles = ["airline_supplier", "hotel_manager", "guide_manager", "sights_manager", "supplier"];
-                const opsRoles = ["country_manager", "transport_manager", "city_manager", "content_editor", "flight_agent", "tour_builder", "tour_leader"];
+                const opsRoles = ["country_manager", "transport_manager", "city_manager", "content_editor", "flight_agent", "tour_builder", "tour_leader", "accounting", "operations_manager", "support_agent"];
                 if (supplierRoles.includes(role || "")) return <Redirect to="/supplier" />;
                 if (opsRoles.includes(role || "")) return <Redirect to={opsRoleHome(role)} />;
                 return <Redirect to="/admin" />;
@@ -182,7 +190,7 @@ function AuthenticatedLayout() {
               {() => {
                 if (role === "admin" || role === "super_admin") return <Redirect to="/admin" />;
                 const supplierRoles = ["airline_supplier", "hotel_manager", "guide_manager", "sights_manager", "supplier"];
-                const opsRoles = ["country_manager", "transport_manager", "city_manager", "content_editor", "flight_agent", "tour_builder", "tour_leader"];
+                const opsRoles = ["country_manager", "transport_manager", "city_manager", "content_editor", "flight_agent", "tour_builder", "tour_leader", "accounting", "operations_manager", "support_agent"];
                 if (supplierRoles.includes(role || "")) return <Redirect to="/supplier" />;
                 if (opsRoles.includes(role || "")) return <Redirect to={opsRoleHome(role)} />;
                 return <Redirect to="/tours" />;

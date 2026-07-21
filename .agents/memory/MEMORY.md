@@ -9,3 +9,5 @@
 - [TourOps supplier isolation (own_only)](tourops-supplier-isolation.md) — per-supplier createdBy scoping; recurring holes: PATCH lets client reset createdBy, and master GETs gated only by isAuthenticated leak catalog to customers.
 - [Shadowed route registrations](shadowed-route-registrations.md) — Express uses the first-registered method+path; an ungated route above a later gated duplicate silently wins. Grep for every registration when auditing auth.
 - [TourOps numeric price forms](tourops-numeric-price-forms.md) — numeric() cols want STRING in insert schema; rate forms' parseInt makes POST 400 while PATCH (sanitizeRateUpdate, no schema) succeeds.
+- [TourOps new-role checklist](new-role-checklist.md) — enum, seed, separate auth STAFF_ROLES list, routes constants, 3 frontend role maps + sidebar + i18n; each was missed once with silent symptoms.
+- [Wide-read exclusion & subroute parity](wide-read-exclusion-pattern.md) — restricting a role via the wide-read filters is not enough; booking/workflow subroutes default to ALL_STAFF and re-leak by ID.

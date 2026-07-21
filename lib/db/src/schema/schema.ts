@@ -21,6 +21,9 @@ export const userRoleEnum = pgEnum("user_role", [
   "tour_builder",
   "supplier",
   "tour_leader",
+  "accounting",
+  "operations_manager",
+  "support_agent",
 ]);
 
 export const userProfiles = pgTable("user_profiles", {
@@ -30,6 +33,7 @@ export const userProfiles = pgTable("user_profiles", {
   phone: text("phone"),
   companyName: text("company_name"),
   countryCode: text("country_code"),
+  cityId: varchar("city_id"),
   transportCompanyId: varchar("transport_company_id"),
   isTourLeader: boolean("is_tour_leader").default(false),
   isActive: boolean("is_active").default(true),
@@ -476,6 +480,7 @@ export const hotels = pgTable("hotels", {
   description: text("description"),
   slug: text("slug").unique(),
   status: varchar("status", { enum: ["draft", "approved", "published"] }).default("draft"),
+  createdBy: varchar("created_by"), // owning hotel_manager; null = admin/unassigned
   starRating: integer("star_rating"),
   guestRating: numeric("guest_rating"),
   reviewCount: integer("review_count").default(0),

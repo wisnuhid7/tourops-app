@@ -153,6 +153,8 @@ export interface IStorage {
   getDeparture(id: string): Promise<TourDeparture | undefined>;
   createDeparture(data: InsertTourDeparture): Promise<TourDeparture>;
   updateDeparture(id: string, data: Partial<TourDeparture>): Promise<TourDeparture>;
+  deleteDeparture(id: string): Promise<void>;
+  getBookingsByDeparture(departureId: string): Promise<Booking[]>;
 
   getAllBookings(): Promise<Booking[]>;
   getBooking(id: string): Promise<Booking | undefined>;
@@ -673,6 +675,14 @@ export class DatabaseStorage implements IStorage {
   async updateDeparture(id: string, data: Partial<TourDeparture>): Promise<TourDeparture> {
     const [dep] = await db.update(tourDepartures).set(data).where(eq(tourDepartures.id, id)).returning();
     return dep;
+  }
+
+  async deleteDeparture(id: string): Promise<void> {
+    await db.delete(tourDepartures).where(eq(tourDepartures.id, id));
+  }
+
+  async getBookingsByDeparture(departureId: string): Promise<Booking[]> {
+    return db.select().from(bookings).where(eq(bookings.departureId, departureId));
   }
 
   async getAllBookings(): Promise<Booking[]> {

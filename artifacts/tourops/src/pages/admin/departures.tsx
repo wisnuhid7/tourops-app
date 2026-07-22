@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
-import { Plus, Calendar, Users, MapPin, Plane } from "lucide-react";
+import { Plus, Calendar, Users, MapPin, Plane, Pencil, Trash2 } from "lucide-react";
 import type { TourDeparture, Tour, Airport } from "@workspace/db";
 
 export default function AdminDepartures() {
@@ -37,6 +38,7 @@ export default function AdminDepartures() {
     mutationFn: (data: any) => apiRequest("POST", "/api/departures", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/departures"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tours"] }); // covers ["/api/tours", tourId, "departures"] on customer pages
       setShowCreate(false);
       setTourId("");
       setStartDate("");
@@ -49,6 +51,51 @@ export default function AdminDepartures() {
       toast({ title: t("departure_created") });
     },
     onError: () => toast({ title: t("failed_to_create_departure"), variant: "destructive" }),
+  });
+
+  // Edit dialog state
+  const [editDep, setEditDep] = useState<TourDeparture | null>(null);
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
+  const [editCapacity, setEditCapacity] = useState(20);
+  const [editPrice, setEditPrice] = useState(0);
+  const [editStatus, setEditStatus] = useState("open");
+  const [editPublicJoin, setEditPublicJoin] = useState(true);
+  const [deleteDep, setDeleteDep] = useState<TourDeparture | null>(null);
+
+  const openEdit = (dep: TourDeparture) => {
+    setEditDep(dep);
+    setEditStartDate(dep.startDate || "");
+    setEditEndDate(dep.endDate || "");
+    setEditCapacity(dep.capacityTotal || 0);
+    setEditPrice(Number(dep.pricePerPerson) || 0);
+    setEditStatus(dep.status || "open");
+    setEditPublicJoin(!!dep.publicJoinEnabled);
+  };
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest("PATCH", `/api/departures/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/departures"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tours"] });
+      setEditDep(null);
+      toast({ title: t("departure_updated") });
+    },
+    onError: () => toast({ title: t("failed_to_update_departure"), variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/departures/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/departures"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tours"] });
+      setDeleteDep(null);
+      toast({ title: t("departure_deleted") });
+    },
+    onError: (e: any) => {
+      setDeleteDep(null);
+      toast({ title: t("failed_to_delete_departure"), description: e?.message, variant: "destructive" });
+    },
   });
 
   const statusColors: Record<string, string> = {
@@ -163,6 +210,12 @@ export default function AdminDepartures() {
                   <div className="flex items-center gap-2">
                     {dep.publicJoinEnabled && <Badge variant="outline">{t("public_badge")}</Badge>}
                     <Badge variant={statusColors[dep.status || "open"] as any}>{dep.status || "open"}</Badge>
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(dep)} data-testid={`button-edit-departure-${dep.id}`}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteDep(dep)} data-testid={`button-delete-departure-${dep.id}`}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -170,6 +223,74 @@ export default function AdminDepartures() {
           })}
         </div>
       )}
+
+      {/* Edit dialog */}
+      <Dialog open={!!editDep} onOpenChange={(open) => !open && setEditDep(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle>{t("edit_departure")}</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm font-medium text-muted-foreground">{tours?.find((tr) => tr.id === editDep?.tourId)?.title}</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>{t("start_date")}</Label><Input type="date" value={editStartDate} onChange={(e) => setEditStartDate(e.target.value)} data-testid="input-edit-start-date" /></div>
+              <div><Label>{t("end_date")}</Label><Input type="date" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)} data-testid="input-edit-end-date" /></div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div><Label>{t("capacity")}</Label><Input type="number" value={editCapacity} onChange={(e) => setEditCapacity(parseInt(e.target.value) || 0)} data-testid="input-edit-capacity" /></div>
+              <div><Label>{t("price_per_person")}</Label><Input type="number" value={editPrice} onChange={(e) => setEditPrice(parseInt(e.target.value) || 0)} data-testid="input-edit-price" /></div>
+            </div>
+            <div>
+              <Label>{t("status")}</Label>
+              <Select value={editStatus} onValueChange={setEditStatus}>
+                <SelectTrigger data-testid="select-edit-status"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="open">open</SelectItem>
+                  <SelectItem value="closed">closed</SelectItem>
+                  <SelectItem value="sold_out">sold_out</SelectItem>
+                  <SelectItem value="cancelled">cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch checked={editPublicJoin} onCheckedChange={setEditPublicJoin} />
+              <Label>{t("allow_public_join")}</Label>
+            </div>
+            <Button
+              className="w-full"
+              onClick={() => editDep && updateMutation.mutate({
+                id: editDep.id,
+                data: {
+                  startDate: editStartDate,
+                  endDate: editEndDate,
+                  capacityTotal: editCapacity,
+                  pricePerPerson: editPrice,
+                  status: editStatus,
+                  publicJoinEnabled: editPublicJoin,
+                },
+              })}
+              disabled={!editStartDate || !editEndDate || editCapacity < 1 || updateMutation.isPending}
+              data-testid="button-update-departure"
+            >{updateMutation.isPending ? t("saving") : t("save_changes")}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteDep} onOpenChange={(open) => !open && setDeleteDep(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("delete_departure_confirm")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("delete_departure_confirm_desc")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteDep && deleteMutation.mutate(deleteDep.id)}
+              data-testid="button-confirm-delete-departure"
+            >{deleteMutation.isPending ? t("deleting") : t("delete")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

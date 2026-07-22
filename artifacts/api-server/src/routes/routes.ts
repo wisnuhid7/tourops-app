@@ -738,10 +738,37 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  // Field allowlist: capacityBooked is system-managed via booking flows, and
+  // tourId/ids/audit fields must never be client-mutable (mass-assignment guard).
+  const DEPARTURE_PATCH_FIELDS = [
+    "startDate", "endDate", "capacityTotal", "pricePerPerson", "status",
+    "publicJoinEnabled", "departureAirportId", "arrivalAirportId",
+  ] as const;
   app.patch("/api/departures/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
-      res.json(await storage.updateDeparture(req.params.id as string, req.body));
+      const update: Record<string, any> = {};
+      for (const f of DEPARTURE_PATCH_FIELDS) {
+        if (f in req.body) update[f] = req.body[f];
+      }
+      if (Object.keys(update).length === 0) return res.status(400).json({ message: "No updatable fields provided" });
+      res.json(await storage.updateDeparture(req.params.id as string, update));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  app.delete("/api/departures/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const id = req.params.id as string;
+      const existing = await storage.getDeparture(id);
+      if (!existing) return res.status(404).json({ message: "Departure not found" });
+      // Never orphan bookings: block deletion while bookings reference this departure.
+      const linkedBookings = await storage.getBookingsByDeparture(id);
+      if (linkedBookings.length > 0) {
+        return res.status(409).json({ message: `Cannot delete: ${linkedBookings.length} booking(s) are linked to this departure. Cancel or reassign them first.` });
+      }
+      await storage.deleteDeparture(id);
+      res.json({ success: true });
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 

@@ -289,6 +289,17 @@ export default function TourDetail() {
   const startingFromPrice = departurePrices.length > 0
     ? Math.min(...departurePrices)
     : (openDepartures.length === 0 ? Number(tour.basePrice) || 0 : 0);
+  // Child price follows the active price structure: when the adult price comes
+  // from a departure, scale the tour's child rate proportionally (departures
+  // have no child-price column); otherwise show the tour's base child price.
+  const basePrice = Number(tour.basePrice) || 0;
+  const baseChildPrice = Number(tour.childPrice) || 0;
+  const usingDeparturePrice = departurePrices.length > 0;
+  const startingChildPrice = baseChildPrice > 0 && basePrice > 0
+    ? (usingDeparturePrice && startingFromPrice !== basePrice
+        ? Math.round(startingFromPrice * (Math.min(baseChildPrice, basePrice) / basePrice))
+        : Math.min(baseChildPrice, startingFromPrice))
+    : 0;
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
@@ -375,9 +386,9 @@ export default function TourDetail() {
                   <span className="text-3xl font-bold text-primary">${startingFromPrice.toLocaleString()}</span>
                   <span className="text-sm text-muted-foreground">/ {t("per_person")}</span>
                 </div>
-                {(Number(tour.childPrice) > 0 || Number(tour.singleSupplement) > 0) && (
+                {(startingChildPrice > 0 || Number(tour.singleSupplement) > 0) && (
                   <div className="mt-2 pt-2 border-t border-primary/10 text-xs text-muted-foreground space-y-1">
-                    {Number(tour.childPrice) > 0 && <p>{t("child_price")} ${Number(tour.childPrice).toLocaleString()}</p>}
+                    {startingChildPrice > 0 && <p>{t("child_price")} ${startingChildPrice.toLocaleString()}</p>}
                     {Number(tour.singleSupplement) > 0 && <p>{t("single_supp")} +${Number(tour.singleSupplement).toLocaleString()}</p>}
                   </div>
                 )}

@@ -332,7 +332,7 @@ async function seedAll() {
       inclusions: "- 5 Nights hotel accommodation\n- Nile River sunset dinner cruise\n- Egyptologist guide",
       exclusions: "- International airfare",
       imageUrl: "https://images.unsplash.com/photo-1539650116574-8efeb43e2750?auto=format&fit=crop&q=80&w=1200",
-      duration: 6, basePrice: "750", childPrice: "500", isPublished: true, category: "Historical",
+      duration: 6, basePrice: "1950", childPrice: "1246", isPublished: true, category: "Historical",
       countries: ["Egypt"], tags: ["history", "archaeology", "scenic"]
     },
   ];
@@ -369,6 +369,10 @@ async function seedAll() {
 
   // ===== 9. Tour Departures =====
   console.log("🚀 Seeding multiple Departures per tour...");
+  // Per-tour departure price overrides (e.g. promotional pricing below base).
+  const departurePriceOverrides: Record<string, number> = {
+    "Secrets of Ancient Egypt and Pyramids": 750,
+  };
   const insertedDepartures: any[] = [];
   for (const tour of insertedTours) {
     const existing = await db.select().from(tourDepartures).where(eq(tourDepartures.tourId, tour.id));
@@ -386,7 +390,7 @@ async function seedAll() {
       const [dep] = await db.insert(tourDepartures).values({
         tourId: tour.id, startDate: d.start, endDate: d.end,
         capacityTotal: 30, capacityBooked: 0,
-        pricePerPerson: parseInt(tour.basePrice || "500"),
+        pricePerPerson: departurePriceOverrides[tour.title] ?? parseInt(tour.basePrice || "500"),
         status: "open", publicJoinEnabled: true,
       }).returning();
       insertedDepartures.push(dep);
@@ -439,7 +443,7 @@ async function seedAll() {
       partySizeExpected: bookingType === "private_family" ? 4 : 2,
       status,
       fulfillmentStatus: status === "confirmed" ? "in_progress" : status === "completed" ? "completed" : "pending",
-      totalPrice: parseInt(tour.basePrice || "0") * (bookingType === "private_family" ? 4 : 2),
+      totalPrice: Number(dep.pricePerPerson || tour.basePrice || 0) * (bookingType === "private_family" ? 4 : 2),
     }).returning();
 
     bookingCount++;

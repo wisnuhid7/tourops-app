@@ -21,7 +21,23 @@ async function seed() {
       isPublished: true,
       category: "Cultural",
       countries: ["Indonesia"],
-      tags: ["culture", "leisure", "beach"]
+      tags: ["culture", "leisure", "beach"],
+      translations: {
+        es: {
+          title: "Bali Inmersivo: Descubrimiento Cultural y de Ocio",
+          description: "Explora el rico patrimonio cultural y la serena belleza de Bali, Indonesia, a través de este itinerario cuidadosamente diseñado para una experiencia equilibrada.",
+          highlights: "Atardecer en el Templo de Uluwatu\nBosque de los Monos de Ubud\nTerrazas de Arroz de Tegallalang\nTanah Lot",
+          inclusions: "- 4 noches de alojamiento\n- Desayuno diario\n- Traslados privados al aeropuerto\n- Guía de habla inglesa",
+          exclusions: "- Vuelos internacionales\n- Gastos personales\n- Seguro de viaje",
+        },
+        id: {
+          title: "Bali Immerse: Penjelajahan Budaya dan Rekreasi",
+          description: "Jelajahi warisan budaya yang kaya dan keindahan Bali, Indonesia, melalui itinerari yang dirancang dengan cermat untuk pengalaman yang seimbang.",
+          highlights: "Matahari Terbenam di Pura Uluwatu\nMonkey Forest Ubud\nTerasering Sawah Tegallalang\nTanah Lot",
+          inclusions: "- Akomodasi 4 malam\n- Sarapan setiap hari\n- Antar-jemput bandara pribadi\n- Pemandu berbahasa Inggris",
+          exclusions: "- Penerbangan internasional\n- Pengeluaran pribadi\n- Asuransi perjalanan",
+        },
+      },
     },
     {
       title: "Japan Sakura Blossom",
@@ -37,7 +53,23 @@ async function seed() {
       isPublished: true,
       category: "Nature",
       countries: ["Japan"],
-      tags: ["spring", "nature", "photography"]
+      tags: ["spring", "nature", "photography"],
+      translations: {
+        es: {
+          title: "Japón: Flor de Cerezo Sakura",
+          description: "Vive la magia de la temporada de los cerezos en flor en Japón. Recorre Tokio, Kioto y Osaka mientras disfrutas de los magníficos paisajes rosados.",
+          highlights: "Tokyo Skytree\nMonte Fuji\nTemplos de Kioto\nCastillo de Osaka",
+          inclusions: "- 7 noches de alojamiento\n- JR Pass (7 días)\n- Cena de bienvenida\n- Guía local",
+          exclusions: "- Vuelos\n- Comidas no especificadas",
+        },
+        id: {
+          title: "Jepang Musim Sakura",
+          description: "Rasakan keajaiban musim bunga sakura di Jepang. Jelajahi Tokyo, Kyoto, dan Osaka sambil menikmati pemandangan merah muda yang menakjubkan.",
+          highlights: "Tokyo Skytree\nGunung Fuji\nKuil-kuil Kyoto\nKastil Osaka",
+          inclusions: "- Akomodasi 7 malam\n- JR Pass (7 hari)\n- Makan malam sambutan\n- Pemandu lokal",
+          exclusions: "- Penerbangan\n- Makanan yang tidak disebutkan",
+        },
+      },
     }
   ];
 
@@ -50,7 +82,16 @@ async function seed() {
       const inserted = await db.insert(tours).values(tourData).returning();
       insertedTours.push(inserted[0]);
     } else {
-      insertedTours.push(existing[0]);
+      // Backfill translations on already-seeded tours that predate i18n seeding.
+      if (!(existing[0] as any).translations && (tourData as any).translations) {
+        const [updated] = await db.update(tours)
+          .set({ translations: (tourData as any).translations })
+          .where(eq(tours.id, existing[0].id))
+          .returning();
+        insertedTours.push(updated);
+      } else {
+        insertedTours.push(existing[0]);
+      }
     }
   }
 
@@ -59,13 +100,20 @@ async function seed() {
   if (insertedTours[0]) {
     const baliTour = insertedTours[0];
     const days = [
-      { tourId: baliTour.id, dayNumber: 1, title: "Arrival in Bali", description: "Welcome to Bali. Transfer to hotel and rest.", city: "Denpasar", countryCode: "ID" },
-      { tourId: baliTour.id, dayNumber: 2, title: "Ubud Exploration", description: "Visit Monkey Forest and Rice Terraces.", city: "Ubud", countryCode: "ID" },
-      { tourId: baliTour.id, dayNumber: 3, title: "Temple Tour", description: "Visit Uluwatu and Tanah Lot.", city: "Badung", countryCode: "ID" }
+      { tourId: baliTour.id, dayNumber: 1, title: "Arrival in Bali", description: "Welcome to Bali. Transfer to hotel and rest.", city: "Denpasar", countryCode: "ID",
+        translations: { es: { title: "Llegada a Bali", description: "Bienvenido a Bali. Traslado al hotel y descanso." }, id: { title: "Tiba di Bali", description: "Selamat datang di Bali. Transfer ke hotel dan istirahat." } } },
+      { tourId: baliTour.id, dayNumber: 2, title: "Ubud Exploration", description: "Visit Monkey Forest and Rice Terraces.", city: "Ubud", countryCode: "ID",
+        translations: { es: { title: "Exploración de Ubud", description: "Visita al Bosque de los Monos y las Terrazas de Arroz." }, id: { title: "Penjelajahan Ubud", description: "Kunjungi Monkey Forest dan Terasering Sawah." } } },
+      { tourId: baliTour.id, dayNumber: 3, title: "Temple Tour", description: "Visit Uluwatu and Tanah Lot.", city: "Badung", countryCode: "ID",
+        translations: { es: { title: "Ruta de Templos", description: "Visita a Uluwatu y Tanah Lot." }, id: { title: "Tur Pura", description: "Kunjungi Uluwatu dan Tanah Lot." } } }
     ];
     for (const day of days) {
       const existing = await db.select().from(tourDays).where(and(eq(tourDays.tourId, baliTour.id), eq(tourDays.dayNumber, day.dayNumber)));
-      if (existing.length === 0) await db.insert(tourDays).values(day);
+      if (existing.length === 0) {
+        await db.insert(tourDays).values(day);
+      } else if (!(existing[0] as any).translations && (day as any).translations) {
+        await db.update(tourDays).set({ translations: (day as any).translations }).where(eq(tourDays.id, existing[0].id));
+      }
     }
   }
 

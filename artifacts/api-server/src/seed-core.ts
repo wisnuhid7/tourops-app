@@ -26,6 +26,78 @@ const roles = [
   "support_agent",
 ];
 
+/**
+ * One-time, idempotent startup maintenance (data-only, no DDL):
+ * 1. Remaps the legacy "travel_agent" role to "tour_leader" (old prod rows).
+ * 2. Creates any MISSING demo accounts (one per role). Existing users and
+ *    their passwords are never modified — this only fills gaps so a freshly
+ *    published environment has a working account for every role.
+ */
+// Roles that must NEVER be auto-created at startup: creating a privileged
+// account with a well-known password would open an admin backdoor. These are
+// only created via the explicit secret-guarded bootstrap (/api/auth/seed-demo).
+const PRIVILEGED_ROLES = new Set(["super_admin", "admin"]);
+
+export async function runStartupMaintenance(): Promise<void> {
+  // Serialize across concurrently booting instances (e.g. autoscale) so two
+  // boots can't race on the same select-then-insert checks.
+  const { sql } = await import("drizzle-orm");
+  const lock = await db.execute(sql`SELECT pg_try_advisory_lock(727270) AS locked`);
+  const locked = (lock as any).rows?.[0]?.locked ?? (lock as any)[0]?.locked;
+  if (!locked) {
+    console.log("Startup maintenance: another instance holds the lock; skipping");
+    return;
+  }
+  try {
+    await runStartupMaintenanceLocked();
+  } finally {
+    await db.execute(sql`SELECT pg_advisory_unlock(727270)`);
+  }
+}
+
+async function runStartupMaintenanceLocked(): Promise<void> {
+  // 1. Legacy role remap.
+  const remapped = await db
+    .update(userProfiles)
+    .set({ role: "tour_leader" as any })
+    .where(eq(userProfiles.role, "travel_agent" as any))
+    .returning({ userId: userProfiles.userId });
+  if (remapped.length > 0) {
+    console.log(`Startup maintenance: remapped ${remapped.length} legacy travel_agent profile(s) to tour_leader`);
+  }
+
+  // 2. Top up missing demo accounts (create-only; never touch existing users).
+  let passwordHash: string | null = null;
+  for (const role of roles) {
+    if (PRIVILEGED_ROLES.has(role)) continue; // never auto-create privileged accounts
+    const username = `${role.replace("_", "")}1`;
+    const id = `user-${role}-1`;
+    const existing = await authStorage.getUser(id);
+    if (existing) {
+      // Ensure the profile exists and has the right role, but leave the
+      // user's credentials untouched.
+      const profile = await db.select().from(userProfiles).where(eq(userProfiles.userId, id));
+      if (profile.length === 0) {
+        await db.insert(userProfiles).values({ userId: id, role: role as any });
+        console.log(`Startup maintenance: created missing profile for ${username} (${role})`);
+      } else if (profile[0].role !== role) {
+        await db.update(userProfiles).set({ role: role as any }).where(eq(userProfiles.userId, id));
+        console.log(`Startup maintenance: corrected role for ${username} -> ${role}`);
+      }
+      continue;
+    }
+    if (!passwordHash) passwordHash = await bcrypt.hash("password123", 10);
+    const user = await authStorage.upsertUser({
+      id,
+      username,
+      passwordHash,
+      email: `${username}@tourops.com`,
+    });
+    await db.insert(userProfiles).values({ userId: user.id, role: role as any });
+    console.log(`Startup maintenance: created missing demo account ${username} (${role})`);
+  }
+}
+
 export interface SeededAccount {
   role: string;
   username: string;

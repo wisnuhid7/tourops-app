@@ -10,4 +10,5 @@
 - [Shadowed route registrations](shadowed-route-registrations.md) — Express uses the first-registered method+path; an ungated route above a later gated duplicate silently wins. Grep for every registration when auditing auth.
 - [TourOps numeric price forms](tourops-numeric-price-forms.md) — numeric() cols want STRING in insert schema; rate forms' parseInt makes POST 400 while PATCH (sanitizeRateUpdate, no schema) succeeds.
 - [TourOps new-role checklist](new-role-checklist.md) — enum, seed, separate auth STAFF_ROLES list, routes constants, 3 frontend role maps + sidebar + i18n; each was missed once with silent symptoms.
+- [Publish enum legacy values](publish-enum-legacy-values.md) — never drop enum values prod rows still hold; keep legacy value + advisory-locked startup data remap; never auto-create privileged accounts at boot.
 - [Wide-read exclusion & subroute parity](wide-read-exclusion-pattern.md) — restricting a role via the wide-read filters is not enough; booking/workflow subroutes default to ALL_STAFF and re-leak by ID.

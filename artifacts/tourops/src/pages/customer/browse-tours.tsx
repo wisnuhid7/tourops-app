@@ -298,7 +298,7 @@ export default function BrowseTours() {
                       <div>
                         <span className="text-lg font-bold flex items-center gap-1">
                           <DollarSign className="h-4 w-4" />{Number(tour.basePrice).toLocaleString()}
-                          <span className="text-xs font-normal text-muted-foreground">/{t("per_person")}</span>
+                          <span className="text-xs font-normal text-muted-foreground">/ {t("per_person")}</span>
                         </span>
                         {Number(tour.childPrice) > 0 && (
                           <p className="text-xs text-muted-foreground">{t("child_price")} ${Number(tour.childPrice).toLocaleString()}</p>

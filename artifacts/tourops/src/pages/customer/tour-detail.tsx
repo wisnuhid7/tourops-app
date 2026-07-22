@@ -284,6 +284,11 @@ export default function TourDetail() {
   }
 
   const openDepartures = departures?.filter((d) => d.status === "open") || [];
+  // "Starting from" = lowest open-departure price when departures exist, otherwise the tour base price.
+  const departurePrices = openDepartures.map((d) => Number(d.pricePerPerson)).filter((n) => Number.isFinite(n) && n > 0);
+  const startingFromPrice = departurePrices.length > 0
+    ? Math.min(...departurePrices)
+    : (openDepartures.length === 0 ? Number(tour.basePrice) || 0 : 0);
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
@@ -321,13 +326,14 @@ export default function TourDetail() {
                   toast({ title: t("invalid_group_link"), variant: "destructive" });
                   return;
                 }
+                const joinedDep = departures?.find((d) => d.id === joinedGroupData.departureId);
                 bookMutation.mutate({
                   tourId: tour.id,
                   departureId: joinedGroupData.departureId,
                   bookingType: "join_leader_group",
                   leaderUserId: joinedGroupData.customerId,
                   partySizeExpected: partySize,
-                  totalPrice: Number(tour.basePrice || 0) * partySize,
+                  totalPrice: Number(joinedDep?.pricePerPerson || tour.basePrice || 0) * partySize,
                 });
               }}
               disabled={bookMutation.isPending}
@@ -362,12 +368,12 @@ export default function TourDetail() {
             </div>
           </div>
           <div className="text-right">
-            {Number(tour.basePrice) > 0 ? (
+            {startingFromPrice > 0 ? (
               <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
                 <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">{t("starting_from")}</p>
                 <div className="flex items-baseline justify-end gap-1">
-                  <span className="text-3xl font-bold text-primary">${Number(tour.basePrice).toLocaleString()}</span>
-                  <span className="text-sm text-muted-foreground">/{t("per_person")}</span>
+                  <span className="text-3xl font-bold text-primary">${startingFromPrice.toLocaleString()}</span>
+                  <span className="text-sm text-muted-foreground">/ {t("per_person")}</span>
                 </div>
                 {(Number(tour.childPrice) > 0 || Number(tour.singleSupplement) > 0) && (
                   <div className="mt-2 pt-2 border-t border-primary/10 text-xs text-muted-foreground space-y-1">
@@ -564,7 +570,7 @@ export default function TourDetail() {
                         <p className="font-medium">{dep.startDate} - {dep.endDate}</p>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                           <span className="flex items-center gap-1"><Users className="h-3 w-3" />{Math.max(0, (dep.capacityTotal || 0) - (dep.capacityBooked || 0))} {t("spots_left")}</span>
-                          {dep.pricePerPerson && <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{dep.pricePerPerson}/{t("per_person")}</span>}
+                          {dep.pricePerPerson && <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{Number(dep.pricePerPerson).toLocaleString()} / {t("per_person")}</span>}
                         </div>
                       </div>
                     </div>

@@ -151,7 +151,7 @@ export default function AdminDepartures() {
                     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground mt-1">
                       <span className="flex items-center gap-1"><Calendar className="h-3 w-3" />{dep.startDate} to {dep.endDate}</span>
                       <span className="flex items-center gap-1"><Users className="h-3 w-3" />{dep.capacityBooked}/{dep.capacityTotal} {t("booked_suffix")}</span>
-                      {dep.pricePerPerson && <span>${dep.pricePerPerson}{t("per_person")}</span>}
+                      {dep.pricePerPerson && <span>${dep.pricePerPerson} / {t("per_person")}</span>}
                     </div>
                     {(depAir || arrAir) && (
                       <div className="flex items-center gap-2 mt-2 text-[10px] font-mono bg-slate-50 p-1 rounded border w-fit">

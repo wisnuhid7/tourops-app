@@ -924,7 +924,7 @@ export const translations = {
     any_duration: "Any Duration",
     travel_dates: "Travel Dates",
     max_price: "Max Price",
-    per_person: "/person",
+    per_person: "person",
     days: "days",
     contact_for_pricing: "Contact for pricing",
 
@@ -2469,7 +2469,7 @@ export const translations = {
     any_duration: "Cualquier Duración",
     travel_dates: "Fechas de Viaje",
     max_price: "Precio Máximo",
-    per_person: "/persona",
+    per_person: "persona",
     days: "días",
     contact_for_pricing: "Contactar para precios",
 
@@ -4014,7 +4014,7 @@ export const translations = {
     any_duration: "Semua Durasi",
     travel_dates: "Tanggal Perjalanan",
     max_price: "Harga Maks",
-    per_person: "/orang",
+    per_person: "orang",
     days: "hari",
     contact_for_pricing: "Hubungi untuk harga",
 

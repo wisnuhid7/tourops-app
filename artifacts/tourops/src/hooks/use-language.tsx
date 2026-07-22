@@ -7,6 +7,12 @@ interface LanguageContextType {
   language: Language;
   setLanguage: (lang: Language) => void;
   t: (key: TranslationKey) => string;
+  /**
+   * Localize a dynamic DB field: returns entity.translations[language][field]
+   * when available, falling back to the English source value. Works for any
+   * entity carrying a `translations` jsonb ({ es: {...}, id: {...} }).
+   */
+  lt: (entity: any, field: string) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
@@ -58,8 +64,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     return translations[language][key] || translations.en[key] || key;
   };
 
+  const lt = (entity: any, field: string): string => {
+    const base = entity?.[field] ?? "";
+    if (language === "en") return base;
+    const translated = entity?.translations?.[language]?.[field];
+    return typeof translated === "string" && translated.trim() ? translated : base;
+  };
+
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t, lt }}>
       {children}
     </LanguageContext.Provider>
   );

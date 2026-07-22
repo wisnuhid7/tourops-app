@@ -122,6 +122,8 @@ export const tourDayItems = pgTable("tour_day_items", {
   isOptional: boolean("is_optional").notNull().default(false),
   bookingRequired: boolean("booking_required").notNull().default(false),
   sortOrder: integer("sort_order").notNull().default(0),
+  // Per-language translated copies of text fields: { es: { title, ... }, id: { ... } }
+  translations: jsonb("translations"),
 }, (table) => ({
   dayIdIdx: index("tour_day_items_day_id_idx").on(table.tourDayId),
 }));
@@ -505,6 +507,8 @@ export const hotels = pgTable("hotels", {
   affiliateUrl: text("affiliate_url"),
   lastPriceCheckedAt: timestamp("last_price_checked_at"),
   isActive: boolean("is_active").default(true),
+  // Per-language translated copies of text fields: { es: { description, ... }, id: { ... } }
+  translations: jsonb("translations"),
 });
 
 export const insertHotelSchema = createInsertSchema(hotels).omit({ id: true });
@@ -722,6 +726,8 @@ export const guideRates = pgTable("guide_rates", {
   status: rateStatusEnum("status").default("draft"),
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
+  // Per-language translated copies of text fields: { es: { language, notes }, id: { ... } }
+  translations: jsonb("translations"),
 });
 export const insertGuideRateSchema = createInsertSchema(guideRates).omit({ id: true, createdAt: true });
 export type InsertGuideRate = z.infer<typeof insertGuideRateSchema>;

@@ -295,6 +295,60 @@ export class AIService {
       throw new Error("Failed to translate tour with AI");
     }
   }
+
+  /**
+   * Generic record translation: takes a flat list of records ({ id, ...textFields })
+   * and returns Spanish + Indonesian translations keyed by record id.
+   */
+  async translateRecords(
+    records: Array<Record<string, string>>,
+  ): Promise<{
+    es: Record<string, Record<string, string>>;
+    id: Record<string, Record<string, string>>;
+  }> {
+    if (!AI_ENABLED) {
+      throw new Error("No AI backend configured for translation");
+    }
+
+    const prompt = `
+      You are an expert travel translator.
+      Translate the text fields of each record into Spanish ("es") and Indonesian ("id").
+
+      RULES:
+      1. Preserve formatting exactly (line breaks, bullet separators, commas).
+      2. Do NOT translate proper nouns (people, city, hotel, brand names) unless they
+         have a well-established localized form.
+      3. Keep the EXACT same content keys as each input record (all keys except "id").
+      4. Every record MUST appear in both "es" and "id", keyed by its "id" value
+         (a string). Do NOT translate or alter the id.
+      5. All translated values MUST be plain strings.
+
+      INPUT (JSON array of records):
+      ${JSON.stringify(records, null, 2)}
+
+      OUTPUT FORMAT — return ONLY this JSON shape:
+      {
+        "es": { "<record id>": { <same content keys as that record> } },
+        "id": { "<record id>": { ... } }
+      }
+    `;
+
+    try {
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+      });
+
+      const result = response.choices[0].message.content;
+      if (!result) throw new Error("AI returned empty translation");
+
+      return JSON.parse(result);
+    } catch (error) {
+      console.error("AI record translation failed:", error);
+      throw new Error("Failed to translate records with AI");
+    }
+  }
 }
 
 function generateFallbackItinerary(params: TourGenerationParams, verifiedSights: any[], verifiedHotels: any[]) {

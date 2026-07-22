@@ -63,6 +63,10 @@ async function seedAssembledTour() {
       licenseLevel: "Licensed National Guide",
       notes: "Fully licensed Bali cultural & temple guide, English/Indonesian.",
       status: "active",
+      translations: {
+        es: { language: "Inglés", notes: "Guía cultural y de templos de Bali con licencia completa, inglés/indonesio." },
+        id: { language: "Bahasa Inggris", notes: "Pemandu budaya & pura Bali berlisensi penuh, Inggris/Indonesia." },
+      },
     }).returning();
     console.log(`  ✓ Created guide rate "${baliGuide.guideName}" (${baliGuide.id})`);
   }
@@ -76,34 +80,44 @@ async function seedAssembledTour() {
       dayNumber: 1, title: "Arrival & Beachfront Check-in", city: "Denpasar", countryCode: "ID",
       description: "Arrive in Bali, private transfer to the resort, evening at leisure.",
       items: [
-        { itemType: "transport", title: "Private airport transfer", description: "Air-conditioned private car, meet & greet at arrivals.", cost: "25", startTime: "14:00", endTime: "15:00", sortOrder: 0 },
-        { itemType: "hotel", title: "Check-in: Ayana Resort Bali", description: "Beachfront resort stay, 3 nights.", cost: "180", hotelId: denpasarHotel?.id, startTime: "15:30", endTime: "16:00", sortOrder: 1 },
+        { itemType: "transport", title: "Private airport transfer", description: "Air-conditioned private car, meet & greet at arrivals.", cost: "25", startTime: "14:00", endTime: "15:00", sortOrder: 0,
+          translations: { es: { title: "Traslado privado desde el aeropuerto", description: "Coche privado con aire acondicionado, recepción en llegadas." }, id: { title: "Transfer bandara pribadi", description: "Mobil pribadi ber-AC, penjemputan di kedatangan." } } },
+        { itemType: "hotel", title: "Check-in: Ayana Resort Bali", description: "Beachfront resort stay, 3 nights.", cost: "180", hotelId: denpasarHotel?.id, startTime: "15:30", endTime: "16:00", sortOrder: 1,
+          translations: { es: { title: "Check-in: Ayana Resort Bali", description: "Estancia en resort frente al mar, 3 noches." }, id: { title: "Check-in: Ayana Resort Bali", description: "Menginap di resor tepi pantai, 3 malam." } } },
       ],
     },
     {
       dayNumber: 2, title: "Uluwatu Temple & Sunset", city: "Denpasar", countryCode: "ID",
       description: "Guided visit to Uluwatu clifftop temple with traditional Kecak fire dance at sunset.",
       items: [
-        { itemType: "guide", title: "Licensed guide: Made Wirawan", description: "Full-day English-speaking guide for temple tour.", cost: "60", guideId: baliGuide?.id, startTime: "08:00", endTime: "18:00", sortOrder: 0 },
-        { itemType: "transport", title: "Private vehicle, Denpasar loop", description: "Air-conditioned vehicle for the day.", cost: "40", startTime: "08:00", endTime: "18:00", sortOrder: 1 },
-        { itemType: "sight", title: "Uluwatu Temple + Kecak Dance", description: "Clifftop temple visit and evening fire dance performance.", cost: "20", startTime: "16:00", endTime: "19:00", sortOrder: 2 },
+        { itemType: "guide", title: "Licensed guide: Made Wirawan", description: "Full-day English-speaking guide for temple tour.", cost: "60", guideId: baliGuide?.id, startTime: "08:00", endTime: "18:00", sortOrder: 0,
+          translations: { es: { title: "Guía con licencia: Made Wirawan", description: "Guía de habla inglesa durante todo el día para la visita al templo." }, id: { title: "Pemandu berlisensi: Made Wirawan", description: "Pemandu berbahasa Inggris sehari penuh untuk tur pura." } } },
+        { itemType: "transport", title: "Private vehicle, Denpasar loop", description: "Air-conditioned vehicle for the day.", cost: "40", startTime: "08:00", endTime: "18:00", sortOrder: 1,
+          translations: { es: { title: "Vehículo privado, circuito por Denpasar", description: "Vehículo con aire acondicionado para todo el día." }, id: { title: "Kendaraan pribadi, keliling Denpasar", description: "Kendaraan ber-AC untuk sehari penuh." } } },
+        { itemType: "sight", title: "Uluwatu Temple + Kecak Dance", description: "Clifftop temple visit and evening fire dance performance.", cost: "20", startTime: "16:00", endTime: "19:00", sortOrder: 2,
+          translations: { es: { title: "Templo de Uluwatu + Danza Kecak", description: "Visita al templo del acantilado y espectáculo nocturno de danza del fuego." }, id: { title: "Pura Uluwatu + Tari Kecak", description: "Kunjungan pura di tebing dan pertunjukan tari api di malam hari." } } },
       ],
     },
     {
       dayNumber: 3, title: "Ubud Cultural Day", city: "Ubud", countryCode: "ID",
       description: "Transfer to Ubud, visit rice terraces and monkey forest, overnight in Ubud.",
       items: [
-        { itemType: "transport", title: "Transfer Denpasar → Ubud", description: "Private vehicle, approx. 1.5 hours.", cost: "35", startTime: "09:00", endTime: "10:30", sortOrder: 0 },
-        { itemType: "sight", title: "Tegallalang Rice Terrace", description: "Iconic terraced rice paddies with photo stops.", cost: "10", sightId: monkeyForestSight?.id, startTime: "11:00", endTime: "12:30", sortOrder: 1 },
-        { itemType: "hotel", title: "Check-in: Ubud Hanging Gardens", description: "Jungle-view resort stay, 1 night.", cost: "150", hotelId: ubudHotel?.id, startTime: "16:00", endTime: "16:30", sortOrder: 2 },
+        { itemType: "transport", title: "Transfer Denpasar → Ubud", description: "Private vehicle, approx. 1.5 hours.", cost: "35", startTime: "09:00", endTime: "10:30", sortOrder: 0,
+          translations: { es: { title: "Traslado Denpasar → Ubud", description: "Vehículo privado, aprox. 1,5 horas." }, id: { title: "Transfer Denpasar → Ubud", description: "Kendaraan pribadi, sekitar 1,5 jam." } } },
+        { itemType: "sight", title: "Tegallalang Rice Terrace", description: "Iconic terraced rice paddies with photo stops.", cost: "10", sightId: monkeyForestSight?.id, startTime: "11:00", endTime: "12:30", sortOrder: 1,
+          translations: { es: { title: "Terrazas de arroz de Tegallalang", description: "Icónicos arrozales en terrazas con paradas para fotos." }, id: { title: "Terasering Tegallalang", description: "Sawah terasering ikonik dengan pemberhentian foto." } } },
+        { itemType: "hotel", title: "Check-in: Ubud Hanging Gardens", description: "Jungle-view resort stay, 1 night.", cost: "150", hotelId: ubudHotel?.id, startTime: "16:00", endTime: "16:30", sortOrder: 2,
+          translations: { es: { title: "Check-in: Ubud Hanging Gardens", description: "Estancia en resort con vistas a la selva, 1 noche." }, id: { title: "Check-in: Ubud Hanging Gardens", description: "Menginap di resor dengan pemandangan hutan, 1 malam." } } },
       ],
     },
     {
       dayNumber: 4, title: "Departure", city: "Ubud", countryCode: "ID",
       description: "Breakfast, free morning, private transfer to airport for departure.",
       items: [
-        { itemType: "transport", title: "Private transfer to airport", description: "Air-conditioned private car to Denpasar airport.", cost: "35", startTime: "11:00", endTime: "12:30", sortOrder: 0 },
-        { itemType: "departure", title: "Departure", description: "Tour concludes at the airport.", cost: "0", startTime: "12:30", endTime: "12:30", sortOrder: 1 },
+        { itemType: "transport", title: "Private transfer to airport", description: "Air-conditioned private car to Denpasar airport.", cost: "35", startTime: "11:00", endTime: "12:30", sortOrder: 0,
+          translations: { es: { title: "Traslado privado al aeropuerto", description: "Coche privado con aire acondicionado al aeropuerto de Denpasar." }, id: { title: "Transfer pribadi ke bandara", description: "Mobil pribadi ber-AC ke bandara Denpasar." } } },
+        { itemType: "departure", title: "Departure", description: "Tour concludes at the airport.", cost: "0", startTime: "12:30", endTime: "12:30", sortOrder: 1,
+          translations: { es: { title: "Salida", description: "El tour concluye en el aeropuerto." }, id: { title: "Keberangkatan", description: "Tur berakhir di bandara." } } },
       ],
     },
   ];

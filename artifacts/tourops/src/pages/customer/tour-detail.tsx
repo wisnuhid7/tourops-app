@@ -49,6 +49,7 @@ function PublicGroupsList({ departureId }: { departureId: string }) {
 }
 
 function DayHotelGuideInfo({ dayId }: { dayId: string }) {
+  const { lt } = useLanguage();
   const { data: items } = useQuery<any[]>({ queryKey: ["/api/tour-days", dayId, "items"] });
   // Guide badges intentionally excluded — guides are presented only in the
   // "Meet Your Guides" section at the bottom of the page.
@@ -60,7 +61,7 @@ function DayHotelGuideInfo({ dayId }: { dayId: string }) {
       {relevant.map((item) => (
         <Badge key={item.id} variant="outline" className="gap-1.5 font-normal text-xs">
           <Bed className="h-3 w-3" />
-          {item.title}
+          {lt(item, "title")}
         </Badge>
       ))}
     </div>
@@ -68,7 +69,7 @@ function DayHotelGuideInfo({ dayId }: { dayId: string }) {
 }
 
 function TourGuidesSummary({ tourId }: { tourId: string }) {
-  const { t } = useLanguage();
+  const { t, lt } = useLanguage();
   const { data: guides } = useQuery<any[]>({ queryKey: ["/api/tours", tourId, "guides"] });
   if (!guides || guides.length === 0) return null;
 
@@ -106,7 +107,7 @@ function TourGuidesSummary({ tourId }: { tourId: string }) {
                 {g.language && (
                   <p className="text-sm text-muted-foreground flex items-start gap-1.5" data-testid={`text-guide-language-${g.id}`}>
                     <Languages className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
-                    <span className="min-w-0 break-words">{g.language}</span>
+                    <span className="min-w-0 break-words">{lt(g, "language")}</span>
                   </p>
                 )}
                 {g.age != null && (
@@ -137,7 +138,7 @@ function TourGuidesSummary({ tourId }: { tourId: string }) {
 }
 
 function TourHotelsSummary({ tourId }: { tourId: string }) {
-  const { t } = useLanguage();
+  const { t, lt } = useLanguage();
   const { data: hotels } = useQuery<any[]>({ queryKey: ["/api/tours", tourId, "hotels"] });
   if (!hotels || hotels.length === 0) return null;
 
@@ -192,7 +193,7 @@ function TourHotelsSummary({ tourId }: { tourId: string }) {
                 </div>
                 {h.description && (
                   <p className="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line" data-testid={`text-hotel-description-${h.id}`}>
-                    {h.description}
+                    {lt(h, "description")}
                   </p>
                 )}
                 {embedUrl && (

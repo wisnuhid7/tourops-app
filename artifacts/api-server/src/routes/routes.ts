@@ -24,6 +24,25 @@ import { airlineService } from "../lib/airline";
 import { hotelService } from "../lib/hotel";
 import { aiService } from "../lib/ai";
 import { autoFillTourTranslations, maybeAutoTranslateTourInBackground } from "../lib/tour-translation";
+import { maybeAutoTranslateEntitiesInBackground } from "../lib/entity-translation";
+
+// Shape a raw `translations` jsonb blob down to public-safe fields only, so
+// public endpoints never leak translated copies of non-public columns
+// (e.g. guide notes, hotel policies).
+function pickPublicTranslations(translations: any, allowedKeys: string[]) {
+  if (!translations || typeof translations !== "object") return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [lang, fields] of Object.entries(translations)) {
+    if (!fields || typeof fields !== "object") continue;
+    const shaped: Record<string, string> = {};
+    for (const key of allowedKeys) {
+      const v = (fields as any)[key];
+      if (typeof v === "string") shaped[key] = v;
+    }
+    if (Object.keys(shaped).length > 0) out[lang] = shaped;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
 import { queues } from "../lib/workers";
 import { scraperSafety } from "../lib/scraperSafety";
 import { setupAuth, isAuthenticated } from "../replit_integrations/auth";
@@ -596,7 +615,11 @@ export async function registerRoutes(
   });
 
   app.get("/api/tours/:id/day-items", async (req, res) => {
-    try { res.json(await storage.getTourDayItemsByTourId(req.params.id as string)); }
+    try {
+      const items = await storage.getTourDayItemsByTourId(req.params.id as string);
+      maybeAutoTranslateEntitiesInBackground("tourDayItem", items as any);
+      res.json(items);
+    }
     catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -610,8 +633,9 @@ export async function registerRoutes(
         items.filter((i) => i.itemType === "guide" && i.guideId).map((i) => i.guideId as string)
       )];
       const rows = await Promise.all(guideIds.map((gid) => storage.getGuideRate(gid)));
-      const guides = rows
-        .filter((g): g is NonNullable<typeof g> => !!g)
+      const fullGuides = rows.filter((g): g is NonNullable<typeof g> => !!g);
+      maybeAutoTranslateEntitiesInBackground("guide", fullGuides as any);
+      const guides = fullGuides
         .map((g) => ({
           id: g.id,
           guideName: g.guideName,
@@ -620,6 +644,8 @@ export async function registerRoutes(
           age: g.age,
           email: g.email,
           phone: g.phone,
+          // Only expose translations for public-safe fields (never `notes`).
+          translations: pickPublicTranslations((g as any).translations, ["language"]),
         }));
       res.json(guides);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -635,8 +661,9 @@ export async function registerRoutes(
         items.filter((i) => i.itemType === "hotel" && i.hotelId).map((i) => i.hotelId as string)
       )];
       const rows = await Promise.all(hotelIds.map((hid) => storage.getHotel(hid)));
-      const hotels = rows
-        .filter((h): h is NonNullable<typeof h> => !!h)
+      const fullHotels = rows.filter((h): h is NonNullable<typeof h> => !!h);
+      maybeAutoTranslateEntitiesInBackground("hotel", fullHotels as any);
+      const hotels = fullHotels
         .map((h) => ({
           id: h.id,
           name: h.name,
@@ -646,6 +673,8 @@ export async function registerRoutes(
           contactPhone: h.contactPhone,
           contactEmail: h.contactEmail,
           description: h.description,
+          // Only expose translations for public-safe fields (never policies).
+          translations: pickPublicTranslations((h as any).translations, ["description"]),
         }));
       res.json(hotels);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -1332,7 +1361,11 @@ export async function registerRoutes(
 
   // ---- Tour Day Items ----
   app.get("/api/tour-days/:dayId/items", async (req, res) => {
-    try { res.json(await storage.getTourDayItems(req.params.dayId as string)); }
+    try {
+      const items = await storage.getTourDayItems(req.params.dayId as string);
+      maybeAutoTranslateEntitiesInBackground("tourDayItem", items as any);
+      res.json(items);
+    }
     catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -1459,10 +1492,14 @@ export async function registerRoutes(
       const { ownerId } = await ownerScope(req, ["hotel_manager"]);
       if (req.query.cityId) {
         const byCity = await storage.getHotelsByCity(req.query.cityId as string);
-        return res.json(ownerId ? byCity.filter(h => (h as any).createdBy === ownerId) : byCity);
+        const visible = ownerId ? byCity.filter(h => (h as any).createdBy === ownerId) : byCity;
+        maybeAutoTranslateEntitiesInBackground("hotel", visible as any);
+        return res.json(visible);
       }
       const all = await storage.getAllHotels();
-      res.json(ownerId ? all.filter(h => (h as any).createdBy === ownerId) : all);
+      const visible = ownerId ? all.filter(h => (h as any).createdBy === ownerId) : all;
+      maybeAutoTranslateEntitiesInBackground("hotel", visible as any);
+      res.json(visible);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 

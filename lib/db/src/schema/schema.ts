@@ -8,6 +8,9 @@ export * from "./auth";
 export const userRoleEnum = pgEnum("user_role", [
   "super_admin",
   "admin",
+  // Legacy value kept so publish-time migration can cast old production rows;
+  // remapped to "tour_leader" by POST /api/admin/migrate-legacy-roles.
+  "travel_agent",
   "customer",
   "airline_supplier",
   "country_manager",

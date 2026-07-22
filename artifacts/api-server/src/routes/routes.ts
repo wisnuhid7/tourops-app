@@ -2920,6 +2920,18 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  // ---- One-time maintenance: remap legacy role values ----
+  // Old deployments used "travel_agent" for what is now "tour_leader". The
+  // enum keeps the legacy value only so publish-time migration can cast old
+  // rows; this endpoint remaps them. Super-admin only; idempotent.
+  app.post("/api/admin/migrate-legacy-roles", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["super_admin"])) return;
+      const updated = await storage.remapLegacyRoles("travel_agent", "tour_leader");
+      res.json({ ok: true, updated });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   // ---- Rate Cards: Transport Rates ----
   app.get("/api/rates/transport", isAuthenticated, async (req, res) => {
     try {

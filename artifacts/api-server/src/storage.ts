@@ -121,6 +121,7 @@ const DEFAULT_WORKFLOW_STEPS: Record<string, Array<{ code: string; name: string 
 };
 
 export interface IStorage {
+  remapLegacyRoles(fromRole: string, toRole: string): Promise<number>;
   getOrCreateProfile(userId: string): Promise<UserProfile>;
   getProfile(id: string): Promise<UserProfile | undefined>;
   getProfileByUserId(userId: string): Promise<UserProfile | undefined>;
@@ -431,6 +432,16 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
+  // One-time maintenance: remap a legacy role enum value to its replacement.
+  async remapLegacyRoles(fromRole: string, toRole: string): Promise<number> {
+    const rows = await db
+      .update(userProfiles)
+      .set({ role: toRole as any })
+      .where(eq(userProfiles.role, fromRole as any))
+      .returning({ userId: userProfiles.userId });
+    return rows.length;
+  }
+
   async getOrCreateProfile(userId: string): Promise<UserProfile> {
     const existing = await this.getProfileByUserId(userId);
     if (existing) return existing;

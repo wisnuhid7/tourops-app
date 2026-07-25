@@ -61,7 +61,7 @@ auto-creation, bootstrap endpoint.
 
 | ID | Severity | Title | Status |
 |----|----------|-------|--------|
-| AUTH-01 | Medium | Deactivated accounts can still authenticate | Open |
+| AUTH-01 | Medium | Deactivated accounts can still authenticate | ✅ Fixed |
 | AUTH-02 | Low | No session ID regeneration on login (mitigated by `saveUninitialized:false`) | Open |
 | AUTH-03 | Low | Self-service password reset / forgot password not implemented | N/A |
 | AUTH-04 | Low | 2FA not implemented | N/A |

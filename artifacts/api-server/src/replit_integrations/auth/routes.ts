@@ -71,6 +71,12 @@ export function registerAuthRoutes(app: Express): void {
       const profile = await authStorage.getProfileByUserId(user.id);
       const role = profile?.role || "customer";
 
+      // Account lifecycle: a deactivated profile must not be able to log in.
+      // `isActive` is nullable in older rows; only an explicit `false` blocks login.
+      if (profile && profile.isActive === false) {
+        return res.status(403).json({ message: "Account is disabled" });
+      }
+
       if (portal === "admin" && !ADMIN_ROLES.includes(role)) {
         return res.status(403).json({ message: "This account does not have admin access" });
       }

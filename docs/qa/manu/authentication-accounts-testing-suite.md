@@ -61,7 +61,7 @@ Status legend: ✅ Pass · ❌ Fail · N/A Not applicable/implemented
 | S-10 | Session | Logout invalidates session | reuse cookie post-logout | 401 | ✅ |
 | S-11 | Session fixation | Anon session persistence | unauth request Set-Cookie | none issued | ✅ |
 | S-12 | Session fixation | ID regeneration on login | inspect handler | not regenerated | ❌ (AUTH-02, mitigated) |
-| S-13 | Lifecycle | Deactivated account login | deactivate then login | should be denied | ❌ (AUTH-01) |
+| S-13 | Lifecycle | Deactivated account login | deactivate then login | denied 403 | ✅ (AUTH-01 fixed) |
 | S-14 | Bootstrap abuse | seed-demo without secret | POST /api/auth/seed-demo | 403/404/409 | ✅ |
 | S-15 | Cookie security | httpOnly/SameSite/Partitioned | inspect Set-Cookie | attributes present | ✅ |
 

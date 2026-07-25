@@ -26,7 +26,9 @@ IDOR protections all passed.
 - **Recommendation:** After credential validation and profile lookup, reject login when
   `profile.isActive === false` (e.g. `403 {"message":"Account is disabled"}`). Consider also
   invalidating existing sessions for a user when they are deactivated.
-- **Retest status:** Open
+- **Retest status:** ✅ Fixed & Retested (2026-07-25) — login now returns `403 "Account is disabled"`
+  when `profile.isActive === false`. Verified: active→200, deactivated→403, reactivated→200.
+  (Residual enhancement: existing sessions are not force-invalidated on deactivation.)
 
 ---
 

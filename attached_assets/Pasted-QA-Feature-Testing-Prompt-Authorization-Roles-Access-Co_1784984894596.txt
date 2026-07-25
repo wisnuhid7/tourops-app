@@ -1,0 +1,340 @@
+QA Feature Testing Prompt – Authorization, Roles & Access Control
+
+You are a Senior QA Engineer and Application Security Engineer.
+
+Your task is to perform a complete functional, authorization, access-control, API, and security assessment for the Authorization, Roles & Access Control feature.
+
+Feature Scope
+
+Test every component related to:
+
+- 19-role "user_role" enum
+- Granular staff, supplier, customer, and admin roles
+- "requireRole" middleware across all API routes
+- "ADMIN_ROLES"
+- "STAFF_ROLES"
+- Catalog role allowlists
+- Role-aware sidebar rendering
+- Role-based dashboard routing
+- Frontend role maps
+- Field-level PATCH allowlists
+- Tour permissions ("content_editor", "tour_builder")
+- Departure permissions
+- Supplier row-scoping ("own_only", "createdBy")
+- Country manager row-scoping ("country_id")
+- Authorization middleware
+- Permission inheritance
+- API access control
+- UI visibility restrictions
+- Route protection
+- Hidden resources
+- Anonymous access
+- Every related API endpoint, middleware, database query, permission check, frontend route, and component.
+
+Also execute every scenario defined in:
+
+.local/tasks/qa-authorization-test-plan.md
+
+including all 14 documented roles.
+
+---
+
+Testing Requirements
+
+Execute every applicable scenario.
+
+Functional Testing
+
+- Correct role assignment
+- Dashboard routing
+- Sidebar visibility
+- Navigation permissions
+- Portal switching
+- CRUD permissions
+- Read-only access
+- Update restrictions
+- Delete restrictions
+- Import permissions
+- Export permissions
+- Anonymous access
+- Authenticated access
+- Cross-role interactions
+
+---
+
+Authorization Testing
+
+Verify every role can only perform permitted actions.
+
+Test:
+
+- Admin
+- Staff
+- Supplier
+- Customer
+- Country Manager
+- Content Editor
+- Tour Builder
+
+and every remaining role defined in the application.
+
+For every role verify:
+
+- Accessible pages
+- Hidden pages
+- Accessible APIs
+- Forbidden APIs
+- CRUD permissions
+- Field-level permissions
+- Dashboard access
+- Sidebar visibility
+- Navigation
+- Resource ownership
+- Cross-account isolation
+
+---
+
+API Authorization Testing
+
+Test every endpoint for:
+
+- Missing authentication
+- Missing role
+- Invalid role
+- Incorrect role
+- Privilege escalation
+- Horizontal privilege escalation
+- Vertical privilege escalation
+- IDOR
+- Unauthorized PATCH
+- Unauthorized DELETE
+- Unauthorized IMPORT
+- Unauthorized EXPORT
+- Hidden endpoints
+- Catch-all routes
+- Direct URL access
+- HTTP method bypass
+
+---
+
+Field-Level Authorization
+
+Verify field restrictions including:
+
+Tours
+
+- title
+- description
+- itinerary
+- pricing
+- publish status
+- visibility
+- supplier
+- ownership
+
+Departures
+
+- creation
+- update
+- deletion
+
+Confirm:
+
+- Content Editors cannot modify pricing.
+- Content Editors cannot publish tours.
+- Tour Builders only modify permitted fields.
+- Restricted fields cannot be updated using crafted API requests.
+
+---
+
+Row-Level Security Testing
+
+Supplier
+
+Verify:
+
+- own_only isolation
+- createdBy filtering
+- Cannot access another supplier's catalog
+- Cannot enumerate IDs
+- Cannot modify foreign resources
+
+Country Manager
+
+Verify:
+
+- country_id ownership
+- GET filtering
+- PATCH filtering
+- DELETE filtering
+- Search filtering
+- Pagination filtering
+
+---
+
+Security Testing
+
+Execute:
+
+- Authentication bypass
+- Authorization bypass
+- Privilege escalation
+- IDOR
+- Mass Assignment
+- Forced Browsing
+- Hidden URL discovery
+- Route guessing
+- Parameter tampering
+- Request replay
+- JWT/session manipulation
+- Direct API access
+- Frontend-only restriction bypass
+- Import endpoint abuse
+- Catch-all URL bypass
+- Anonymous unpublished tour access
+- Customer access to supplier catalogs
+
+---
+
+Regression Testing
+
+Specifically verify:
+
+- "/api/master/*/import" routes correctly enforce "requireRole".
+- Anonymous users cannot access unpublished tours.
+- Supplier catalog data is never exposed to customer accounts.
+- Content Editors cannot change tour prices.
+- Content Editors cannot change publish status.
+- Hidden pages behind catch-all URL patterns remain inaccessible.
+- All proposed tasks (#4, #10, #12, #19) are fully validated.
+
+---
+
+Documentation
+
+Save every generated document under:
+
+docs/qa/manu/
+
+Generate or update the following files.
+
+---
+
+1. Feature Summary
+
+docs/qa/manu/authorization-summary.md
+
+Include:
+
+- Feature overview
+- Authorization architecture
+- Role hierarchy
+- Permission model
+- Route protection model
+- Row-level security model
+- Field-level security model
+- Middleware overview
+- Frontend authorization flow
+- Backend authorization flow
+- Risks
+- Assumptions
+- Test coverage summary
+
+---
+
+2. Findings
+
+docs/qa/manu/authorization-findings.md
+
+For every issue include:
+
+- Finding ID
+- Title
+- Severity
+- Priority
+- Component
+- Role affected
+- Endpoint
+- Description
+- Reproduction Steps
+- Expected Result
+- Actual Result
+- Security Impact
+- Root Cause
+- Recommendation
+- Retest Status
+
+---
+
+3. Testing Suite
+
+docs/qa/manu/authorization-testing-suite.md
+
+Create a complete test suite covering:
+
+- Functional tests
+- Authorization tests
+- Role matrix
+- Permission matrix
+- API authorization
+- UI authorization
+- Sidebar visibility
+- Dashboard routing
+- Route protection
+- Middleware validation
+- Row-level security
+- Field-level security
+- Regression tests
+- Security tests
+- Edge cases
+
+Each test case must contain:
+
+- Test ID
+- Category
+- Feature
+- Role
+- Objective
+- Preconditions
+- Test Steps
+- Expected Result
+- Status
+
+---
+
+4. Testing Report
+
+docs/qa/manu/authorization-testing-report.md
+
+Include:
+
+- Executive Summary
+- Scope
+- Environment
+- Roles Tested
+- APIs Tested
+- Pages Tested
+- Total Test Cases
+- Passed
+- Failed
+- Blocked
+- Not Applicable
+- Authorization Findings
+- Security Findings
+- Coverage Analysis
+- Remaining Risks
+- Recommendations
+- Final Authorization Assessment
+
+---
+
+Execution Rules
+
+- Execute every applicable test.
+- Test every role individually.
+- Test every role against every protected resource.
+- Test both frontend and backend authorization.
+- Do not stop after discovering the first issue.
+- Continuously update all documentation as testing progresses.
+- Record any undocumented vulnerabilities that are discovered.
+- Do not finish until every role, permission, route, endpoint, middleware, row-level restriction, field-level restriction, and authorization scenario has been completely tested and all documentation has been generated under "docs/qa/manu/".

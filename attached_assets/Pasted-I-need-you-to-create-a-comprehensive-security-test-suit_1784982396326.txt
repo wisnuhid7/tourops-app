@@ -1,0 +1,41 @@
+I need you to create a comprehensive security test suite document in Markdown format. 
+
+Please prepare this output to be saved directly as a file at the following directory path:
+docs/qa/manual/security-testing-suite.md
+
+The testing scope covers all endpoints that accept input data (POST, PUT, PATCH, DELETE, and GET with query parameters).
+
+The document must detail Security Test Cases, testing methods, and safe test indicators for the following vulnerabilities:
+
+1. Injection Flaws:
+   - SQL Injection (SQLi) – Boolean-based, Error-based, Time-based blind.
+   - Cross-Site Scripting (XSS) – Stored XSS, Reflected XSS, DOM-based.
+   - Command Injection / OS Command Injection.
+
+2. Broken Access Control & Authorization:
+   - Insecure Direct Object References (IDOR) – Manipulation of IDs/Resource Identifiers.
+   - Privilege Escalation – Vertical & Horizontal.
+   - Missing Function-Level Access Control.
+
+3. Availability & Denial of Service (DoS / DDoS):
+   - Application-Level DoS – Large payload injection, Regular Expression DoS (ReDoS).
+   - Rate Limit Bypassing – Header spoofing, IP rotation testing.
+   - Resource Exhaustion – Handling large file uploads or invalid file types.
+
+4. Input Validation & Data Integrity:
+   - Mass Assignment / HTTP Parameter Pollution.
+   - Business Logic Flaws – Negative values, boundary edge cases.
+   - Server-Side Request Forgery (SSRF) – For endpoints accepting URLs/webhooks.
+
+Markdown Document Output Format:
+1. Document header with metadata (Title, File Path: docs/qa/manual/security-testing-suite.md, Version, Date).
+2. Execution Guide / Summary for the QA Team.
+3. Structured Table / Section with fields:
+   - Vulnerability Name
+   - Target Input / Parameter
+   - Testing Method / Vector
+   - Sample Payload / Test Indicator (Defensive/Safe)
+   - Expected Safe Behavior (System's secure response)
+
+Target Tech Stack: [Specify your backend stack, e.g., Node.js/Express, Laravel, FastAPI]
+Key Endpoints: [Specify 1-2 example endpoints, e.g., POST /api/v1/users/profile]

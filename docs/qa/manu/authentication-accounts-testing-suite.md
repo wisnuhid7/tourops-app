@@ -60,7 +60,9 @@ Status legend: ✅ Pass · ❌ Fail · N/A Not applicable/implemented
 | S-09 | Brute force | Rate limiting | 11+ failed logins | 429 after 10 | ✅ |
 | S-10 | Session | Logout invalidates session | reuse cookie post-logout | 401 | ✅ |
 | S-11 | Session fixation | Anon session persistence | unauth request Set-Cookie | none issued | ✅ |
-| S-12 | Session fixation | ID regeneration on login | inspect handler | not regenerated | ❌ (AUTH-02, mitigated) |
+| S-12 | Session fixation | ID regeneration on login | login twice, compare sid | sid rotates | ✅ (AUTH-02 fixed) |
+| S-16 | Validation | Password policy min length | register 7-char pw | 400 | ✅ (AUTH-06 fixed) |
+| S-17 | Brute force | Per-account lockout | 5 wrong pw for one account | 429 on 6th, other accounts OK | ✅ (AUTH-07 fixed) |
 | S-13 | Lifecycle | Deactivated account login | deactivate then login | denied 403 | ✅ (AUTH-01 fixed) |
 | S-14 | Bootstrap abuse | seed-demo without secret | POST /api/auth/seed-demo | 403/404/409 | ✅ |
 | S-15 | Cookie security | httpOnly/SameSite/Partitioned | inspect Set-Cookie | attributes present | ✅ |

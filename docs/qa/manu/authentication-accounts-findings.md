@@ -50,7 +50,9 @@ IDOR protections all passed.
   removes the practical fixation vector. Hence Low.
 - **Recommendation:** Call `req.session.regenerate()` before assigning `userId`/`userRole` on
   login and registration.
-- **Retest status:** Open
+- **Retest status:** ✅ Fixed & Retested (2026-07-25) — login and registration now call
+  `req.session.regenerate()` before assigning `userId`. Verified the session ID changes on each
+  login and the new session remains valid.
 
 ---
 
@@ -109,7 +111,10 @@ IDOR protections all passed.
 - **Expected result:** Consistent minimum (≥ 8–12) and ideally a breached-password check.
 - **Actual result:** 4–6 character minimums, no complexity rules.
 - **Recommendation:** Standardize to a single stronger policy across all three code paths.
-- **Retest status:** Open
+- **Retest status:** ✅ Fixed & Retested (2026-07-25) — a single shared `passwordSchema`
+  (`MIN_PASSWORD_LENGTH = 8`) is now applied to self-registration, admin user creation, and admin
+  password resets. Verified 7-char rejected (400), 8-char accepted (201). (Residual enhancement:
+  no complexity/breached-password check yet.)
 
 ---
 
@@ -124,7 +129,10 @@ IDOR protections all passed.
 - **Mitigating factor:** `trust proxy=1` resolves the real client IP (not spoofable header),
   and the 10/15-min limit meaningfully slows single-source attacks (verified: 429 after 10 fails).
 - **Recommendation:** Add a complementary per-account failed-attempt counter with temporary lockout.
-- **Retest status:** Open (enhancement)
+- **Retest status:** ✅ Fixed & Retested (2026-07-25) — added a per-account lockout (5 failed
+  attempts → 15-minute lock, keyed on normalized username) alongside the per-IP limiter. Verified:
+  6th attempt returns 429, correct password is refused while locked, and other accounts are
+  unaffected. (In-memory store; resets on restart — move to shared store if scaled to multiple processes.)
 
 ---
 

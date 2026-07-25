@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
 import { authStorage } from "./storage";
 import { isAuthenticated } from "./replitAuth";
 import { runUserSeed, superAdminExists } from "../../seed-core";
@@ -6,6 +6,61 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { z } from "zod/v4";
 import rateLimit from "express-rate-limit";
+
+// AUTH-06: single source of truth for the password policy. Applied uniformly to
+// self-registration, admin-created users, and admin password resets so the
+// minimum strength can't drift between code paths.
+export const MIN_PASSWORD_LENGTH = 8;
+export const passwordSchema = z
+  .string()
+  .min(MIN_PASSWORD_LENGTH, `Password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+
+// AUTH-07: per-account failed-login lockout, complementing the per-IP limiter.
+// The IP limiter throttles a single source; this throttles guessing against one
+// account from many IPs. In-memory (resets on restart) — acceptable for a
+// single-process deployment; move to the session store / DB if scaled out.
+const ACCOUNT_LOCK_THRESHOLD = 5; // failed attempts before lockout
+const ACCOUNT_LOCK_MS = 15 * 60 * 1000; // 15-minute lockout window
+type AccountAttempt = { count: number; lockedUntil: number };
+const accountAttempts = new Map<string, AccountAttempt>();
+
+function accountKey(username: string): string {
+  return username.trim().toLowerCase();
+}
+/** Returns remaining lock seconds if the account is currently locked, else 0. */
+function accountLockRemaining(username: string): number {
+  const rec = accountAttempts.get(accountKey(username));
+  if (!rec || rec.lockedUntil <= Date.now()) return 0;
+  return Math.ceil((rec.lockedUntil - Date.now()) / 1000);
+}
+function registerFailedAttempt(username: string): void {
+  const key = accountKey(username);
+  const now = Date.now();
+  const rec = accountAttempts.get(key);
+  // Start (or restart) the counter when there's no record, or when a previous
+  // lock has fully expired. `lockedUntil === 0` means "never locked" — do NOT
+  // treat that as an expiry, or the counter would reset on every attempt.
+  if (!rec || (rec.lockedUntil > 0 && rec.lockedUntil <= now)) {
+    accountAttempts.set(key, { count: 1, lockedUntil: 0 });
+    return;
+  }
+  rec.count += 1;
+  if (rec.count >= ACCOUNT_LOCK_THRESHOLD) {
+    rec.lockedUntil = now + ACCOUNT_LOCK_MS;
+    rec.count = 0;
+  }
+}
+function clearFailedAttempts(username: string): void {
+  accountAttempts.delete(accountKey(username));
+}
+
+// AUTH-02: rotate the session ID at the moment of privilege elevation
+// (login / registration) to defend against session fixation.
+function regenerateSession(req: Request): Promise<void> {
+  return new Promise((resolve, reject) => {
+    req.session.regenerate((err) => (err ? reject(err) : resolve()));
+  });
+}
 
 // Brute-force / credential-stuffing protection for authentication endpoints.
 // Keyed on client IP (trust proxy is set, so req.ip resolves to the real
@@ -55,13 +110,24 @@ export function registerAuthRoutes(app: Express): void {
       if (!parsed.success) return res.status(400).json({ message: "Username and password required" });
 
       const { username, password, portal } = parsed.data;
+
+      // AUTH-07: per-account lockout check (before any credential work).
+      const lockRemaining = accountLockRemaining(username);
+      if (lockRemaining > 0) {
+        return res.status(429).json({
+          message: `Too many failed attempts. Try again in ${Math.ceil(lockRemaining / 60)} minute(s).`,
+        });
+      }
+
       const user = await authStorage.getUserByUsername(username);
       if (!user || !user.passwordHash) {
+        registerFailedAttempt(username);
         return res.status(401).json({ message: "Invalid username or password" });
       }
 
       const valid = await bcrypt.compare(password, user.passwordHash);
       if (!valid) {
+        registerFailedAttempt(username);
         return res.status(401).json({ message: "Invalid username or password" });
       }
 
@@ -87,6 +153,10 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(403).json({ message: "This account does not have customer access" });
       }
 
+      // Successful credential check — reset the per-account failure counter and
+      // rotate the session ID (AUTH-02) before elevating privileges.
+      clearFailedAttempts(username);
+      await regenerateSession(req);
       req.session.userId = user.id;
       req.session.userRole = role;
 
@@ -102,7 +172,7 @@ export function registerAuthRoutes(app: Express): void {
     try {
       const registerSchema = z.object({
         username: z.string().min(3, "Username must be at least 3 characters").max(50),
-        password: z.string().min(6, "Password must be at least 6 characters"),
+        password: passwordSchema,
         firstName: z.string().min(1, "First name is required"),
         lastName: z.string().optional(),
         email: z.string().email("Invalid email address").optional().or(z.literal("")),
@@ -134,7 +204,8 @@ export function registerAuthRoutes(app: Express): void {
       // Auto-create customer profile
       await authStorage.ensureProfile(user.id);
 
-      // Log them in immediately
+      // Log them in immediately (rotate session ID first — AUTH-02).
+      await regenerateSession(req);
       req.session.userId = user.id;
       req.session.userRole = "customer";
 

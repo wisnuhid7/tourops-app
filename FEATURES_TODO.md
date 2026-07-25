@@ -11,6 +11,10 @@
 - [x] User profile management (`/api/user-profile`; role stored in `user_profiles`)
 - [x] Iframe-compatible cookies (SameSite=None + Secure + Partitioned) with Origin/Host CSRF guard
 - [x] One-time secret-guarded demo/prod seed bootstrap endpoint
+- [x] Account lifecycle enforcement — deactivated (`isActive:false`) profiles blocked at login (AUTH-01)
+- [x] Session ID regeneration on login/registration (session-fixation defense, AUTH-02)
+- [x] Unified password policy (`MIN_PASSWORD_LENGTH = 8`) across register / admin-create / admin-reset (AUTH-06)
+- [x] Brute-force protection: per-IP rate limit + per-account lockout (5 fails → 15-min lock) (AUTH-07)
 - [ ] Password reset / forgot password
 - [ ] Two-factor authentication
 - [ ] Email verification

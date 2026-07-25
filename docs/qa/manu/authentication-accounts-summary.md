@@ -81,6 +81,8 @@ Drizzle ORM (parameterized queries), PostgreSQL.
 | Session fixation / lifecycle | Full |
 | Password reset / forgot / 2FA / email verification | **N/A — not implemented** (documented as gaps) |
 
-Overall rating: **MODERATE** — strong RBAC, CSRF, injection, and brute-force posture;
-one confirmed lifecycle-enforcement defect (deactivated accounts can still log in) and
-several unimplemented account-recovery/2FA features.
+Overall rating: **GOOD (post-remediation)** — strong RBAC, CSRF, injection, and brute-force
+posture. All actionable findings fixed & retested (2026-07-25): deactivated-account login blocked
+(AUTH-01), session regeneration on login (AUTH-02), unified 8-char password policy (AUTH-06), and
+per-account lockout (AUTH-07). Remaining gaps are unimplemented account-recovery/2FA features
+(AUTH-03/04/05) and minor hardening residuals.

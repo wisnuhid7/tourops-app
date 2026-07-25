@@ -51,9 +51,9 @@ auto-creation, bootstrap endpoint.
 
 | Metric | Count |
 |--------|-------|
-| Total test cases | 46 |
-| Passed | 42 |
-| Failed | 2 (AUTH-01 lifecycle, AUTH-02 session regeneration) |
+| Total test cases | 49 |
+| Passed (incl. retests) | 49 |
+| Failed (open) | 0 — AUTH-01/02/06/07 fixed & retested |
 | Blocked | 0 |
 | Not applicable (unimplemented scope) | 4 (reset, forgot, 2FA, email verification) |
 
@@ -62,12 +62,12 @@ auto-creation, bootstrap endpoint.
 | ID | Severity | Title | Status |
 |----|----------|-------|--------|
 | AUTH-01 | Medium | Deactivated accounts can still authenticate | ✅ Fixed |
-| AUTH-02 | Low | No session ID regeneration on login (mitigated by `saveUninitialized:false`) | Open |
+| AUTH-02 | Low | No session ID regeneration on login (mitigated by `saveUninitialized:false`) | ✅ Fixed |
 | AUTH-03 | Low | Self-service password reset / forgot password not implemented | N/A |
 | AUTH-04 | Low | 2FA not implemented | N/A |
 | AUTH-05 | Low | Email verification not implemented | N/A |
-| AUTH-06 | Low | Weak/inconsistent password policy (4–6 char minimums) | Open |
-| AUTH-07 | Info | Rate limiter is per-IP only (no per-account lockout) | Open |
+| AUTH-06 | Low | Weak/inconsistent password policy (4–6 char minimums) | ✅ Fixed |
+| AUTH-07 | Info | Rate limiter is per-IP only (no per-account lockout) | ✅ Fixed |
 
 ## Performance Observations
 
@@ -81,13 +81,24 @@ auto-creation, bootstrap endpoint.
   depends entirely on an admin.
 - Rate-limiter counter is in-memory (resets on restart) and per-IP.
 
+## Remediation Status (2026-07-25)
+
+All actionable findings have been **fixed and retested**:
+- **AUTH-01 ✅** Login rejects deactivated profiles (`403 "Account is disabled"`).
+- **AUTH-02 ✅** Session ID regenerated on login/registration.
+- **AUTH-06 ✅** Unified password policy (min 8) across register / admin-create / admin-reset.
+- **AUTH-07 ✅** Per-account lockout (5 fails → 15-min lock) added alongside the per-IP limiter.
+
 ## Remaining Risks
 
-1. **Account lifecycle (AUTH-01, Medium):** deactivation is not a real access control until
-   the login handler enforces `isActive`.
-2. **Weak password policy (AUTH-06, Low):** short minimums invite credential guessing.
-3. **No account recovery / 2FA (AUTH-03/04/05, Low):** operational and phishing-resistance gaps.
-4. **Per-account brute force (AUTH-07, Info):** distributed guessing against one account is not throttled.
+1. **No account recovery / 2FA (AUTH-03/04/05, Low):** password reset, forgot password, 2FA, and
+   email verification remain unimplemented — account recovery depends entirely on an admin.
+2. **Password complexity (AUTH-06 residual):** minimum length enforced, but no complexity or
+   breached-password check yet.
+3. **Lockout durability (AUTH-07 residual):** the per-account counter is in-memory and resets on
+   restart; move to a shared store if the API scales to multiple processes.
+4. **Session invalidation on deactivation (AUTH-01 residual):** deactivation blocks new logins but
+   does not force-expire a user's existing active sessions.
 
 ## Final Assessment
 

@@ -46,7 +46,7 @@ function pickPublicTranslations(translations: any, allowedKeys: string[]) {
 import { queues } from "../lib/workers";
 import { scraperSafety } from "../lib/scraperSafety";
 import { setupAuth, isAuthenticated } from "../replit_integrations/auth";
-import { registerAuthRoutes } from "../replit_integrations/auth";
+import { registerAuthRoutes, passwordSchema } from "../replit_integrations/auth";
 import { authStorage } from "../replit_integrations/auth/storage";
 import { db } from "@workspace/db";
 import { countries, cities, tourDays, tourDepartures } from "@workspace/db";
@@ -317,7 +317,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const createSchema = z.object({
         username: z.string().min(3).max(50),
-        password: z.string().min(4),
+        password: passwordSchema,
         firstName: z.string().min(1),
         lastName: z.string().optional(),
         email: z.string().email().optional(),
@@ -359,7 +359,7 @@ export async function registerRoutes(
   app.patch("/api/admin/users/:id/password", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
-      const pwSchema = z.object({ password: z.string().min(4) });
+      const pwSchema = z.object({ password: passwordSchema });
       const parsed = pwSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       const passwordHash = await bcrypt.hash(parsed.data.password, 10);

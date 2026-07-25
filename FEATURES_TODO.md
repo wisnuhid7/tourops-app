@@ -5,16 +5,16 @@
 > Legend: `[x]` ✅ Completed · `[~]` 🚧 In Progress / Partial · `[ ]` ❌ Not Implemented · `[!]` ⚠️ Needs Review
 
 ## Authentication & Accounts
-- [x] Session-based login/logout (express-session + connect-pg-simple, PostgreSQL sessions)
-- [x] Customer self-registration
-- [x] Portal-aware login (customer / admin / staff portals share one auth backend)
-- [x] User profile management (`/api/user-profile`; role stored in `user_profiles`)
-- [x] Iframe-compatible cookies (SameSite=None + Secure + Partitioned) with Origin/Host CSRF guard
-- [x] One-time secret-guarded demo/prod seed bootstrap endpoint
-- [x] Account lifecycle enforcement — deactivated (`isActive:false`) profiles blocked at login (AUTH-01)
-- [x] Session ID regeneration on login/registration (session-fixation defense, AUTH-02)
-- [x] Unified password policy (`MIN_PASSWORD_LENGTH = 8`) across register / admin-create / admin-reset (AUTH-06)
-- [x] Brute-force protection: per-IP rate limit + per-account lockout (5 fails → 15-min lock) (AUTH-07)
+- [x] ~~Session-based login/logout (express-session + connect-pg-simple, PostgreSQL sessions)~~ ✅ tested
+- [x] ~~Customer self-registration~~ ✅ tested
+- [x] ~~Portal-aware login (customer / admin / staff portals share one auth backend)~~ ✅ tested
+- [x] ~~User profile management (`/api/user-profile`; role stored in `user_profiles`)~~ ✅ tested
+- [x] ~~Iframe-compatible cookies (SameSite=None + Secure + Partitioned) with Origin/Host CSRF guard~~ ✅ tested
+- [x] ~~One-time secret-guarded demo/prod seed bootstrap endpoint~~ ✅ tested
+- [x] ~~Account lifecycle enforcement — deactivated (`isActive:false`) profiles blocked at login (AUTH-01)~~ ✅ tested
+- [x] ~~Session ID regeneration on login/registration (session-fixation defense, AUTH-02)~~ ✅ tested
+- [x] ~~Unified password policy (`MIN_PASSWORD_LENGTH = 8`) across register / admin-create / admin-reset (AUTH-06)~~ ✅ tested
+- [x] ~~Brute-force protection: per-IP rate limit + per-account lockout (5 fails → 15-min lock) (AUTH-07)~~ ✅ tested
 - [ ] Password reset / forgot password
 - [ ] Two-factor authentication
 - [ ] Email verification

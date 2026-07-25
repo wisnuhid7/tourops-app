@@ -6,7 +6,7 @@ Ordered by severity. Retest status is **Open** unless noted.
 
 ---
 
-## F-01 — Stack trace / internal path disclosure on malformed request body
+## ~~F-01 — Stack trace / internal path disclosure on malformed request body~~ ✅ Fixed
 - **Severity:** Medium
 - **Affected Component:** Global Express error handling (body-parser JSON parse errors) — reproduced via `POST /api/auth/login`, applies to any JSON endpoint.
 - **Risk Description:** A malformed JSON body triggers Express's default HTML error page, which includes the full stack trace and absolute server file paths (`/home/runner/workspace/node_modules/...`). This leaks framework versions, directory structure, and dependency internals that aid an attacker in fingerprinting and targeting known CVEs.
@@ -18,7 +18,7 @@ Ordered by severity. Retest status is **Open** unless noted.
 - **Suggested Fix:** Add a terminal error-handling middleware `(err, req, res, next)` that returns `res.status(err.status||500).json({ message: "..." })`, special-casing body-parser `SyntaxError` → `400 {"message":"Invalid JSON body"}`. Never send stack traces when `NODE_ENV==="production"`.
 - **Retest Status:** ✅ Fixed & Retested (2026-07-25) — global error handler added in `app.ts`. Malformed JSON now returns `{"message":"Invalid JSON body"}` (400) with no stack trace.
 
-## F-02 — Missing non-negative validation on departure price & capacity
+## ~~F-02 — Missing non-negative validation on departure price & capacity~~ ✅ Fixed
 - **Severity:** Medium
 - **Affected Component:** `POST /api/departures` (and likely other numeric create/patch schemas).
 - **Risk Description:** A departure can be created with `capacityTotal:-5` and `pricePerPerson:-100`; the API returns `200`. Negative prices/capacity corrupt pricing math and inventory logic (e.g. a negative price could translate to a credit, negative capacity breaks seat-availability checks).
@@ -31,7 +31,7 @@ Ordered by severity. Retest status is **Open** unless noted.
 - **Suggested Fix:** Add `.nonnegative()` (capacity) / `.positive()` (price, capacity ≥ 1) constraints in the departure Zod schema, and audit tours, rates, bookings, and payments for the same gap.
 - **Retest Status:** ✅ Fixed & Retested (2026-07-25) — `capacityTotal ≥ 1`, `capacityBooked ≥ 0`, `pricePerPerson ≥ 0` enforced in the insert schema. Negative values now return 400; positive values unaffected. (Residual: audit tours/rates/bookings/payments schemas for the same pattern.)
 
-## F-03 — No rate limiting / brute-force protection on authentication
+## ~~F-03 — No rate limiting / brute-force protection on authentication~~ ✅ Fixed
 - **Severity:** Medium
 - **Affected Component:** `POST /api/auth/login` (and by extension all auth/sensitive endpoints).
 - **Risk Description:** 12 consecutive failed logins for the same account all returned `401` with no throttling, lockout, backoff, or CAPTCHA. This allows unlimited-rate credential brute forcing / password spraying.
@@ -43,7 +43,7 @@ Ordered by severity. Retest status is **Open** unless noted.
 - **Suggested Fix:** Add per-IP and per-account rate limiting (e.g. `express-rate-limit`) with exponential backoff / temporary lockout after N failures. Consider CAPTCHA after repeated failures. Ensure the limiter keys on a trusted client identifier (behind `trust proxy`), not spoofable headers.
 - **Retest Status:** ✅ Fixed & Retested (2026-07-25) — `express-rate-limit` applied to `/api/auth/login` and `/api/auth/register`: 10 failed attempts per IP per 15 min, keyed on `req.ip` (trust proxy), successful logins excluded. Verified 429 after the 10th failed attempt.
 
-## F-04 — Image upload allows SVG and derives extension from user filename
+## ~~F-04 — Image upload allows SVG and derives extension from user filename~~ ✅ Fixed
 - **Severity:** Low
 - **Affected Component:** `POST /api/upload` (multer config) + static serving of `/uploads/images`.
 - **Risk Description:** The `fileFilter` accepts any `image/*` MIME, which includes `image/svg+xml`. SVG files can embed `<script>`; if served inline and opened directly, they can execute script in the app's origin (stored XSS vector). The stored filename keeps the original extension (`path.extname(originalname)`), so the extension is attacker-influenced even though the basename is randomized.

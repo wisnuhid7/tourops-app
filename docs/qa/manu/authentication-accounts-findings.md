@@ -9,7 +9,7 @@ IDOR protections all passed.
 
 ---
 
-## AUTH-01 — Deactivated accounts can still authenticate
+## ~~AUTH-01 — Deactivated accounts can still authenticate~~ ✅ Fixed
 
 - **Severity:** Medium
 - **Priority:** High
@@ -32,7 +32,7 @@ IDOR protections all passed.
 
 ---
 
-## AUTH-02 — No session ID regeneration on login
+## ~~AUTH-02 — No session ID regeneration on login~~ ✅ Fixed
 
 - **Severity:** Low
 - **Priority:** Low
@@ -101,7 +101,7 @@ IDOR protections all passed.
 
 ---
 
-## AUTH-06 — Weak password policy
+## ~~AUTH-06 — Weak password policy~~ ✅ Fixed
 
 - **Severity:** Low
 - **Priority:** Low
@@ -118,7 +118,7 @@ IDOR protections all passed.
 
 ---
 
-## AUTH-07 — Rate limiter is per-IP only (no per-account lockout)
+## ~~AUTH-07 — Rate limiter is per-IP only (no per-account lockout)~~ ✅ Fixed
 
 - **Severity:** Informational
 - **Priority:** Low

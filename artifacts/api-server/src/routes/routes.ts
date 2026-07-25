@@ -55,6 +55,16 @@ import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { z } from "zod/v4";
 
+// Strict raster-image allowlist. SVG is intentionally excluded: it can embed
+// <script> and, if served inline, execute in our origin (stored XSS). The
+// stored extension is derived from the validated MIME type — never from the
+// user-supplied filename — so a spoofed extension can't be smuggled onto disk.
+const ALLOWED_IMAGE_MIME_EXT: Record<string, string> = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+};
 const upload = multer({
   storage: multer.diskStorage({
     destination: (req, file, cb) => {
@@ -63,14 +73,14 @@ const upload = multer({
       cb(null, dir);
     },
     filename: (req, file, cb) => {
-      const ext = path.extname(file.originalname);
+      const ext = ALLOWED_IMAGE_MIME_EXT[file.mimetype] ?? ".bin";
       cb(null, `${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`);
     }
   }),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
   fileFilter: (_req, file, cb) => {
-    if (!file.mimetype.startsWith("image/")) {
-      return cb(new Error("Only image files are allowed"));
+    if (!ALLOWED_IMAGE_MIME_EXT[file.mimetype]) {
+      return cb(new Error("Only PNG, JPEG, WebP, or GIF images are allowed"));
     }
     cb(null, true);
   }

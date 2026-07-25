@@ -54,7 +54,7 @@ Ordered by severity. Retest status is **Open** unless noted.
 - **Impact:** Potential stored XSS / content-type confusion if SVGs are served inline.
 - **Root Cause:** MIME-prefix-only allowlist; no explicit extension allowlist; no `Content-Disposition`/`Content-Security-Policy` on served uploads.
 - **Suggested Fix:** Restrict to a concrete allowlist (`png/jpeg/webp/gif`), block `svg`, derive the stored extension from the validated MIME (not the user filename), and serve uploads with `Content-Disposition: attachment` or a restrictive CSP. Validate magic bytes, not just the client MIME header.
-- **Retest Status:** Open
+- **Retest Status:** ✅ Fixed & Retested (2026-07-25) — multer now uses an explicit MIME→extension allowlist (`png/jpeg/webp/gif`), excludes SVG, and derives the stored extension from the validated MIME (not the user filename). Verified: PNG accepted, SVG rejected, MIME-spoofed `.php` stored safely as `.png`. Residual hardening (not yet done): magic-byte validation and `Content-Disposition`/CSP on served uploads; rejected uploads currently return 500 instead of 400.
 
 ## F-05 — Session cookie `Secure` relies on `secure:"auto"`
 - **Severity:** Informational

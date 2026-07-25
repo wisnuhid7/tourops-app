@@ -1,0 +1,402 @@
+QA Feature Testing Prompt – Tours & Itinerary
+
+You are a Senior QA Engineer and Application Security Engineer.
+
+Your task is to perform a comprehensive assessment of the Tours & Itinerary feature, covering functional behavior, business rules, integrations, APIs, UI, performance, regression, and security.
+
+Feature Scope
+
+Test every component related to:
+
+- Tour CRUD
+- Tour publishing workflow
+- Tour draft workflow
+- "tours"
+- "tour_days"
+- "tour_day_items"
+- Publish status management
+- AI Tour Generator
+- AI Itinerary Generator
+- GPT-4o backend integration
+- Hardcoded fallback itinerary generator
+- Public Tour Detail page
+- Customer Tour Detail page
+- Itinerary rendering
+- Hotel information
+- Guide information
+- Starting From pricing
+- Lowest open departure price calculation
+- Base price fallback
+- Child pricing calculation
+- Adult pricing relationship
+- Child price cap
+- Tour Brochure page
+- Browse Tours page
+- Search
+- Category filtering
+- Duration filtering
+- Price slider
+- Date range filtering
+- Pagination
+- Sorting
+- Every related API endpoint, database query, UI component, validation, middleware, business rule, caching mechanism, and integration.
+
+---
+
+Testing Requirements
+
+Execute every applicable scenario.
+
+Functional Testing
+
+Verify:
+
+- Tour creation
+- Tour update
+- Tour deletion
+- Draft creation
+- Publishing
+- Unpublishing
+- Archive behavior
+- Tour duplication
+- Tour validation
+- Tour images
+- Tour metadata
+- Tour categories
+- Duration calculation
+- Day ordering
+- Day item ordering
+- Hotel assignment
+- Guide assignment
+- Missing data handling
+- Empty itinerary
+- Large itineraries
+- Rich text rendering
+- Special characters
+- Unicode
+- Localization
+- Responsive layout
+
+---
+
+Itinerary Testing
+
+Verify:
+
+- Create itinerary
+- Update itinerary
+- Delete itinerary
+- Day ordering
+- Item ordering
+- Time ordering
+- Duplicate activities
+- Empty day
+- Missing hotel
+- Missing guide
+- Invalid itinerary
+- Long itinerary
+- Maximum supported itinerary size
+
+---
+
+AI Generator Testing
+
+Verify:
+
+- Successful GPT-4o generation
+- Invalid prompts
+- Empty prompts
+- Very large prompts
+- Special characters
+- Timeout handling
+- API failures
+- Rate limiting
+- Invalid AI responses
+- Partial AI responses
+- Retry behavior
+- Hardcoded fallback generation
+- Generated itinerary correctness
+- Generated data validation
+- Save generated itinerary
+- Edit generated itinerary
+
+---
+
+Pricing Testing
+
+Verify:
+
+Starting From
+
+- Lowest open departure price
+- Single departure
+- Multiple departures
+- Closed departures
+- Sold out departures
+- No departures
+- Base price fallback
+- Currency formatting
+- Decimal handling
+
+Child Pricing
+
+Verify:
+
+- Percentage calculation
+- Adult reference price
+- Cap at adult price
+- Zero price
+- Discounted departures
+- Missing departure
+- Price rounding
+- Negative values
+- Large values
+
+---
+
+Browse Tours Testing
+
+Verify:
+
+- Search
+- Partial search
+- Exact search
+- Category filtering
+- Multiple categories
+- Duration filter
+- Price slider
+- Date range
+- Combined filters
+- Empty results
+- Pagination
+- Sorting
+- Reset filters
+- Performance
+- URL parameters
+- Refresh persistence
+
+---
+
+Tour Detail Testing
+
+Verify:
+
+- Public view
+- Customer view
+- Published tours
+- Draft tours
+- Hotels
+- Guides
+- Images
+- Itinerary
+- Pricing
+- Brochure
+- Related tours
+- Missing assets
+- Broken images
+- Empty fields
+
+---
+
+API Testing
+
+Test every endpoint for:
+
+- Success responses
+- Invalid payloads
+- Missing fields
+- Invalid identifiers
+- Invalid dates
+- Invalid pricing
+- Invalid itinerary
+- Unauthorized access
+- Forbidden access
+- Malformed requests
+- Large payloads
+- HTTP method validation
+- Error handling
+- Response consistency
+
+---
+
+Security Testing
+
+Execute:
+
+- Authentication bypass
+- Authorization bypass
+- IDOR
+- Mass Assignment
+- SQL Injection
+- NoSQL Injection (if applicable)
+- XSS
+- Stored XSS
+- Reflected XSS
+- CSRF
+- File upload abuse
+- HTML injection
+- Markdown injection
+- Prompt injection against AI generator
+- AI output validation
+- Unauthorized publishing
+- Unauthorized itinerary modification
+- Hidden draft access
+- Direct API access
+- Parameter tampering
+
+---
+
+Performance Testing
+
+Verify:
+
+- Large tour catalogs
+- Large itineraries
+- Search performance
+- Filter performance
+- AI generation latency
+- Page rendering
+- Database query efficiency
+- Pagination performance
+
+---
+
+Regression Testing
+
+Specifically verify:
+
+- GPT-4o fallback generator works when OpenAI is unavailable.
+- Draft tours never appear publicly.
+- Published tours display correctly.
+- Starting From pricing always uses the lowest open departure.
+- Base price fallback is used only when no valid departures exist.
+- Child pricing never exceeds adult pricing.
+- Browse filters work correctly when combined.
+- Tour brochure matches published content.
+- AI-generated itineraries can be edited without data corruption.
+
+---
+
+Documentation
+
+Save every generated document under:
+
+docs/qa/manu/
+
+Generate or update the following files.
+
+---
+
+1. Feature Summary
+
+docs/qa/manu/tours-summary.md
+
+Include:
+
+- Feature overview
+- Architecture
+- Database entities
+- Business rules
+- Pricing logic
+- AI integration
+- User flows
+- Dependencies
+- Risks
+- Assumptions
+- Test coverage summary
+
+---
+
+2. Findings
+
+docs/qa/manu/tours-findings.md
+
+For every issue include:
+
+- Finding ID
+- Title
+- Severity
+- Priority
+- Component
+- Endpoint/Page
+- Description
+- Steps to Reproduce
+- Expected Result
+- Actual Result
+- Business Impact
+- Root Cause
+- Recommendation
+- Retest Status
+
+---
+
+3. Testing Suite
+
+docs/qa/manu/tours-testing-suite.md
+
+Create a comprehensive test suite covering:
+
+- Functional tests
+- CRUD tests
+- AI generation tests
+- Pricing tests
+- Itinerary tests
+- Search tests
+- Filter tests
+- API tests
+- Security tests
+- Performance tests
+- Integration tests
+- Regression tests
+- Edge cases
+
+Each test case must contain:
+
+- Test ID
+- Category
+- Objective
+- Preconditions
+- Test Steps
+- Expected Result
+- Status
+
+---
+
+4. Testing Report
+
+docs/qa/manu/tours-testing-report.md
+
+Include:
+
+- Executive Summary
+- Scope
+- Environment
+- Features Tested
+- APIs Tested
+- Pages Tested
+- Total Test Cases
+- Passed
+- Failed
+- Blocked
+- Not Applicable
+- Functional Findings
+- Security Findings
+- Performance Findings
+- Coverage Analysis
+- Remaining Risks
+- Recommendations
+- Final Feature Assessment
+
+---
+
+Execution Rules
+
+- Execute every applicable scenario.
+- Test every user flow from end to end.
+- Validate all business rules and pricing calculations.
+- Verify AI functionality under normal and failure conditions.
+- Test both frontend and backend behavior.
+- Do not stop after finding the first issue.
+- Continuously update all documentation during testing.
+- Document any additional defects discovered outside the predefined scope.
+- Do not finish until every component, workflow, API, business rule, pricing rule, AI integration, itinerary feature, search/filter capability, and regression scenario has been fully tested and all documentation has been generated under "docs/qa/manu/".

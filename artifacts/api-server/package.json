@@ -21,6 +21,7 @@
     "cors": "^2.8.6",
     "drizzle-orm": "catalog:",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.6.0",
     "express-session": "^1.18.1",
     "ioredis": "^5.4.1",
     "jspdf": "^4.2.1",

@@ -151,7 +151,13 @@ export const tourDepartures = pgTable("tour_departures", {
   statusIdx: index("tour_departures_status_idx").on(table.status),
 }));
 
-export const insertTourDepartureSchema = createInsertSchema(tourDepartures).omit({ id: true });
+export const insertTourDepartureSchema = createInsertSchema(tourDepartures, {
+  // Data-integrity guards: capacity must be a positive seat count and price
+  // (when set) must never be negative.
+  capacityTotal: (s) => s.int().min(1),
+  capacityBooked: (s) => s.int().min(0),
+  pricePerPerson: (s) => s.int().min(0),
+}).omit({ id: true });
 export type InsertTourDeparture = z.infer<typeof insertTourDepartureSchema>;
 export type TourDeparture = typeof tourDepartures.$inferSelect;
 

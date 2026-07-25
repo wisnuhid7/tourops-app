@@ -25,7 +25,7 @@
 |---|---|---|
 | **Critical** | 0 | — |
 | **High** | 0 | — |
-| **Medium** | 3 | F-01 (stack-trace leak), F-02 (negative values), F-03 (no login rate limiting) |
+| **Medium** | 3 | F-01 (stack-trace leak) ✅ fixed, F-02 (negative values) ✅ fixed, F-03 (no login rate limiting) ✅ fixed |
 | **Low** | 2 | F-04 (SVG upload), F-06 (verbose validation errors) |
 | **Informational** | 1 | F-05 (cookie `secure:"auto"`) |
 
@@ -40,14 +40,20 @@ Coverage against the source suite's four required classes:
 
 Cross-cutting: CSRF (pass), cookie flags (review — F-05), error leakage (fail — F-01), session fixation (review).
 
+## Remediation Status (2026-07-25)
+
+All three Medium findings have been **fixed and retested**:
+- **F-01 ✅** Global error handler added — malformed JSON returns `{"message":"Invalid JSON body"}` (400), no stack trace.
+- **F-02 ✅** Non-negative bounds enforced on departure `capacityTotal`/`capacityBooked`/`pricePerPerson` — negatives return 400.
+- **F-03 ✅** `express-rate-limit` on login/register — 429 after 10 failed attempts per IP / 15 min.
+
 ## Remaining Risks
 
-1. **Credential brute force (F-03, Medium):** Auth endpoints have no throttling — the single highest-priority fix.
-2. **Information disclosure (F-01, Medium):** Malformed input leaks stack traces and server paths across all JSON endpoints.
-3. **Data-integrity gaps (F-02, Medium):** Negative price/capacity accepted; audit all numeric schemas (tours, rates, bookings, payments) for the same pattern.
-4. **Upload hardening (F-04, Low):** SVG uploads + user-derived extensions permit a stored-XSS/content-confusion vector.
-5. **Prod cookie verification (F-05, Info):** Confirm `Secure` is present on the deployed session cookie.
-6. **Not fully exercised:** Session-fixation rotation and a live SSRF surface (none currently exists) should be re-tested if scrapers/URL-import features go live.
+1. **Upload hardening (F-04, Low):** SVG uploads + user-derived extensions permit a stored-XSS/content-confusion vector.
+2. **Verbose validation errors (F-06, Low):** Raw Zod issue arrays returned to clients.
+3. **Prod cookie verification (F-05, Info):** Confirm `Secure` is present on the deployed session cookie.
+4. **Data-integrity audit (F-02 residual):** Apply the same non-negative pattern to tours, rates, bookings, and payments schemas.
+5. **Not fully exercised:** Session-fixation rotation and a live SSRF surface (none currently exists) should be re-tested if scrapers/URL-import features go live.
 
 ## Overall Security Assessment
 

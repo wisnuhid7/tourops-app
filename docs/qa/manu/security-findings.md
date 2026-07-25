@@ -16,7 +16,7 @@ Ordered by severity. Retest status is **Open** unless noted.
 - **Impact:** Information disclosure; reconnaissance aid. Not directly exploitable but lowers the bar for further attacks.
 - **Root Cause:** No global error-handling middleware; Express falls back to its default development error page. Body-parser `SyntaxError` is not caught and normalized.
 - **Suggested Fix:** Add a terminal error-handling middleware `(err, req, res, next)` that returns `res.status(err.status||500).json({ message: "..." })`, special-casing body-parser `SyntaxError` → `400 {"message":"Invalid JSON body"}`. Never send stack traces when `NODE_ENV==="production"`.
-- **Retest Status:** Open
+- **Retest Status:** ✅ Fixed & Retested (2026-07-25) — global error handler added in `app.ts`. Malformed JSON now returns `{"message":"Invalid JSON body"}` (400) with no stack trace.
 
 ## F-02 — Missing non-negative validation on departure price & capacity
 - **Severity:** Medium
@@ -29,7 +29,7 @@ Ordered by severity. Retest status is **Open** unless noted.
 - **Impact:** Business-logic/data-integrity flaw; potential financial impact if negative prices flow into bookings.
 - **Root Cause:** Insert/patch validation schema does not enforce numeric lower bounds.
 - **Suggested Fix:** Add `.nonnegative()` (capacity) / `.positive()` (price, capacity ≥ 1) constraints in the departure Zod schema, and audit tours, rates, bookings, and payments for the same gap.
-- **Retest Status:** Open
+- **Retest Status:** ✅ Fixed & Retested (2026-07-25) — `capacityTotal ≥ 1`, `capacityBooked ≥ 0`, `pricePerPerson ≥ 0` enforced in the insert schema. Negative values now return 400; positive values unaffected. (Residual: audit tours/rates/bookings/payments schemas for the same pattern.)
 
 ## F-03 — No rate limiting / brute-force protection on authentication
 - **Severity:** Medium
@@ -41,7 +41,7 @@ Ordered by severity. Retest status is **Open** unless noted.
 - **Impact:** Enables online brute force and credential stuffing against all accounts (including `super_admin`).
 - **Root Cause:** No rate-limiting middleware on auth routes.
 - **Suggested Fix:** Add per-IP and per-account rate limiting (e.g. `express-rate-limit`) with exponential backoff / temporary lockout after N failures. Consider CAPTCHA after repeated failures. Ensure the limiter keys on a trusted client identifier (behind `trust proxy`), not spoofable headers.
-- **Retest Status:** Open
+- **Retest Status:** ✅ Fixed & Retested (2026-07-25) — `express-rate-limit` applied to `/api/auth/login` and `/api/auth/register`: 10 failed attempts per IP per 15 min, keyed on `req.ip` (trust proxy), successful logins excluded. Verified 429 after the 10th failed attempt.
 
 ## F-04 — Image upload allows SVG and derives extension from user filename
 - **Severity:** Low

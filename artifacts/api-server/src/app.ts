@@ -68,4 +68,22 @@ const uploadsStatic = express.static(path.join(process.cwd(), "uploads"), {
 app.use("/api/uploads", uploadsStatic);
 app.use("/uploads", uploadsStatic);
 
+// Global error handler — MUST be last. Returns a generic JSON error and never
+// leaks stack traces or internal file paths (previously Express's default HTML
+// error page exposed absolute paths on malformed request bodies).
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  // Body-parser raises a SyntaxError with `type: "entity.parse.failed"` for
+  // malformed JSON, and a 413 for oversized bodies.
+  const isJsonParseError = err?.type === "entity.parse.failed" || err instanceof SyntaxError;
+  const status = err?.status || err?.statusCode || (isJsonParseError ? 400 : 500);
+  const message = isJsonParseError
+    ? "Invalid JSON body"
+    : status < 500
+      ? (err?.message || "Bad request")
+      : "Internal server error";
+  logger.error({ err, url: req.url, method: req.method }, "Unhandled request error");
+  if (res.headersSent) return;
+  res.status(status).json({ message });
+});
+
 export default app;

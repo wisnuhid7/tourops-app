@@ -5,6 +5,20 @@ import { runUserSeed, superAdminExists } from "../../seed-core";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { z } from "zod/v4";
+import rateLimit from "express-rate-limit";
+
+// Brute-force / credential-stuffing protection for authentication endpoints.
+// Keyed on client IP (trust proxy is set, so req.ip resolves to the real
+// client behind the Replit proxy — not a spoofable header). Successful logins
+// don't count against the limit.
+const authRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 10, // max 10 failed attempts per IP per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { message: "Too many login attempts. Please try again later." },
+});
 
 /** Constant-time string comparison that avoids leaking length via early return. */
 function safeEqual(a: string, b: string): boolean {
@@ -35,7 +49,7 @@ const loginSchema = z.object({
 });
 
 export function registerAuthRoutes(app: Express): void {
-  app.post("/api/auth/login", async (req, res) => {
+  app.post("/api/auth/login", authRateLimiter, async (req, res) => {
     try {
       const parsed = loginSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Username and password required" });
@@ -78,7 +92,7 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   // ---- Self-Registration (Customer) ----
-  app.post("/api/auth/register", async (req, res) => {
+  app.post("/api/auth/register", authRateLimiter, async (req, res) => {
     try {
       const registerSchema = z.object({
         username: z.string().min(3, "Username must be at least 3 characters").max(50),

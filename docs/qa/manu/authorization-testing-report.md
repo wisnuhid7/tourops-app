@@ -14,14 +14,17 @@ restrictions, row-level scoping, master-data import gating, and customer↔suppl
 isolation all behaved correctly under direct API testing.
 
 One **High-severity defect (AUTHZ-01)** was found: tour *detail* endpoints
-(`GET /api/tours/:id` and its sub-resources) are fully anonymous and do not check
-`isPublished`, so unpublished/draft tours are readable by ID by anonymous and customer
-users. This is the open concern tracked as project task #4. Two lower-severity items
-(least-privilege default masking misconfiguration; RBAC logic duplicated across
-frontend maps) are noted as operational/tech-debt.
+(`GET /api/tours/:id` and its sub-resources) were fully anonymous and did not check
+`isPublished`, so unpublished/draft tours were readable by ID by anonymous and customer
+users (project task #4). Two lower-severity items (least-privilege default masking
+misconfiguration; RBAC logic duplicated across frontend maps) were also noted.
 
-**Final assessment: GOOD (post one required fix).** Remediate AUTHZ-01 before treating
-the feature as production-ready.
+**All three findings were remediated and retested on 2026-07-25.** AUTHZ-01 now returns
+`404` for anonymous/customer callers on draft tours and every sub-resource (staff `200`;
+published tours still public). AUTHZ-02 adds diagnostic logging on profile auto-creation.
+AUTHZ-03 consolidates role labels/home routes into a single `src/lib/roles.ts` source.
+
+**Final assessment: GOOD.** No open authorization findings.
 
 ## Scope
 
@@ -60,18 +63,18 @@ Admin dashboard, staff dashboards, supplier dashboards, customer portal, public 
 | Metric | Count |
 |--------|-------|
 | Total test cases | 55 |
-| Passed | 52 |
-| Failed | 3 (all AUTHZ-01: RG-04, SEC-01, SEC-02) |
+| Passed | 55 (after remediation; 52 pre-fix + RG-04, SEC-01, SEC-02 now pass) |
+| Failed | 0 (3 AUTHZ-01 failures fixed & retested) |
 | Blocked | 0 |
 | Not Applicable | 0 |
 
 ## Authorization Findings
 
-- **AUTHZ-01 (High):** Unpublished tour details exposed to anonymous/customer via
-  `GET /api/tours/:id` and sub-resources — no auth, no `isPublished` guard. (Task #4 open.)
-- **AUTHZ-02 (Low):** `getOrCreateProfile` defaults unknown users to `customer`, masking
-  provisioning errors (fails closed — no privilege gain).
-- **AUTHZ-03 (Info):** RBAC logic duplicated across backend + three frontend role maps (drift risk).
+- ~~**AUTHZ-01 (High):** Unpublished tour details exposed to anonymous/customer via
+  `GET /api/tours/:id` and sub-resources — no auth, no `isPublished` guard. (Task #4.)~~ ✅ **Fixed & retested.**
+- ~~**AUTHZ-02 (Low):** `getOrCreateProfile` defaults unknown users to `customer`, masking
+  provisioning errors (fails closed — no privilege gain).~~ ✅ **Fixed** (diagnostic logging added).
+- ~~**AUTHZ-03 (Info):** RBAC logic duplicated across backend + three frontend role maps (drift risk).~~ ✅ **Fixed** (`src/lib/roles.ts` shared source).
 
 ## Security Findings
 
@@ -91,24 +94,24 @@ the anonymous-read exposure captured in AUTHZ-01.
 | Customer↔supplier isolation (task #10) | Full | Pass |
 | Content-editor price/publish lock (task #12) | Full | Pass |
 | Anonymous forced browsing | Full | Pass |
-| Unpublished tour exposure (task #4) | Full | **Fail** |
+| Unpublished tour exposure (task #4) | Full | ~~Fail~~ → **Pass (fixed)** |
 | Catch-all page hiding (task #19) | API-level | Pass (verify SPA guards) |
 
 ## Remaining Risks
 
-- AUTHZ-01 unremediated = pre-launch inventory/pricing leakage.
-- Frontend/backend role-map drift over time.
 - Task #19 verified only at the API layer; SPA route guards should be confirmed in the client.
+- Row-level isolation between two accounts of the *same* supplier sub-role (e.g. two hotel
+  managers) could not be exercised with a single seeded account per role — recommend a
+  multi-account regression when additional fixtures exist.
 
 ## Recommendations
 
-1. **Fix AUTHZ-01:** guard `GET /api/tours/:id` and sub-resources to return `404` for
-   unpublished tours unless the caller is staff or the owner. (Priority: High.)
-2. Log/alert on auto-created `customer` profiles for staff-portal logins (AUTHZ-02).
-3. Derive frontend role maps from one shared capability source (AUTHZ-03).
-4. Add a client-side route-guard check for task #19 catch-all patterns.
+1. ~~Fix AUTHZ-01~~ ✅ Done — draft tours + sub-resources return `404` to non-staff.
+2. ~~Log/alert on auto-created profiles~~ ✅ Done (AUTHZ-02).
+3. ~~Derive frontend role maps from one shared source~~ ✅ Done — `src/lib/roles.ts` (AUTHZ-03).
+4. Add a client-side route-guard check for task #19 catch-all patterns (open).
 
 ## Final Authorization Assessment
 
 **GOOD** — robust, defense-in-depth RBAC with correct field- and row-level enforcement.
-Ship-ready once **AUTHZ-01** is remediated and retested.
+All authorization findings (AUTHZ-01/02/03) remediated and retested; feature is ship-ready.

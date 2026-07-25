@@ -232,6 +232,33 @@ async function requireRole(req: Request, res: Response, roles: string[]): Promis
   return true;
 }
 
+// Returns true when the request carries a valid session whose profile role is
+// internal/external staff (i.e. not a customer / not anonymous). Used to gate
+// otherwise-public tour detail reads so drafts stay staff-only (AUTHZ-01).
+async function isStaffViewer(req: Request): Promise<boolean> {
+  const userId = getUserId(req);
+  if (!userId) return false;
+  try {
+    const profile = await storage.getOrCreateProfile(userId);
+    return ALL_STAFF_ROLES.includes(profile.role as any);
+  } catch { return false; }
+}
+
+// Guard for public-facing tour sub-resources: an unpublished (draft) tour and
+// its nested resources (days, items, guides, hotels, departures) must never be
+// readable by anonymous or customer callers — only by authenticated staff.
+// Responds 404 (indistinguishable from "not found") and returns false when the
+// caller may not view the tour.
+async function ensureTourViewable(req: Request, res: Response, tourId: string): Promise<boolean> {
+  const tour = await storage.getTour(tourId);
+  if (!tour) { res.status(404).json({ message: "Tour not found" }); return false; }
+  if (!tour.isPublished && !(await isStaffViewer(req))) {
+    res.status(404).json({ message: "Tour not found" });
+    return false;
+  }
+  return true;
+}
+
 // Per-supplier data isolation. When the caller's role is one of `scopedRoles`
 // (a supplier role that must only see its own records), returns ownerId = their
 // userId; for full-access / other staff roles returns ownerId = null (see all).
@@ -452,6 +479,10 @@ export async function registerRoutes(
     try {
       const tour = await storage.getTour(req.params.id as string);
       if (!tour) return res.status(404).json({ message: "Tour not found" });
+      // Draft (unpublished) tours are staff-only (AUTHZ-01).
+      if (!tour.isPublished && !(await isStaffViewer(req))) {
+        return res.status(404).json({ message: "Tour not found" });
+      }
       // If ES/ID translations are missing for this tour's content, fill them in
       // the background so the next view renders translated (fire-and-forget,
       // deduped + failure-cooldown inside the helper).
@@ -620,12 +651,16 @@ export async function registerRoutes(
   }
 
   app.get("/api/tours/:id/days", async (req, res) => {
-    try { res.json(await storage.getTourDays(req.params.id as string)); }
+    try {
+      if (!await ensureTourViewable(req, res, req.params.id as string)) return;
+      res.json(await storage.getTourDays(req.params.id as string));
+    }
     catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.get("/api/tours/:id/day-items", async (req, res) => {
     try {
+      if (!await ensureTourViewable(req, res, req.params.id as string)) return;
       const items = await storage.getTourDayItemsByTourId(req.params.id as string);
       maybeAutoTranslateEntitiesInBackground("tourDayItem", items as any);
       res.json(items);
@@ -638,6 +673,7 @@ export async function registerRoutes(
   // (never pricing, contact info, or the wider guide catalog).
   app.get("/api/tours/:id/guides", async (req, res) => {
     try {
+      if (!await ensureTourViewable(req, res, req.params.id as string)) return;
       const items = await storage.getTourDayItemsByTourId(req.params.id as string);
       const guideIds = [...new Set(
         items.filter((i) => i.itemType === "guide" && i.guideId).map((i) => i.guideId as string)
@@ -666,6 +702,7 @@ export async function registerRoutes(
   // requirement) but never pricing internals or the wider hotel catalog.
   app.get("/api/tours/:id/hotels", async (req, res) => {
     try {
+      if (!await ensureTourViewable(req, res, req.params.id as string)) return;
       const items = await storage.getTourDayItemsByTourId(req.params.id as string);
       const hotelIds = [...new Set(
         items.filter((i) => i.itemType === "hotel" && i.hotelId).map((i) => i.hotelId as string)
@@ -735,7 +772,10 @@ export async function registerRoutes(
   });
 
   app.get("/api/tours/:id/departures", async (req, res) => {
-    try { res.json(await storage.getDeparturesByTour(req.params.id as string)); }
+    try {
+      if (!await ensureTourViewable(req, res, req.params.id as string)) return;
+      res.json(await storage.getDeparturesByTour(req.params.id as string));
+    }
     catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 

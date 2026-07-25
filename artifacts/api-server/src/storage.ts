@@ -450,6 +450,11 @@ export class DatabaseStorage implements IStorage {
     const allProfiles = await db.select().from(userProfiles);
     const hasRealAdmin = allProfiles.some(p => p.role === "admin" && !p.userId.startsWith("test-") && !p.userId.endsWith("-e2e-002"));
     const role = hasRealAdmin ? "customer" : "admin";
+    // AUTHZ-02: auto-creating a profile is a least-privilege fallback, but it can
+    // also mask a provisioning gap (e.g. a staff member whose profile failed to
+    // seed silently becomes a customer). Surface it so it is diagnosable rather
+    // than failing as a generic 403 with no trail.
+    console.warn(`[authz] auto-created ${role} profile for user ${userId} (no existing profile found)`);
     const inserted = await db.insert(userProfiles).values({ userId, role }).onConflictDoNothing().returning();
     if (inserted.length > 0) return inserted[0];
     // Another concurrent request already created the profile; fetch it

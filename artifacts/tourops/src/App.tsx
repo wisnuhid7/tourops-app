@@ -53,18 +53,9 @@ import AccountingDashboard from "@/pages/ops/accounting";
 import SupportDashboard from "@/pages/ops/support";
 import { Skeleton } from "@/components/ui/skeleton";
 
-function opsRoleHome(role: string | undefined): string {
-  if (role === "country_manager" || role === "operations_manager") return "/ops";
-  if (role === "transport_manager") return "/ops/transport";
-  if (role === "tour_builder") return "/ops/tour-builder";
-  if (role === "content_editor") return "/ops/content-editor";
-  if (role === "flight_agent") return "/ops/flight-agent";
-  if (role === "tour_leader") return "/ops/tour-leader";
-  if (role === "city_manager") return "/ops/city-manager";
-  if (role === "accounting") return "/ops/accounting";
-  if (role === "support_agent") return "/ops/support";
-  return "/ops/role";
-}
+import { getRoleHome, SUPPLIER_ROLES } from "@/lib/roles";
+
+const opsRoleHome = getRoleHome;
 
 function AuthenticatedLayout() {
   const { data: profile, isLoading: profileLoading, isError: profileError } = useQuery<UserProfile | null>({
@@ -105,8 +96,7 @@ function AuthenticatedLayout() {
     if (isCountryManager && location === "/admin/master-data") {
       // Allowed — country_manager can access master data
     } else {
-      const supplierRoles = ["airline_supplier", "hotel_manager", "guide_manager", "sights_manager", "supplier"];
-      if (supplierRoles.includes(role || "")) {
+      if (SUPPLIER_ROLES.includes(role || "")) {
         return <Redirect to="/supplier" />;
       }
       return <Redirect to={opsRoleHome(role)} />;

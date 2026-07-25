@@ -21,18 +21,20 @@
 - [!] `getOrCreateProfile` auto-creates a "customer" profile for any user without one — can mask missing staff setup
 
 ## Authorization (RBAC)
-- [x] 19-role `user_role` enum with granular staff/supplier/customer roles
-- [x] `requireRole` gating across API routes (ADMIN_ROLES, STAFF_ROLES, catalog role allowlists)
-- [x] Role-aware sidebar + role-based dashboard routing (3 frontend role maps)
-- [x] Field-level PATCH allowlists (tours: content_editor vs tour_builder; departures)
-- [x] Supplier row-scoping (`own_only` / createdBy isolation for supplier catalogs)
-- [x] Country-manager row scoping (country_id ownership incl. GET filtering)
-- [~] QA authorization test plan (`.local/tasks/qa-authorization-test-plan.md`, 14 roles) — plan written, not fully executed
-- [!] Some `/api/master/*/import` routes use `isAuthenticated` only, without explicit `requireRole`
-- [!] Proposed task #4: hide unpublished tour details from anonymous visitors
-- [!] Proposed task #10: keep supplier catalog data out of customer accounts
-- [!] Proposed task #12: confirm content editors can't change tour prices or publish status
-- [!] Proposed task #19: catch specific pages hidden behind catch-all URL patterns
+- [x] ~~19-role `user_role` enum with granular staff/supplier/customer roles~~ ✅ tested
+- [x] ~~`requireRole` gating across API routes (ADMIN_ROLES, STAFF_ROLES, catalog role allowlists)~~ ✅ tested
+- [x] ~~Role-aware sidebar + role-based dashboard routing~~ ✅ tested — consolidated into single `src/lib/roles.ts` source (AUTHZ-03)
+- [x] ~~Field-level PATCH allowlists (tours: content_editor vs tour_builder; departures)~~ ✅ tested
+- [x] ~~Supplier row-scoping (`own_only` / createdBy isolation for supplier catalogs)~~ ✅ tested
+- [x] ~~Country-manager row scoping (country_id ownership incl. GET filtering)~~ ✅ tested
+- [x] ~~QA authorization test plan (14 roles) — full assessment executed; see `docs/qa/manu/authorization-*.md`~~ ✅ tested
+- [x] ~~All `/api/master/*/import` routes now enforce `requireRole`~~ ✅ tested (regression RG-01)
+- [x] ~~Draft-tour exposure guard: unpublished tour details/sub-resources return 404 to non-staff (AUTHZ-01)~~ ✅ tested
+- [x] ~~Profile auto-creation diagnostic logging (AUTHZ-02)~~ ✅ tested
+- [x] ~~Task #4: hide unpublished tour details from anonymous visitors~~ ✅ fixed & retested (AUTHZ-01)
+- [x] ~~Task #10: keep supplier catalog data out of customer accounts~~ ✅ tested — 403
+- [x] ~~Task #12: content editors can't change tour prices or publish status~~ ✅ tested — fields blocked
+- [~] Task #19: catch specific pages hidden behind catch-all URL patterns — no API-level leak found; confirm SPA route guards client-side
 
 ## Tours & Itinerary
 - [x] Tour CRUD (tours, tour_days, tour_day_items) with publish status
@@ -91,7 +93,7 @@
 ## Master Data
 - [x] Countries, cities, airports, sights, hotels management (`admin/master-data.tsx`)
 - [x] Master record import endpoints (cities, etc.)
-  - [!] Import routes lack explicit role checks (see RBAC section)
+  - [x] ~~Import routes now enforce explicit `requireRole` checks~~ ✅ tested (RG-01)
 - [~] Data scrapers (country/city/sight/hotel ingestion) — simulated logic, no real external fetches
 - [~] Price intelligence tables (`hotel_price_snapshots`, `flight_price_snapshots`) — schema exists, fed by simulated services
 
@@ -145,8 +147,8 @@
 - [!] Booking/workflow subroutes default to ALL_STAFF — verify parity whenever a role is restricted at the wide-read level
 
 ## Proposed Project Tasks (backlog)
-- [ ] #4 Hide unpublished tour details from anonymous visitors
-- [ ] #10 Keep supplier catalog data out of customer accounts
-- [ ] #12 Confirm content editors can't change tour prices or publish status
-- [ ] #19 Catch specific pages hidden behind catch-all URL patterns
+- [x] ~~#4 Hide unpublished tour details from anonymous visitors~~ ✅ fixed & retested (AUTHZ-01)
+- [x] ~~#10 Keep supplier catalog data out of customer accounts~~ ✅ verified (403)
+- [x] ~~#12 Confirm content editors can't change tour prices or publish status~~ ✅ verified
+- [~] #19 Catch specific pages hidden behind catch-all URL patterns — no API-level leak; confirm SPA guards
 - [ ] #21 Upgrade from gpt-4o to gpt-5

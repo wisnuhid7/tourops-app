@@ -89,12 +89,14 @@ restrictions are cosmetic; all real enforcement is server-side.
 
 Session → profile lookup → role allowlist → (field allowlist | row scope) → data access.
 
-## 11. Risks
+## 11. Risks (all addressed 2026-07-25)
 
-- **AUTHZ-01:** Tour detail endpoints are fully anonymous with no `isPublished` check, so
-  unpublished/draft tours are readable by ID (task #4).
-- Role logic is duplicated across backend allowlists and three frontend role maps — drift risk.
-- `getOrCreateProfile` defaults unknown users to `customer`, which can mask missing staff setup.
+- ~~**AUTHZ-01:** Tour detail endpoints are fully anonymous with no `isPublished` check, so
+  unpublished/draft tours are readable by ID (task #4).~~ ✅ Fixed — `ensureTourViewable()` guard.
+- ~~Role logic is duplicated across backend allowlists and three frontend role maps — drift risk.~~
+  ✅ Fixed — frontend now consumes a single `src/lib/roles.ts` source (AUTHZ-03).
+- ~~`getOrCreateProfile` defaults unknown users to `customer`, which can mask missing staff setup.~~
+  ✅ Fixed — auto-creation now logs a diagnostic warning (AUTHZ-02).
 
 ## 12. Assumptions
 
@@ -111,8 +113,9 @@ Session → profile lookup → role allowlist → (field allowlist | row scope) 
 | Row-level (supplier, hotel manager, country manager) | Full |
 | Master-data import `requireRole` (regression) | Full — enforced |
 | Anonymous / forced browsing | Full |
-| Unpublished tour exposure (task #4) | Full — **defect found** |
+| Unpublished tour exposure (task #4) | Full — ~~defect found~~ ✅ fixed & retested |
 | Customer↔supplier isolation (task #10) | Full — pass |
 | Content editor price/publish lock (task #12) | Full — pass |
 
-Overall: **GOOD RBAC with one High-severity anonymous-exposure defect (AUTHZ-01).**
+Overall: **GOOD RBAC. The one High-severity anonymous-exposure defect (AUTHZ-01) and two
+lower-severity items (AUTHZ-02/03) were remediated and retested on 2026-07-25.**

@@ -42,21 +42,6 @@ function getRoleIcon(role: string | undefined) {
   }
 }
 
-function getRoleLabel(role: string | undefined) {
-  const labels: Record<string, string> = {
-    super_admin: "Super Admin",
-    admin: "HQ Admin",
-    customer: "Customer",
-    airline_supplier: "Airline Supplier",
-    country_manager: "Country Manager",
-    hotel_manager: "Hotel Manager",
-    transport_manager: "Transport Manager",
-    guide_manager: "Guide Manager",
-    sights_manager: "Sights Manager",
-  };
-  return labels[role || "customer"] || "Customer";
-}
-
 export function AppSidebar() {
   const { user, logout, isLoggingOut } = useAuth();
   const { data: profile } = useQuery<UserProfile>({

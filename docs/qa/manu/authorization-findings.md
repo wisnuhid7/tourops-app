@@ -3,12 +3,13 @@
 **Date:** 2026-07-25
 **Assessment:** Functional + authorization + row/field-level + security test of RBAC.
 
-Summary: **1 High, 1 Low, 1 Info.** No Critical. Core RBAC (vertical/horizontal escalation,
-IDOR, field allowlists, row scoping, import gating, customer isolation) all passed.
+Summary: **1 High, 1 Low, 1 Info — all now remediated (2026-07-25).** No Critical. Core RBAC
+(vertical/horizontal escalation, IDOR, field allowlists, row scoping, import gating, customer
+isolation) all passed.
 
 ---
 
-## AUTHZ-01 — Unpublished tour details exposed to anonymous & customer users
+## ~~AUTHZ-01 — Unpublished tour details exposed to anonymous & customer users~~ ✅ Fixed
 
 - **Severity:** High
 - **Priority:** High
@@ -34,11 +35,14 @@ IDOR, field allowlists, row scoping, import gating, customer isolation) all pass
 - **Recommendation:** In `GET /api/tours/:id` (and its sub-resources), return `404` when the
   tour is not published **unless** the caller is authenticated staff (`ALL_STAFF_ROLES`) or the
   tour owner. Apply the same guard to `/days`, `/day-items`, `/departures`, `/guides`, `/hotels`.
-- **Retest status:** Open
+- **Retest status:** ✅ Fixed & Retested (2026-07-25) — added `isStaffViewer()` / `ensureTourViewable()`
+  guards. Draft tours now return `404` to anonymous and customer callers on `/api/tours/:id`,
+  `/days`, `/day-items`, `/departures`, `/guides`, `/hotels`; staff still get `200`; published
+  tours remain publicly readable (regression verified).
 
 ---
 
-## AUTHZ-02 — `getOrCreateProfile` silently assigns `customer` to unknown users
+## ~~AUTHZ-02 — `getOrCreateProfile` silently assigns `customer` to unknown users~~ ✅ Fixed
 
 - **Severity:** Low
 - **Priority:** Low
@@ -56,11 +60,13 @@ IDOR, field allowlists, row scoping, import gating, customer isolation) all pass
 - **Root cause:** Lazy default in `getOrCreateProfile`.
 - **Recommendation:** Keep the least-privilege default but log/alert when a profile is auto-created
   for a user who authenticated through a staff/admin portal.
-- **Retest status:** Open (operational)
+- **Retest status:** ✅ Fixed (2026-07-25) — `getOrCreateProfile` now emits a
+  `[authz] auto-created <role> profile for user <id>` warning whenever it falls back to creating a
+  profile, making silent provisioning gaps diagnosable. Least-privilege default retained.
 
 ---
 
-## AUTHZ-03 — RBAC logic duplicated across backend and three frontend role maps
+## ~~AUTHZ-03 — RBAC logic duplicated across backend and three frontend role maps~~ ✅ Fixed
 
 - **Severity:** Informational
 - **Priority:** Low
@@ -72,7 +78,10 @@ IDOR, field allowlists, row scoping, import gating, customer isolation) all pass
   bugs are likely over time.
 - **Security impact:** None (backend enforces); consistency risk.
 - **Recommendation:** Derive the frontend maps from a single shared role-capability source.
-- **Retest status:** Open (tech debt)
+- **Retest status:** ✅ Fixed (2026-07-25) — introduced `src/lib/roles.ts` as the single source of
+  truth (`ROLE_LABELS`, `ROLE_HOME`, `SUPPLIER_ROLES`, `getRoleLabel`, `getRoleHome`). `App.tsx`
+  (`opsRoleHome`, supplier redirect) and `app-sidebar.tsx` now consume it, removing the duplicated
+  per-role home-route and label maps. Typecheck clean.
 
 ---
 
@@ -97,7 +106,7 @@ IDOR, field allowlists, row scoping, import gating, customer isolation) all pass
 
 | Task | Concern | Result |
 |------|---------|--------|
-| #4 | Hide unpublished tour details from anonymous visitors | ❌ **FAIL — AUTHZ-01** |
+| #4 | Hide unpublished tour details from anonymous visitors | ✅ **Fixed & retested (AUTHZ-01)** |
 | #10 | Keep supplier catalog data out of customer accounts | ✅ Pass |
 | #12 | Content editors can't change tour prices or publish status | ✅ Pass |
 | #19 | Specific pages hidden behind catch-all URL patterns | ✅ No API-level catch-all leak found (frontend routing only; verify SPA route guards separately) |

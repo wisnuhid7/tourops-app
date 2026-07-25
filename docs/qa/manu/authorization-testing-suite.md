@@ -93,15 +93,15 @@ Status legend: Pass / Fail / Blocked / N/A.
 | RG-01 | `/api/master/*/import` enforce requireRole | 403 for low roles | Pass |
 | RG-02 | Supplier catalog not exposed to customer (task #10) | 403 | Pass |
 | RG-03 | Content editor cannot change price/publish (task #12) | blocked | Pass |
-| RG-04 | Anonymous unpublished tour access (task #4) | 404/403 | **Fail (AUTHZ-01)** |
+| RG-04 | Anonymous unpublished tour access (task #4) | 404/403 | ~~Fail~~ → **Pass (AUTHZ-01 fixed)** |
 | RG-05 | Catch-all URL pages hidden (task #19) | no API leak | Pass |
 
 ## 8. Security / Edge Cases
 
 | Test ID | Objective | Expected | Status |
 |---------|-----------|----------|--------|
-| SEC-01 | Anonymous unpublished tour detail by ID | denied | **Fail (AUTHZ-01)** |
-| SEC-02 | Anonymous unpublished tour departures | denied | **Fail (AUTHZ-01)** |
+| SEC-01 | Anonymous unpublished tour detail by ID | denied | ~~Fail~~ → **Pass (AUTHZ-01 fixed)** |
+| SEC-02 | Anonymous unpublished tour departures | denied | ~~Fail~~ → **Pass (AUTHZ-01 fixed)** |
 | SEC-03 | Frontend-only restriction bypass (direct API) | backend enforces | Pass |
 | SEC-04 | Customer access to supplier catalog | 403 | Pass |
 | SEC-05 | Parameter tampering (role in body) | ignored — role from profile | Pass |

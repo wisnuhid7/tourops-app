@@ -1,0 +1,211 @@
+QA Feature Testing Prompt – Authentication & Accounts
+
+You are a Senior QA Engineer and Security Test Engineer.
+
+Your task is to perform a complete functional, integration, security, and edge-case assessment for the Authentication & Accounts feature.
+
+Feature Scope
+
+Test every component related to:
+
+- Session-based login/logout (express-session + connect-pg-simple, PostgreSQL sessions)
+- Customer self-registration
+- Portal-aware login (customer/admin/staff sharing one authentication backend)
+- User profile management ("/api/user-profile")
+- Role management stored in "user_profiles"
+- Iframe-compatible cookies (SameSite=None, Secure, Partitioned)
+- Origin/Host CSRF protection
+- One-time secret-guarded demo/production bootstrap endpoint
+- Password reset
+- Forgot password
+- Two-factor authentication (2FA)
+- Email verification
+- "getOrCreateProfile" automatic customer profile creation
+- Every related API endpoint, middleware, validation, permission, database interaction, session handling, cookies, redirects, and error handling.
+
+---
+
+Testing Requirements
+
+Execute every applicable test including:
+
+Functional Testing
+
+- Happy path
+- Invalid input
+- Empty values
+- Boundary values
+- Duplicate requests
+- Expired session
+- Concurrent sessions
+- Multiple browsers/devices
+- Logout behavior
+- Redirect behavior
+- Permission checks
+- State persistence
+- User lifecycle
+
+Security Testing
+
+- Authentication bypass
+- Authorization bypass
+- Privilege escalation
+- Session fixation
+- Session hijacking
+- Cookie security
+- CSRF
+- XSS
+- SQL Injection
+- NoSQL Injection (if applicable)
+- IDOR
+- Rate limiting
+- Brute-force protection
+- Enumeration attacks
+- Replay attacks
+- Token reuse
+- Expired token handling
+- Email verification bypass
+- Password reset abuse
+- 2FA bypass
+- Bootstrap endpoint abuse
+
+API Testing
+
+Test every endpoint for:
+
+- Success responses
+- Invalid payloads
+- Missing fields
+- Invalid roles
+- Missing authentication
+- Invalid permissions
+- Malformed requests
+- Large payloads
+- Unexpected HTTP methods
+- Error handling
+- Response consistency
+
+Edge Cases
+
+Pay special attention to:
+
+- Missing user profile
+- Auto-created customer profile via "getOrCreateProfile"
+- Incorrect role assignment
+- Staff/Admin without profile
+- Simultaneous requests
+- Deleted users
+- Disabled accounts
+- Expired sessions
+- Cross-portal authentication
+- Cookie compatibility inside iframes
+
+---
+
+Documentation
+
+Save all generated documents under:
+
+docs/qa/manu/
+
+Generate or update the following files:
+
+1. Feature Summary
+
+docs/qa/manu/authentication-accounts-summary.md
+
+Contains:
+
+- Feature overview
+- Architecture
+- Components
+- User flows
+- Dependencies
+- Risks
+- Assumptions
+- Test coverage summary
+
+---
+
+2. Findings
+
+docs/qa/manu/authentication-accounts-findings.md
+
+For every issue include:
+
+- ID
+- Title
+- Severity
+- Priority
+- Component
+- Description
+- Steps to reproduce
+- Expected result
+- Actual result
+- Root cause
+- Recommendation
+- Retest status
+
+---
+
+3. Testing Suite
+
+docs/qa/manu/authentication-accounts-testing-suite.md
+
+Create a comprehensive checklist including:
+
+- Functional test cases
+- Security test cases
+- API test cases
+- Validation test cases
+- Permission tests
+- Session tests
+- Cookie tests
+- Database consistency tests
+- Integration tests
+- Regression tests
+
+Each test case should contain:
+
+- Test ID
+- Category
+- Objective
+- Preconditions
+- Test Steps
+- Expected Result
+- Status
+
+---
+
+4. Testing Report
+
+docs/qa/manu/authentication-accounts-testing-report.md
+
+Include:
+
+- Executive Summary
+- Scope
+- Environment
+- Features Tested
+- Total Test Cases
+- Passed
+- Failed
+- Blocked
+- Not Applicable
+- Security Findings
+- Performance Observations
+- Known Limitations
+- Remaining Risks
+- Final Assessment
+- Recommendations
+
+---
+
+Execution Rules
+
+- Execute every applicable scenario.
+- Do not skip failed tests.
+- Continue testing until the entire feature has been covered.
+- Update the report files continuously as testing progresses.
+- If additional issues are discovered outside the predefined scope, document and test them as well.
+- Do not finish until every component of the Authentication & Accounts feature has been tested and all four documentation files have been generated under "docs/qa/manu/".

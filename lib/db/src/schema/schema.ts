@@ -80,7 +80,33 @@ export const tours = pgTable("tours", {
   publishedIdx: index("tours_published_idx").on(table.isPublished),
 }));
 
-export const insertTourSchema = createInsertSchema(tours).omit({ id: true, createdAt: true, updatedAt: true });
+/** Numeric columns serialize as strings; guard against negative price values (TOUR-01). */
+const PRICE_STRING_RE = /^\d+(\.\d+)?$/; // strict non-negative decimal (rejects "12abc", "0x10", "-1")
+const nonNegativePriceString = (s: z.ZodString) =>
+  s.refine((v) => PRICE_STRING_RE.test(v), {
+    message: "Price must be a non-negative number",
+  });
+
+export const insertTourSchema = createInsertSchema(tours, {
+  basePrice: (s) => nonNegativePriceString(s),
+  childPrice: (s) => nonNegativePriceString(s),
+  markupAmount: (s) => nonNegativePriceString(s),
+  totalPrice: (s) => nonNegativePriceString(s),
+  singleSupplement: (s) => nonNegativePriceString(s),
+})
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .superRefine((t, ctx) => {
+    // TOUR-02: child price must never exceed adult (base) price at the data layer.
+    const base = t.basePrice != null ? parseFloat(t.basePrice) : null;
+    const child = t.childPrice != null ? parseFloat(t.childPrice) : null;
+    if (base != null && child != null && Number.isFinite(base) && Number.isFinite(child) && child > base) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["childPrice"],
+        message: "Child price cannot exceed the adult base price",
+      });
+    }
+  });
 export type InsertTour = z.infer<typeof insertTourSchema>;
 export type Tour = typeof tours.$inferSelect;
 

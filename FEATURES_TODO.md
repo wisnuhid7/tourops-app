@@ -37,21 +37,21 @@
 - [x] ~~Task #19: catch specific pages hidden behind catch-all URL patterns~~ ✅ tested — no API-level leak; SPA guards confirmed & hardened (customers redirected out of `/admin`, `/ops`, `/supplier` shells)
 
 ## Tours & Itinerary
-- [x] Tour CRUD (tours, tour_days, tour_day_items) with publish status — tested, but TOUR-01/TOUR-04 open (negative prices accepted; duplicate slug → 500)
+- [x] ~~Tour CRUD (tours, tour_days, tour_day_items) with publish status~~ ✅ tested — TOUR-01/TOUR-04 fixed & retested 2026-07-27 (negative prices → 400; duplicate slug → 409)
 - [x] AI tour/itinerary generator (`admin/tour-generator.tsx`, gpt-5 backend)
   - [~] Hardcoded fallback itinerary generator when OpenAI unavailable
 - [x] ~~Tour detail page (public + customer views) with itinerary, hotels, guides~~ ✅ tested (`docs/qa/manu/tours-*.md`)
 - [x] ~~"Starting From" pricing (lowest open-departure price, base-price fallback)~~ ✅ tested — lowest open departure verified, closed/sold-out ignored
-- [x] Child pricing (proportional to departure adult price, capped at adult price) — tested, but TOUR-02 open (data layer allows child > adult)
+- [x] ~~Child pricing (proportional to departure adult price, capped at adult price)~~ ✅ tested — TOUR-02 fixed & retested 2026-07-27 (child > adult rejected server-side on POST and PATCH)
 - [x] ~~Tour brochure page (`customer/tour-brochure.tsx`)~~ ✅ tested — incl. brochure PDF spot-check
 - [x] ~~Browse tours with search, category, duration, price slider, date-range filters~~ ✅ tested — search/filters/sort/pagination verified
 
 ## Departures
-- [x] Departure CRUD (`/admin/departures`): create, edit (dates/capacity/price/status/public-join), delete
-- [x] Delete protection — 409 when bookings are linked to a departure
+- [x] ~~Departure CRUD (`/admin/departures`): create, edit (dates/capacity/price/status/public-join), delete~~ ✅ tested 2026-07-27 — create/edit all fields/delete verified; negative price rejected
+- [x] ~~Delete protection — 409 when bookings are linked to a departure~~ ✅ tested 2026-07-27 — 409 with linked booking, delete succeeds after unlink
 - [x] ~~Server-side PATCH field allowlist (tourId / capacityBooked not client-mutable)~~ ✅ tested (authorization QA, field-level allowlists)
 - [x] ~~Departure statuses (open / closed / sold_out / cancelled) + public-join toggle~~ ✅ tested — status handling verified via "Starting From" open-departure tests
-- [x] Promo departure pricing (departure price may be below tour base price)
+- [x] ~~Promo departure pricing (departure price may be below tour base price)~~ ✅ tested 2026-07-27 — departure at 800 vs base 1000/1200 accepted and served publicly
 
 ## Bookings & Group Travel
 - [x] Booking engine: private and group tours

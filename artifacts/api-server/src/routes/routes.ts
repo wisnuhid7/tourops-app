@@ -498,6 +498,42 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  /** PG unique-constraint violation (code 23505), possibly wrapped by the driver. */
+  function isUniqueViolation(e: any): boolean {
+    return e?.code === "23505" || e?.cause?.code === "23505";
+  }
+  /** True only for the tours.slug unique constraint (don't mislabel other 23505s). */
+  function isSlugUniqueViolation(e: any): boolean {
+    if (!isUniqueViolation(e)) return false;
+    const constraint = e?.constraint ?? e?.cause?.constraint ?? "";
+    const detail = e?.detail ?? e?.cause?.detail ?? "";
+    return /slug/i.test(constraint) || /slug/i.test(detail);
+  }
+
+  /**
+   * TOUR-01/02 guards for PATCH (which bypasses the insert schema): price
+   * fields must be non-negative and childPrice must not exceed basePrice
+   * (checked against the merged state of the existing tour + patch).
+   */
+  const TOUR_PRICE_FIELDS = ["basePrice", "childPrice", "markupAmount", "totalPrice", "singleSupplement"] as const;
+  const PRICE_STRING_RE = /^\d+(\.\d+)?$/; // strict non-negative decimal (rejects "12abc", "0x10", "-1")
+  function validateTourPricePatch(body: Record<string, any>, existing: { basePrice: string | null; childPrice: string | null }): string | null {
+    for (const f of TOUR_PRICE_FIELDS) {
+      if (body[f] === undefined || body[f] === null) continue;
+      if (!PRICE_STRING_RE.test(String(body[f]))) return `${f} must be a non-negative number`;
+    }
+    // Only enforce the cross-field rule when the patch actually touches a
+    // price involved in it — content-only edits must not be blocked by
+    // legacy rows that predate the child<=base guard.
+    if (body.basePrice === undefined && body.childPrice === undefined) return null;
+    const base = parseFloat(body.basePrice ?? existing.basePrice ?? "");
+    const child = parseFloat(body.childPrice ?? existing.childPrice ?? "");
+    if (Number.isFinite(base) && Number.isFinite(child) && child > base) {
+      return "Child price cannot exceed the adult base price";
+    }
+    return null;
+  }
+
   app.post("/api/tours", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, TOUR_BUILDER_ROLES)) return;
@@ -508,7 +544,12 @@ export async function registerRoutes(
       const parsed = insertTourSchema.safeParse(payload);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTour(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) {
+      // TOUR-04: translate unique-slug violations into a clean 409.
+      if (isSlugUniqueViolation(e)) return res.status(409).json({ message: "A tour with this slug already exists" });
+        if (isUniqueViolation(e)) return res.status(409).json({ message: "Duplicate value violates a unique constraint" });
+      res.status(500).json({ message: e.message });
+    }
   });
 
     app.patch("/api/tours/:id", isAuthenticated, async (req, res) => {
@@ -524,8 +565,16 @@ export async function registerRoutes(
         for (const key of Object.keys(req.body || {})) {
           if (allowedFields.includes(key)) body[key] = req.body[key];
         }
+        const existing = await storage.getTour(req.params.id as string);
+        if (!existing) return res.status(404).json({ message: "Tour not found" });
+        const priceError = validateTourPricePatch(body, existing);
+        if (priceError) return res.status(400).json({ message: priceError });
         res.json(await storage.updateTour(req.params.id as string, body, getUserId(req), await getUserName(req)));
-      } catch (e: any) { res.status(500).json({ message: e.message }); }
+      } catch (e: any) {
+        if (isSlugUniqueViolation(e)) return res.status(409).json({ message: "A tour with this slug already exists" });
+        if (isUniqueViolation(e)) return res.status(409).json({ message: "Duplicate value violates a unique constraint" });
+        res.status(500).json({ message: e.message });
+      }
     });
 
     app.put("/api/tours/:id/full", isAuthenticated, async (req, res) => {
@@ -569,7 +618,11 @@ export async function registerRoutes(
 
         const result = await storage.upsertTourFull(req.params.id as string, parsedTour.data, parsedDays, getUserId(req), await getUserName(req));
         res.json(result);
-      } catch (e: any) { res.status(500).json({ message: e.message }); }
+      } catch (e: any) {
+        if (isSlugUniqueViolation(e)) return res.status(409).json({ message: "A tour with this slug already exists" });
+        if (isUniqueViolation(e)) return res.status(409).json({ message: "Duplicate value violates a unique constraint" });
+        res.status(500).json({ message: e.message });
+      }
     });
 
   app.delete("/api/tours/:id", isAuthenticated, async (req, res) => {

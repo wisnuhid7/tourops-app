@@ -84,16 +84,18 @@ describe("Functional API Tests", () => {
     await registerRoutes(server, app);
   });
 
-  it("GET /api/hotels/search should return 400 if params are missing", async () => {
+  // /api/hotels/search is auth-gated (supplier catalog hardening): anonymous
+  // requests are rejected before parameter validation runs.
+  it("GET /api/hotels/search should return 401 when unauthenticated (params missing)", async () => {
     const response = await request(app).get("/api/hotels/search");
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(401);
   });
 
-  it("GET /api/hotels/search should return hotels if params are valid", async () => {
+  it("GET /api/hotels/search should return 401 when unauthenticated (params valid)", async () => {
     const response = await request(app).get(
       "/api/hotels/search?city=Palestine&countryCode=PS",
     );
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(401);
   });
 
   it("POST /api/admin/scraper/block should require authentication", async () => {

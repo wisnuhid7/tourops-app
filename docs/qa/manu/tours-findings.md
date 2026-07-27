@@ -26,7 +26,7 @@ data-integrity validation gaps on tour pricing and AI input handling.
 - **Root cause:** `insertTourSchema = createInsertSchema(tours).omit(...)` has no `.refine`/`min` guards.
 - **Recommendation:** Add non-negative constraints to the tour insert schema for all price fields
   (mirroring `insertTourDepartureSchema`).
-- **Retest status:** Open
+- **Retest status:** Fixed & retested 2026-07-27 — insert schema rejects negative prices (400); PATCH route validates merged price fields
 
 ---
 
@@ -47,7 +47,7 @@ data-integrity validation gaps on tour pricing and AI input handling.
   pages that don't.
 - **Root cause:** Cross-field validation exists only in the frontend, not in the schema/route.
 - **Recommendation:** Enforce `childPrice ≤ basePrice` server-side (schema `.refine` or route check).
-- **Retest status:** Open
+- **Retest status:** Fixed & retested 2026-07-27 — childPrice > basePrice rejected (400) at insert schema and PATCH (merged-state check)
 
 ---
 
@@ -86,7 +86,7 @@ data-integrity validation gaps on tour pricing and AI input handling.
 - **Business impact:** Confusing UX; masks a normal validation case as a server error.
 - **Root cause:** Unique-violation not caught/translated in the handler.
 - **Recommendation:** Pre-check slug uniqueness or catch the PG unique error and return `409`.
-- **Retest status:** Open
+- **Retest status:** Fixed & retested 2026-07-27 — unique-slug violations return 409 on POST, PATCH, and PUT /full
 
 ---
 

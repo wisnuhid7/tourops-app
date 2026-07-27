@@ -27,6 +27,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import request from "supertest";
 import express, { type Express } from "express";
 import { createServer } from "http";
+import { z } from "zod/v4";
 
 // ---------------------------------------------------------------------------
 // Shared, hoisted mutable state used by the module mocks below.
@@ -71,6 +72,13 @@ vi.mock("../../replit_integrations/auth/storage", () => ({
     getUserByUsername: authSpies.getUserByUsername,
     upsertUser: authSpies.upsertUser,
     getUser: authSpies.getUser,
+    // Explicit provisioning used by POST /api/admin/users (fail-closed
+    // getOrCreateProfile no longer creates profiles).
+    ensureProfile: async (userId: string) => {
+      const p = { id: `p-${userId}`, userId, role: "customer" };
+      mockState.profilesByUserId[userId] = p;
+      return p;
+    },
   },
 }));
 
@@ -106,6 +114,9 @@ vi.mock("../../replit_integrations/auth", () => ({
     if (!req.session?.userId) return res.status(401).json({ message: "Unauthorized" });
     next();
   },
+  // Real export used by the admin password-reset route (unified policy).
+  passwordSchema: z.string().min(8, "Password must be at least 8 characters"),
+  MIN_PASSWORD_LENGTH: 8,
   registerAuthRoutes: () => {},
 }));
 
@@ -199,7 +210,7 @@ describe("admin-only audit logs & user management reject non-admin staff", () =>
   // ---- POST /api/admin/users ---------------------------------------------
   const newUserPayload = {
     username: "newuser",
-    password: "secret",
+    password: "secret123", // must satisfy the unified >= 8 char policy
     firstName: "New",
     role: "content_editor",
   };

@@ -113,7 +113,7 @@ export class AIService {
       }
 
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-5",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
@@ -146,7 +146,7 @@ export class AIService {
 
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-5",
         messages: [{ role: "user", content: prompt }]
       });
 
@@ -185,7 +185,7 @@ export class AIService {
 
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-5",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" }
       });
@@ -225,7 +225,7 @@ export class AIService {
 
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-5",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" }
       });
@@ -281,7 +281,7 @@ export class AIService {
 
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-5",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
       });
@@ -335,7 +335,7 @@ export class AIService {
 
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-5",
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
       });

@@ -1,0 +1,125 @@
+# Update FEATURES_TODO.md After QA Completion
+
+Your task is to update **`FEATURES_TODO.md`** so it accurately reflects the implementation and testing status of every feature.
+
+## Rules
+
+For every feature listed in `FEATURES_TODO.md`:
+
+1. Verify whether the feature has been implemented in the codebase.
+2. Verify whether the feature has been tested by reviewing the QA documentation under:
+
+```text
+docs/qa/manu/
+```
+
+including (when available):
+
+* `[feature]-summary.md`
+* `[feature]-findings.md`
+* `[feature]-testing-suite.md`
+* `[feature]-testing-report.md`
+
+3. Update the checklist according to the following rules.
+
+### Implemented
+
+If the feature has been implemented:
+
+* Change the checkbox to completed.
+
+Example:
+
+```md
+- [x] User authentication
+```
+
+---
+
+### Tested
+
+If the feature has been fully tested and a QA report exists:
+
+* Keep the completed checkbox.
+* Apply **Markdown Strikethrough** to the entire feature text.
+
+Example:
+
+```md
+- [x] ~~User authentication~~
+```
+
+This indicates:
+
+* ✅ Implemented
+* ✅ Fully tested
+
+---
+
+### Not Implemented
+
+Leave unchanged.
+
+Example:
+
+```md
+- [ ] User authentication
+```
+
+---
+
+### Implemented but Not Yet Tested
+
+Example:
+
+```md
+- [x] User authentication
+```
+
+No strikethrough should be applied.
+
+---
+
+## Validation Rules
+
+Before striking through any feature, confirm that:
+
+* The feature exists in the codebase.
+* The implementation is complete.
+* QA documentation exists in `docs/qa/manu/`.
+* Testing has been completed.
+* No open blocking issues remain that would prevent the feature from being considered tested.
+
+Do **not** strike through features that only have a testing plan or partially completed testing.
+
+---
+
+## Preserve Formatting
+
+* Preserve headings.
+* Preserve grouping.
+* Preserve ordering.
+* Preserve comments.
+* Preserve notes.
+* Preserve indentation.
+* Preserve Markdown formatting.
+* Do not rename features.
+* Do not reorder features.
+* Do not remove unchecked items.
+
+Only update:
+
+* Checkbox status (`[ ]` → `[x]`)
+* Markdown strikethrough (`~~feature~~`) for fully tested features.
+
+---
+
+## Final Verification
+
+Before finishing:
+
+* Verify every feature in `FEATURES_TODO.md`.
+* Ensure no implemented feature remains unchecked.
+* Ensure every fully tested feature is both checked (`[x]`) **and** wrapped with Markdown strikethrough.
+* Leave partially implemented or partially tested features unchanged.
+* Save the updated `FEATURES_TODO.md`.

@@ -1,7 +1,14 @@
 import { users, type User, type UpsertUser } from "@workspace/db";
-import { userProfiles, type UserProfile } from "@workspace/db";
+import { userProfiles, type UserProfile, authTokens, type AuthToken } from "@workspace/db";
 import { db } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
+import crypto from "crypto";
+
+export type AuthTokenType = "password_reset" | "email_verify";
+
+function hashToken(raw: string): string {
+  return crypto.createHash("sha256").update(raw).digest("hex");
+}
 
 export interface IAuthStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -50,6 +57,56 @@ class AuthStorage implements IAuthStorage {
       .values({ userId, role: "customer" })
       .returning();
     return profile;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  /** Partial update on the users row (password, 2FA fields, emailVerified, ...). */
+  async updateUser(id: string, patch: Partial<UpsertUser>): Promise<User | undefined> {
+    const [user] = await db
+      .update(users)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return user;
+  }
+
+  /**
+   * Creates a single-use auth token. Returns the RAW token (for the email
+   * link); only its SHA-256 hash is persisted. Any previous unused tokens of
+   * the same type for the user are invalidated so only the latest link works.
+   */
+  async createAuthToken(userId: string, type: AuthTokenType, ttlMs: number): Promise<string> {
+    const raw = crypto.randomBytes(32).toString("hex");
+    await db
+      .update(authTokens)
+      .set({ usedAt: new Date() })
+      .where(and(eq(authTokens.userId, userId), eq(authTokens.type, type), isNull(authTokens.usedAt)));
+    await db.insert(authTokens).values({
+      userId,
+      tokenHash: hashToken(raw),
+      type,
+      expiresAt: new Date(Date.now() + ttlMs),
+    });
+    return raw;
+  }
+
+  /**
+   * Validates and consumes a token: it must exist, match the type, be unused
+   * and unexpired. Marks it used atomically and returns the row (or undefined).
+   */
+  async consumeAuthToken(rawToken: string, type: AuthTokenType): Promise<AuthToken | undefined> {
+    const [token] = await db
+      .update(authTokens)
+      .set({ usedAt: new Date() })
+      .where(and(eq(authTokens.tokenHash, hashToken(rawToken)), eq(authTokens.type, type), isNull(authTokens.usedAt)))
+      .returning();
+    if (!token) return undefined;
+    if (token.expiresAt.getTime() < Date.now()) return undefined;
+    return token;
   }
 }
 

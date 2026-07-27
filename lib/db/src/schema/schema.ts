@@ -236,6 +236,7 @@ export const bookingAssignments = pgTable("booking_assignments", {
   assignedUserId: varchar("assigned_user_id"),
   assignedBy: varchar("assigned_by"),
   status: assignmentStatusEnum("assignment_status").default("assigned"),
+  notes: text("notes"),
   assignedAt: timestamp("assigned_at").defaultNow(),
 }, (table) => ({
   bookingIdIdx: index("booking_assignments_booking_id_idx").on(table.bookingId),

@@ -162,39 +162,31 @@ function resetStore() {
   mockState.session.current = {};
 }
 
-describe("getOrCreateProfile default role guardrail", () => {
+describe("getOrCreateProfile provisioning guardrail (AUTHZ-02 fixed)", () => {
   beforeEach(() => resetStore());
 
-  it("defaults a brand-new user to the customer role when a real admin exists", async () => {
-    mockState.profilesStore.push({ id: "p-admin", userId: "owner-123", role: "admin" });
+  it("returns an existing profile untouched", async () => {
+    mockState.profilesStore.push({ id: "p-1", userId: "existing-user", role: "content_editor" });
 
-    const profile = await storage.getOrCreateProfile("brand-new-user");
+    const profile = await storage.getOrCreateProfile("existing-user");
 
-    expect(profile.role).toBe("customer");
-    // A future change to the default must be caught here: the auto-created
-    // account must never land on any staff/admin role.
-    expect(STAFF_ROLES).not.toContain(profile.role);
+    expect(profile.role).toBe("content_editor");
   });
 
-  it("persists the auto-created profile as customer (read-back is stable)", async () => {
+  it("fails closed (403) instead of auto-creating a profile for an unknown user", async () => {
     mockState.profilesStore.push({ id: "p-admin", userId: "owner-123", role: "admin" });
 
-    await storage.getOrCreateProfile("brand-new-user");
-    const readBack = await storage.getProfileByUserId("brand-new-user");
-
-    expect(readBack?.role).toBe("customer");
+    await expect(storage.getOrCreateProfile("brand-new-user")).rejects.toMatchObject({
+      statusCode: 403,
+    });
+    // Crucially: nothing was written — no silent "customer" (or worse, staff)
+    // profile may ever be provisioned by this lookup path.
+    expect(mockState.profilesStore.filter((p) => p.userId === "brand-new-user")).toHaveLength(0);
   });
 
-  it("is idempotent: repeated calls keep the account on customer", async () => {
-    mockState.profilesStore.push({ id: "p-admin", userId: "owner-123", role: "admin" });
-
-    const first = await storage.getOrCreateProfile("brand-new-user");
-    const second = await storage.getOrCreateProfile("brand-new-user");
-
-    expect(first.role).toBe("customer");
-    expect(second.role).toBe("customer");
-    // No duplicate profile row was created for the same user.
-    expect(mockState.profilesStore.filter((p) => p.userId === "brand-new-user")).toHaveLength(1);
+  it("never provisions a staff/admin role implicitly", async () => {
+    await expect(storage.getOrCreateProfile("someone")).rejects.toThrow();
+    expect(mockState.profilesStore.some((p) => STAFF_ROLES.includes(p.role))).toBe(false);
   });
 });
 
@@ -224,10 +216,11 @@ describe("brand-new authenticated user cannot reach staff/admin endpoints", () =
     expect(res.status).toBe(403);
   });
 
-  it("auto-provisions the account as customer on its own profile endpoint", async () => {
+  it("returns 403 (not a silently created customer profile) on its own profile endpoint", async () => {
     const res = await request(app).get("/api/user-profile");
-    expect(res.status).toBe(200);
-    expect(res.body.role).toBe("customer");
+    expect(res.status).toBe(403);
+    // And nothing was persisted for the unprovisioned account.
+    expect(mockState.profilesStore.filter((p) => p.userId === "fresh-authenticated-user")).toHaveLength(0);
   });
 
   it("rejects unauthenticated access to a staff endpoint with 401", async () => {

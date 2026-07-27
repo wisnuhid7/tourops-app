@@ -1,0 +1,118 @@
+# Implement Remaining Features from FEATURES_TODO.md
+
+## Objective
+
+Use **`FEATURES_TODO.md`** as the **only source of truth** for all remaining work.
+
+Do **not** inspect or regenerate features from any other documentation file.
+
+---
+
+## Scope
+
+Read every item listed in:
+
+`FEATURES_TODO.md`
+
+Treat every unchecked or unfinished item as work that must be completed.
+
+Example remaining features include (but are not limited to):
+
+* Password reset / Forgot password
+* Two-factor authentication (2FA)
+* Email verification
+* Fix `getOrCreateProfile` automatically creating a `"customer"` profile for users without an existing profile, as this can hide missing staff configuration and lead to incorrect permissions.
+
+Always implement every item described in `FEATURES_TODO.md`, even if additional technical work is required.
+
+---
+
+## Workflow
+
+For each feature:
+
+1. Understand the requirement.
+2. Implement the feature.
+3. Perform comprehensive testing.
+4. Fix every issue found.
+5. Retest the affected functionality.
+6. Mark the feature as completed.
+7. Continue to the next feature.
+
+Workflow:
+
+**Implement → Test → Fix → Retest → Complete**
+
+Do **not** create endless QA or fix loops.
+
+---
+
+## Testing
+
+Each completed feature must be validated with:
+
+* Functional testing
+* Error handling
+* Edge cases
+* Authentication
+* Authorization
+* API validation
+* Database validation
+* UI validation (if applicable)
+* Regression testing
+* Security validation where appropriate
+
+---
+
+## QA Report
+
+Create a QA report for every completed feature inside:
+
+```text
+docs/qa/
+```
+
+Each report should include:
+
+* Feature name
+* Scope
+* Test scenarios
+* Expected results
+* Actual results
+* Bugs discovered
+* Fixes applied
+* Retest results
+* Final status
+
+Final status:
+
+* ✅ Passed
+* ⚠ Partial
+* ❌ Failed
+
+---
+
+## Update FEATURES_TODO.md
+
+After a feature passes retesting:
+
+* Change its status to **✅ Completed**.
+* Add implementation notes if necessary.
+* Keep the file synchronized with the current project state.
+
+Do not leave completed features unchecked.
+
+---
+
+## Completion Criteria
+
+A feature is complete only when all of the following are true:
+
+* ✅ Implementation finished
+* ✅ Testing completed
+* ✅ Bugs fixed
+* ✅ Retest passed
+* ✅ QA report saved in `docs/qa/`
+* ✅ `FEATURES_TODO.md` updated
+
+Continue until every remaining item in `FEATURES_TODO.md` has been completed.

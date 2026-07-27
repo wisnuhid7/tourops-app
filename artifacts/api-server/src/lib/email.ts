@@ -47,6 +47,11 @@ export function initEmailSystem(): void {
       console.log("╠════════════════════════════════════════════════╣");
       console.log(`  To      : ${to}`);
       console.log(`  Subject : ${subject}`);
+      // Surface action links (reset/verify) so flows are testable without SMTP
+      const links = html.match(/(?:https?:\/\/|\/)[^"'\s<>]*\?token=[^"'\s<>]+/g) || html.match(/https?:\/\/[^"'\s<>]+/g) || [];
+      for (const link of Array.from(new Set(links)).slice(0, 3)) {
+        console.log(`  Link    : ${link}`);
+      }
       console.log("╚════════════════════════════════════════════════╝\n");
     }
   });

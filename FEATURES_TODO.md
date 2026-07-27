@@ -15,10 +15,10 @@
 - [x] ~~Session ID regeneration on login/registration (session-fixation defense, AUTH-02)~~ ✅ tested
 - [x] ~~Unified password policy (`MIN_PASSWORD_LENGTH = 8`) across register / admin-create / admin-reset (AUTH-06)~~ ✅ tested
 - [x] ~~Brute-force protection: per-IP rate limit + per-account lockout (5 fails → 15-min lock) (AUTH-07)~~ ✅ tested
-- [ ] Password reset / forgot password
-- [ ] Two-factor authentication
-- [ ] Email verification
-- [!] `getOrCreateProfile` auto-creates a "customer" profile for any user without one — can mask missing staff setup
+- [x] ~~Password reset / forgot password~~ ✅ tested — hashed single-use tokens, no account enumeration (see `docs/qa/security-features-2026-07-27.md`)
+- [x] ~~Two-factor authentication~~ ✅ tested — TOTP (otplib) with QR enrollment, 2-step login, code-gated disable
+- [x] ~~Email verification~~ ✅ tested — auto-sent at registration, resend + `/verify-email` page
+- [x] ~~`getOrCreateProfile` auto-creates a "customer" profile for any user without one~~ ✅ fixed — fail-closed 403; only customer-portal login may provision a customer profile
 
 ## Authorization (RBAC)
 - [x] ~~19-role `user_role` enum with granular staff/supplier/customer roles~~ ✅ tested
@@ -34,23 +34,23 @@
 - [x] ~~Task #4: hide unpublished tour details from anonymous visitors~~ ✅ fixed & retested (AUTHZ-01)
 - [x] ~~Task #10: keep supplier catalog data out of customer accounts~~ ✅ tested — 403
 - [x] ~~Task #12: content editors can't change tour prices or publish status~~ ✅ tested — fields blocked
-- [~] Task #19: catch specific pages hidden behind catch-all URL patterns — no API-level leak found; confirm SPA route guards client-side
+- [x] ~~Task #19: catch specific pages hidden behind catch-all URL patterns~~ ✅ tested — no API-level leak; SPA guards confirmed & hardened (customers redirected out of `/admin`, `/ops`, `/supplier` shells)
 
 ## Tours & Itinerary
-- [x] Tour CRUD (tours, tour_days, tour_day_items) with publish status
-- [x] AI tour/itinerary generator (`admin/tour-generator.tsx`, gpt-4o backend)
+- [x] Tour CRUD (tours, tour_days, tour_day_items) with publish status — tested, but TOUR-01/TOUR-04 open (negative prices accepted; duplicate slug → 500)
+- [x] AI tour/itinerary generator (`admin/tour-generator.tsx`, gpt-5 backend)
   - [~] Hardcoded fallback itinerary generator when OpenAI unavailable
-- [x] Tour detail page (public + customer views) with itinerary, hotels, guides
-- [x] "Starting From" pricing (lowest open-departure price, base-price fallback)
-- [x] Child pricing (proportional to departure adult price, capped at adult price)
-- [x] Tour brochure page (`customer/tour-brochure.tsx`)
-- [x] Browse tours with search, category, duration, price slider, date-range filters
+- [x] ~~Tour detail page (public + customer views) with itinerary, hotels, guides~~ ✅ tested (`docs/qa/manu/tours-*.md`)
+- [x] ~~"Starting From" pricing (lowest open-departure price, base-price fallback)~~ ✅ tested — lowest open departure verified, closed/sold-out ignored
+- [x] Child pricing (proportional to departure adult price, capped at adult price) — tested, but TOUR-02 open (data layer allows child > adult)
+- [x] ~~Tour brochure page (`customer/tour-brochure.tsx`)~~ ✅ tested — incl. brochure PDF spot-check
+- [x] ~~Browse tours with search, category, duration, price slider, date-range filters~~ ✅ tested — search/filters/sort/pagination verified
 
 ## Departures
 - [x] Departure CRUD (`/admin/departures`): create, edit (dates/capacity/price/status/public-join), delete
 - [x] Delete protection — 409 when bookings are linked to a departure
-- [x] Server-side PATCH field allowlist (tourId / capacityBooked not client-mutable)
-- [x] Departure statuses (open / closed / sold_out / cancelled) + public-join toggle
+- [x] ~~Server-side PATCH field allowlist (tourId / capacityBooked not client-mutable)~~ ✅ tested (authorization QA, field-level allowlists)
+- [x] ~~Departure statuses (open / closed / sold_out / cancelled) + public-join toggle~~ ✅ tested — status handling verified via "Starting From" open-departure tests
 - [x] Promo departure pricing (departure price may be below tour base price)
 
 ## Bookings & Group Travel
@@ -63,7 +63,7 @@
 - [x] Multi-step service workflow system per booking (Airline, Hotel, Transport, Guide, Sights steps)
   - [~] `admin/workflow-detail.tsx` — complex multi-step UI, partially polished
 - [x] Booking assignments (staff/resource allocation, `admin/assignments.tsx`)
-  - [!] Known bug: PATCH `/api/assignments/:id` with notes-only body → 500
+  - [x] ~~Known bug: PATCH `/api/assignments/:id` with notes-only body → 500~~ ✅ fixed — missing `notes` column added + strict field allowlist (see `docs/qa/security-features-2026-07-27.md`)
 
 ## Payments
 - [~] Payments table + admin payments page (`admin/payments.tsx`) — internal record-keeping
@@ -98,11 +98,11 @@
 - [~] Price intelligence tables (`hotel_price_snapshots`, `flight_price_snapshots`) — schema exists, fed by simulated services
 
 ## AI & Intelligence
-- [x] OpenAI gpt-4o via Replit AI integration (itineraries, translation, sight enrichment, business analytics)
+- [x] OpenAI gpt-5 via Replit AI integration (itineraries, translation, sight enrichment, business analytics)
 - [x] Lazy background entity translation (ES/ID) for hotels, guides, tour day items (`translations` jsonb + completeness verification, chunked batches)
 - [x] Public-safe translation shaping (`pickPublicTranslations` — never leaks internal notes/policies)
 - [x] AI generation job tracking (`ai_generation_jobs` table)
-- [ ] Upgrade gpt-4o → gpt-5 (proposed task #21)
+- [x] ~~Upgrade gpt-4o → gpt-5 (proposed task #21)~~ ✅ tested — all 6 call sites in `ai.ts`, live generator smoke test passed
 
 ## Internationalization
 - [x] Three UI languages: English, Spanish, Indonesian (single dictionary in `use-language.tsx` / `translations.ts`)
@@ -136,10 +136,10 @@
 - [x] Mockup sandbox for design prototyping (Vite + Tailwind + Radix + Framer Motion)
 - [x] Prod seed strategy: secret-guarded bootstrap (dev/prod DBs separate; Publish syncs schema, not data)
 - [ ] PWA (no service worker or manifest)
-- [ ] Automated test suite (only manual QA plan exists)
+- [x] Automated test suite (only manual QA plan exists) — vitest functional suite now exists in `artifacts/api-server/src/tests/functional/` (9 spec files: auth, RBAC, routes)
 
 ## Known Issues / Needs Review
-- [!] PATCH `/api/assignments/:id` notes-only → 500 (pre-existing)
+- [x] ~~PATCH `/api/assignments/:id` notes-only → 500 (pre-existing)~~ ✅ fixed & retested
 - [!] Intermittent 401 console noise in browser logs
 - [!] 3 pre-existing TypeScript errors in `tourops` `calendar.tsx`
 - [!] `routes.ts` is a ~3,500-line monolith — candidate for refactor into per-domain routers
@@ -150,5 +150,5 @@
 - [x] ~~#4 Hide unpublished tour details from anonymous visitors~~ ✅ fixed & retested (AUTHZ-01)
 - [x] ~~#10 Keep supplier catalog data out of customer accounts~~ ✅ verified (403)
 - [x] ~~#12 Confirm content editors can't change tour prices or publish status~~ ✅ verified
-- [~] #19 Catch specific pages hidden behind catch-all URL patterns — no API-level leak; confirm SPA guards
-- [ ] #21 Upgrade from gpt-4o to gpt-5
+- [x] ~~#19 Catch specific pages hidden behind catch-all URL patterns~~ ✅ tested — no API-level leak; SPA guards confirmed & hardened
+- [x] ~~#21 Upgrade from gpt-4o to gpt-5~~ ✅ done & smoke-tested

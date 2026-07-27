@@ -444,22 +444,20 @@ export class DatabaseStorage implements IStorage {
     return rows.length;
   }
 
+  /**
+   * AUTHZ-02 (fixed): no longer auto-creates a profile. Every legitimate
+   * session acquires a profile at registration or customer-portal login
+   * (authStorage.ensureProfile); a session whose user has NO profile means a
+   * provisioning gap (e.g. staff account never set up) and must fail closed
+   * instead of being silently treated as a fresh "customer".
+   */
   async getOrCreateProfile(userId: string): Promise<UserProfile> {
     const existing = await this.getProfileByUserId(userId);
     if (existing) return existing;
-    const allProfiles = await db.select().from(userProfiles);
-    const hasRealAdmin = allProfiles.some(p => p.role === "admin" && !p.userId.startsWith("test-") && !p.userId.endsWith("-e2e-002"));
-    const role = hasRealAdmin ? "customer" : "admin";
-    // AUTHZ-02: auto-creating a profile is a least-privilege fallback, but it can
-    // also mask a provisioning gap (e.g. a staff member whose profile failed to
-    // seed silently becomes a customer). Surface it so it is diagnosable rather
-    // than failing as a generic 403 with no trail.
-    console.warn(`[authz] auto-created ${role} profile for user ${userId} (no existing profile found)`);
-    const inserted = await db.insert(userProfiles).values({ userId, role }).onConflictDoNothing().returning();
-    if (inserted.length > 0) return inserted[0];
-    // Another concurrent request already created the profile; fetch it
-    const [profile] = await db.select().from(userProfiles).where(eq(userProfiles.userId, userId));
-    return profile;
+    console.warn(`[authz] no profile provisioned for user ${userId} — refusing access (was previously auto-created)`);
+    const err: any = new Error("Account profile is not provisioned. Contact an administrator.");
+    err.statusCode = 403;
+    throw err;
   }
 
   async getProfile(id: string): Promise<UserProfile | undefined> {

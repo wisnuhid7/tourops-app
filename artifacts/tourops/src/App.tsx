@@ -51,6 +51,10 @@ import FlightAgentDashboard from "@/pages/ops/flight-agent";
 import TourLeaderDashboard from "@/pages/ops/tour-leader";
 import AccountingDashboard from "@/pages/ops/accounting";
 import SupportDashboard from "@/pages/ops/support";
+import ForgotPasswordPage from "@/pages/forgot-password";
+import ResetPasswordPage from "@/pages/reset-password";
+import VerifyEmailPage from "@/pages/verify-email";
+import AccountSecurityPage from "@/pages/account-security";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { getRoleHome, SUPPLIER_ROLES } from "@/lib/roles";
@@ -92,6 +96,13 @@ function AuthenticatedLayout() {
   const isAdmin = role === "admin" || role === "super_admin";
   const isCountryManager = role === "country_manager";
 
+  // Task #19: staff-only SPA sections must not render their shells for
+  // customers (APIs are already server-gated; this closes the UI side).
+  const isCustomer = !role || role === "customer";
+  if (isCustomer && (location.startsWith("/ops") || location.startsWith("/supplier") || location.startsWith("/admin"))) {
+    return <Redirect to="/tours" />;
+  }
+
   if (!isAdmin && location.startsWith("/admin")) {
     if (isCountryManager && location === "/admin/master-data") {
       // Allowed — country_manager can access master data
@@ -130,6 +141,11 @@ function AuthenticatedLayout() {
             <Route path="/admin/payments" component={AdminPayments} />
             <Route path="/admin/messages" component={AdminMessages} />
             <Route path="/admin/assignments" component={AdminAssignments} />
+
+            {/* Account security (all authenticated roles) */}
+            <Route path="/account/security" component={AccountSecurityPage} />
+            <Route path="/verify-email" component={VerifyEmailPage} />
+            <Route path="/reset-password" component={ResetPasswordPage} />
 
             {/* Customer Routes */}
             <Route path="/tours" component={BrowseTours} />
@@ -213,6 +229,9 @@ function AppRouter() {
         <Switch>
           <Route path="/staff/login" component={StaffLoginPage} />
           <Route path="/admin/login" component={AdminLoginPage} />
+          <Route path="/forgot-password" component={ForgotPasswordPage} />
+          <Route path="/reset-password" component={ResetPasswordPage} />
+          <Route path="/verify-email" component={VerifyEmailPage} />
           <Route path="/tours/:id/brochure" component={TourBrochure} />
           <Route path="/tours/:id" component={TourDetail} />
           <Route path="/tours" component={BrowseTours} />

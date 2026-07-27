@@ -224,7 +224,14 @@ async function initializeBookingWorkflows(bookingId: string) {
 async function requireRole(req: Request, res: Response, roles: string[]): Promise<boolean> {
   const userId = getUserId(req);
   if (!userId) { res.status(401).json({ message: "Unauthorized" }); return false; }
-  const profile = await storage.getOrCreateProfile(userId);
+  let profile;
+  try {
+    profile = await storage.getOrCreateProfile(userId);
+  } catch (e: any) {
+    // AUTHZ-02: unprovisioned account — fail closed with a clear message.
+    res.status(e?.statusCode || 403).json({ message: e?.message || "Forbidden" });
+    return false;
+  }
   if (!roles.includes(profile.role)) {
     res.status(403).json({ message: "Forbidden: insufficient role" });
     return false;
@@ -313,7 +320,7 @@ export async function registerRoutes(
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const profile = await storage.getOrCreateProfile(userId);
       res.json(profile);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { res.status(e?.statusCode || 500).json({ message: e.message }); }
   });
 
   app.get("/api/user-profiles", isAuthenticated, async (req, res) => {
@@ -368,15 +375,15 @@ export async function registerRoutes(
         email: parsed.data.email || null,
       });
 
-      await storage.getOrCreateProfile(user.id);
-      const profile = await storage.getProfileByUserId(user.id);
+      // Explicit provisioning (getOrCreateProfile is fail-closed and never creates)
+      let profile = await authStorage.ensureProfile(user.id);
       if (profile) {
-        await storage.updateProfile(profile.id, {
+        profile = (await storage.updateProfile(profile.id, {
           role: parsed.data.role as any,
           phone: parsed.data.phone || null,
           companyName: parsed.data.companyName || null,
           countryCode: parsed.data.countryCode || null,
-        });
+        })) ?? profile;
       }
 
       res.json({ user: { id: user.id, username: user.username, firstName: user.firstName, lastName: user.lastName, email: user.email }, profile });
@@ -1853,7 +1860,23 @@ export async function registerRoutes(
   app.patch("/api/assignments/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, OPS_DISPATCH_ROLES)) return;
-      res.json(await storage.updateAssignment(req.params.id as string, req.body));
+      // Field allowlist: only mutable assignment fields pass through; unknown
+      // keys (or an effectively-empty patch) previously caused a 500 from
+      // drizzle's empty/invalid `.set()` (known notes-only bug).
+      const patchSchema = z.object({
+        assignedUserId: z.string().nullable().optional(),
+        serviceType: z.string().optional(),
+        countryCode: z.string().nullable().optional(),
+        status: z.string().optional(),
+        notes: z.string().nullable().optional(),
+      }).strip();
+      const parsed = patchSchema.safeParse(req.body ?? {});
+      if (!parsed.success) return res.status(400).json({ message: "Invalid assignment update" });
+      const patch = Object.fromEntries(Object.entries(parsed.data).filter(([, v]) => v !== undefined));
+      if (Object.keys(patch).length === 0) return res.status(400).json({ message: "No updatable fields provided" });
+      const updated = await storage.updateAssignment(req.params.id as string, patch as any);
+      if (!updated) return res.status(404).json({ message: "Assignment not found" });
+      res.json(updated);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 

@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
-import { LogIn, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { LogIn, Loader2, AlertCircle, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Link } from "wouter";
 
 function getRedirectUrl(role: string, portal: string): string {
   if (role === "admin" || role === "super_admin") return "/admin";
@@ -42,7 +43,14 @@ export function LoginForm({ portal, title, subtitle, onShowRegister }: LoginForm
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [twoFactorStep, setTwoFactorStep] = useState(false);
+  const [totpCode, setTotpCode] = useState("");
   const { refetch } = useAuth();
+
+  async function finishLogin(data: any) {
+    await refetch();
+    window.location.href = getRedirectUrl(data.role || "", portal);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -60,13 +68,80 @@ export function LoginForm({ portal, title, subtitle, onShowRegister }: LoginForm
         setError(data.message || t("login_failed"));
         return;
       }
-      await refetch();
-      window.location.href = getRedirectUrl(data.role || "", portal);
+      if (data.requiresTwoFactor) {
+        setTwoFactorStep(true);
+        return;
+      }
+      await finishLogin(data);
     } catch {
       setError(t("network_error_try_again"));
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleTwoFactorSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/login/2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ code: totpCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message || t("login_failed"));
+        return;
+      }
+      await finishLogin(data);
+    } catch {
+      setError(t("network_error_try_again"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (twoFactorStep) {
+    return (
+      <Card>
+        <CardContent className="p-8 space-y-6">
+          <div className="text-center">
+            <ShieldCheck className="h-8 w-8 text-primary mx-auto mb-2" />
+            <h2 className="text-xl font-semibold mb-1" data-testid="text-2fa-title">{t("two_factor_auth")}</h2>
+            <p className="text-sm text-muted-foreground">{t("enter_2fa_code")}</p>
+          </div>
+          <form onSubmit={handleTwoFactorSubmit} className="space-y-4">
+            {error && (
+              <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 text-destructive text-sm" data-testid="text-2fa-error">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="totp-code">{t("two_factor_code")}</Label>
+              <Input
+                id="totp-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={8}
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
+                required
+                autoFocus
+                data-testid="input-2fa-code"
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={loading || totpCode.length < 6} data-testid="button-2fa-submit">
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ShieldCheck className="h-4 w-4 mr-2" />}
+              {t("verify_code")}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -122,6 +197,13 @@ export function LoginForm({ portal, title, subtitle, onShowRegister }: LoginForm
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <LogIn className="h-4 w-4 mr-2" />}
             {t("sign_in")}
           </Button>
+          <div className="text-center">
+            <Link href="/forgot-password">
+              <span className="text-sm text-primary hover:underline cursor-pointer" data-testid="link-forgot-password">
+                {t("forgot_password_q")}
+              </span>
+            </Link>
+          </div>
         </form>
         {portal === "customer" && onShowRegister && (
           <div className="mt-4 text-center text-sm">

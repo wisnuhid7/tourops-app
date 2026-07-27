@@ -6,6 +6,8 @@ declare module "express-session" {
   interface SessionData {
     userId?: string;
     userRole?: string;
+    /** Set after a valid password when TOTP is enabled; cleared on 2FA success. */
+    pendingTwoFactor?: { userId: string; role: string };
   }
 }
 

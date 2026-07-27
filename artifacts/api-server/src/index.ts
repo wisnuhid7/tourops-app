@@ -3,6 +3,7 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { registerRoutes } from "./routes/routes";
 import { runStartupMaintenance } from "./seed-core";
+import { initEmailSystem } from "./lib/email";
 
 const rawPort = process.env["PORT"];
 
@@ -21,6 +22,7 @@ if (Number.isNaN(port) || port <= 0) {
 const httpServer = http.createServer(app);
 
 async function main() {
+  initEmailSystem();
   await registerRoutes(httpServer, app);
 
   // Data-only, idempotent self-heal: remap legacy roles and create any

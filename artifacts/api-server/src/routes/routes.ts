@@ -101,6 +101,7 @@ import {
   insertGroupSizeBandSchema, insertPricingRuleSchema, insertAirfareRateSchema
 } from "@workspace/db";
 import { computeQuote, assistanceTypeForPax, PricingInputError, OCCUPANCY_TYPES, type HotelChoiceInput } from "../services/pricing-engine";
+import { resolveTourComponents } from "../services/rate-resolver";
 
 import { sendWhatsApp, sendSMS, MESSAGE_TEMPLATES } from "../lib/messaging";
 import { generateCode as genCode } from "../lib/utils";
@@ -3826,15 +3827,14 @@ export async function registerRoutes(
     })).min(1).max(3),
   });
 
-  app.post("/api/pricing/quotes", isAuthenticated, async (req, res) => {
-    try {
-      if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
-      const parsed = quoteRequestSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      const body = parsed.data;
+  type QuoteRequest = z.infer<typeof quoteRequestSchema>;
+  class QuoteError extends Error { constructor(public statusCode: number, message: string) { super(message); } }
 
+  // Shared by the manual quote endpoint and the rate-driven from-tour
+  // endpoint. Resolves rule/airfare/band, computes and persists the quote.
+  async function createPricingQuote(body: QuoteRequest, userId: string | null, calculationMeta?: unknown) {
       const [tour] = await db.select().from(tours).where(eq(tours.id, body.tourId));
-      if (!tour) return res.status(404).json({ message: "Tour not found" });
+      if (!tour) throw new QuoteError(404, "Tour not found");
 
       // Resolve pricing rule. Explicit id must be active and applicable to
       // this tour (its own rule or a global one). Otherwise precedence is:
@@ -3842,10 +3842,10 @@ export async function registerRoutes(
       let rule;
       if (body.pricingRuleId) {
         [rule] = await db.select().from(pricingRules).where(eq(pricingRules.id, body.pricingRuleId));
-        if (!rule) return res.status(404).json({ message: "Pricing rule not found" });
-        if (!rule.isActive) return res.status(400).json({ message: "Pricing rule is inactive" });
+        if (!rule) throw new QuoteError(404, "Pricing rule not found");
+        if (!rule.isActive) throw new QuoteError(400, "Pricing rule is inactive");
         if (rule.tourId && rule.tourId !== body.tourId)
-          return res.status(400).json({ message: "Pricing rule belongs to a different tour" });
+          throw new QuoteError(400, "Pricing rule belongs to a different tour");
       } else {
         [rule] = await db.select().from(pricingRules)
           .where(and(eq(pricingRules.tourId, body.tourId), eq(pricingRules.isActive, true)))
@@ -3855,7 +3855,7 @@ export async function registerRoutes(
             .where(and(isNull(pricingRules.tourId), eq(pricingRules.isActive, true)))
             .orderBy(desc(pricingRules.createdAt)).limit(1);
         }
-        if (!rule) return res.status(400).json({ message: "No active pricing rule configured" });
+        if (!rule) throw new QuoteError(400, "No active pricing rule configured");
       }
 
       // Resolve airfare: explicit per-person value wins, else an active,
@@ -3863,11 +3863,11 @@ export async function registerRoutes(
       let airfarePerPerson = body.components.airfarePerPerson;
       if (airfarePerPerson === undefined && body.airfareRateId) {
         const [rate] = await db.select().from(airfareRates).where(eq(airfareRates.id, body.airfareRateId));
-        if (!rate) return res.status(404).json({ message: "Airfare rate not found" });
-        if (!rate.isActive) return res.status(400).json({ message: "Airfare rate is inactive" });
+        if (!rate) throw new QuoteError(404, "Airfare rate not found");
+        if (!rate.isActive) throw new QuoteError(400, "Airfare rate is inactive");
         const now = new Date();
         if ((rate.validFrom && now < rate.validFrom) || (rate.validTo && now > rate.validTo))
-          return res.status(400).json({ message: "Airfare rate is outside its validity period" });
+          throw new QuoteError(400, "Airfare rate is outside its validity period");
         airfarePerPerson = rate.ratePerPerson;
       }
       airfarePerPerson = airfarePerPerson ?? "0";
@@ -3915,7 +3915,8 @@ export async function registerRoutes(
           marginType: rule.marginType,
           marginValue: rule.marginValue,
           notes: body.notes ?? null,
-          createdBy: (req.session as any).userId ?? null,
+          calculationMeta: calculationMeta ?? null,
+          createdBy: userId,
         }).returning();
         if (result.lineItems.length > 0) {
           await tx.insert(pricingQuoteLineItems).values(
@@ -3925,11 +3926,88 @@ export async function registerRoutes(
         return q;
       });
 
-      res.json({ ...quote, groupSizeBand: band?.label ?? null, lineItems: result.lineItems });
-    } catch (e: any) {
-      if (e instanceof PricingInputError) return res.status(400).json({ message: e.message });
-      res.status(500).json({ message: e.message });
-    }
+      return { ...quote, groupSizeBand: band?.label ?? null, lineItems: result.lineItems };
+  }
+
+  const quoteErrorResponse = (res: Response, e: any) => {
+    if (e instanceof QuoteError) return res.status(e.statusCode).json({ message: e.message });
+    if (e instanceof PricingInputError) return res.status(400).json({ message: e.message });
+    return res.status(e?.statusCode === 404 ? 404 : 500).json({ message: e.message });
+  };
+
+  app.post("/api/pricing/quotes", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
+      const parsed = quoteRequestSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      res.json(await createPricingQuote(parsed.data, (req.session as any).userId ?? null));
+    } catch (e: any) { quoteErrorResponse(res, e); }
+  });
+
+  // ---- Rate-driven costing ----
+  const resolveRequestSchema = z.object({
+    tourId: z.string().min(1),
+    paxCount: z.number().int().min(1).max(200),
+    departureDate: z.string().optional(),
+    origin: z.string().optional(),
+    destination: z.string().optional(),
+    currency: z.string().optional(), // rates in other currencies are skipped (no conversion yet)
+  });
+
+  // Preview: resolve component costs + hotel choices from supplier rate
+  // cards without persisting anything. Staff can adjust before quoting.
+  app.post("/api/pricing/resolve", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
+      const parsed = resolveRequestSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      res.json(await resolveTourComponents(db, parsed.data));
+    } catch (e: any) { quoteErrorResponse(res, e); }
+  });
+
+  // One-shot: resolve from rate cards and persist the quote, recording the
+  // rate sources + warnings in calculationMeta.
+  const fromTourRequestSchema = resolveRequestSchema.extend({
+    departureId: z.string().optional(),
+    pricingRuleId: z.string().optional(),
+    currency: z.string().optional(),
+    notes: z.string().optional(),
+  });
+  app.post("/api/pricing/quotes/from-tour", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
+      const parsed = fromTourRequestSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const body = parsed.data;
+      // A departure must belong to the tour; its start date drives rate
+      // validity when no explicit departureDate is supplied.
+      let departureDate = body.departureDate;
+      if (body.departureId) {
+        const [dep] = await db.select().from(tourDepartures).where(eq(tourDepartures.id, body.departureId));
+        if (!dep) return res.status(404).json({ message: "Departure not found" });
+        if (dep.tourId !== body.tourId)
+          return res.status(400).json({ message: "Departure belongs to a different tour" });
+        departureDate = departureDate ?? dep.startDate;
+      }
+      const resolved = await resolveTourComponents(db, { ...body, departureDate });
+      if (resolved.hotels.length === 0)
+        return res.status(422).json({ message: "No priceable hotel choices found on this tour", warnings: resolved.warnings });
+      const quote = await createPricingQuote({
+        tourId: body.tourId,
+        departureId: body.departureId,
+        pricingRuleId: body.pricingRuleId,
+        paxCount: body.paxCount,
+        nights: resolved.nights,
+        currency: body.currency,
+        notes: body.notes,
+        components: resolved.components,
+        hotels: resolved.hotels.map((h) => ({
+          hotelChoice: h.hotelChoice, hotelId: h.hotelId, hotelName: h.hotelName,
+          nightlyRates: h.nightlyRates,
+        })),
+      }, (req.session as any).userId ?? null, { ...resolved.meta, warnings: resolved.warnings });
+      res.json({ ...quote, warnings: resolved.warnings });
+    } catch (e: any) { quoteErrorResponse(res, e); }
   });
 
   app.get("/api/pricing/quotes", isAuthenticated, async (req, res) => {
@@ -4025,7 +4103,10 @@ export async function registerRoutes(
 
   // Share-token access: unguessable link for customers without an assigned
   // account. Final quotes only.
-  app.get("/api/pricing/quotes/shared/:token", isAuthenticated, async (req, res) => {
+  // Public by design (task #25): the unguessable token is the credential.
+  // Only final quotes resolve, and the response is shaped to selling
+  // prices only via customerQuoteView.
+  app.get("/api/pricing/quotes/shared/:token", async (req, res) => {
     try {
       const [quote] = await db.select().from(pricingQuotes)
         .where(eq(pricingQuotes.shareToken, req.params.token as string));

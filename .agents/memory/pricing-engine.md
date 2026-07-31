@@ -15,3 +15,10 @@ description: Decisions behind the Phase 1&2 pricing engine (decimal strings, quo
 **Integrity guards (app-level, no DB FKs):** active band overlap → 409 on create/patch (validate merged state); single active global rule enforced transactionally (activating one deactivates others); band/rule delete blocked with 409 while quotes reference them; airfare validFrom≤validTo via zod superRefine — PATCH must merge existing row + body and re-run the full schema, since `.partial()` skips cross-field refinements.
 
 **Frontend:** staff screen at /admin/group-quotes (tabs: quotes/rules/airfare/bands); operations_manager gets an explicit exception in App.tsx admin gating AND must be in the /api/tours role list. Customer page /quotes/:id + /quotes/shared/:token (authenticated; anonymous share access deferred to a separate task). All UI keys prefixed pe_ in translations.ts (en/es/id).
+
+## Rate-driven costing (resolver) lessons — 2026-07-31
+- Resolver (`rate-resolver.ts`) maps tour_day_items → engine inputs. Rate-card tables store free-text currency/dates: MUST filter by quote currency (seed data mixes IDR-magnitude prices labeled USD) and default validity checks to *today* when no departureDate — otherwise expired junk rates (e.g. a 23M "USD" guide rate) silently inflate quotes.
+- Engine takes ONE global nights value; hotels with different night counts are handled by scaling the *unrounded* room-rate Decimal by hNights/globalNights and rounding once — scaling already-rounded per-occupancy rates double-rounds and drifts cents.
+- Hotel rate cards match by exact hotel name (no FK); POST /api/rates/* forces status=draft — rates only resolve after approval (status=active).
+- from-tour endpoint must validate departureId belongs to the tour and derive departureDate from its startDate.
+- Shared-token quote endpoint is now public by design (task #25): token = credential, final-only, customerQuoteView shaping.

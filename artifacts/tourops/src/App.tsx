@@ -242,6 +242,7 @@ function AppRouter() {
           <Route path="/tours/:id/brochure" component={TourBrochure} />
           <Route path="/tours/:id" component={TourDetail} />
           <Route path="/tours" component={BrowseTours} />
+          <Route path="/quotes/shared/:token" component={CustomerQuoteView} />
           <Route component={LandingPage} />
         </Switch>
       </ErrorBoundary>

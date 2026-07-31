@@ -193,3 +193,20 @@ describe("computeQuote — 3-step order", () => {
     })).toThrow(PricingInputError);
   });
 });
+
+// ---- Rate-driven costing helpers ----
+import { occupanciesFromRoomRate } from "../../services/rate-resolver";
+
+describe("occupanciesFromRoomRate", () => {
+  it("derives per-person occupancy rates from a per-room rate", () => {
+    expect(occupanciesFromRoomRate("420")).toEqual({
+      double: "210.00", single: "420.00", third_person: "140.00",
+    });
+  });
+  it("rounds half-up on uneven splits", () => {
+    // 100.01 / 2 = 50.005 -> 50.01 ; /3 = 33.336... -> 33.34
+    expect(occupanciesFromRoomRate("100.01")).toEqual({
+      double: "50.01", single: "100.01", third_person: "33.34",
+    });
+  });
+});

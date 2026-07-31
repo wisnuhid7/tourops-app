@@ -20,7 +20,7 @@ import type { Tour, PricingQuote, PricingRule, AirfareRate, GroupSizeBand, Prici
 const OCCUPANCIES = ["double", "single", "third_person", "child"] as const;
 type Occ = (typeof OCCUPANCIES)[number];
 
-interface HotelForm { hotelName: string; rates: Record<Occ, string> }
+interface HotelForm { hotelName: string; hotelId?: string; rates: Record<Occ, string> }
 const emptyHotel = (): HotelForm => ({ hotelName: "", rates: { double: "", single: "", third_person: "", child: "" } });
 
 export default function AdminGroupQuotes() {
@@ -43,12 +43,47 @@ export default function AdminGroupQuotes() {
   const [sightseeingShare, setSightseeingShare] = useState("0");
   const [airfarePerPerson, setAirfarePerPerson] = useState("0");
   const [hotels, setHotels] = useState<HotelForm[]>([emptyHotel()]);
+  const [resolveWarnings, setResolveWarnings] = useState<string[]>([]);
 
   const resetBuilder = () => {
     setTourId(""); setPaxCount("10"); setNights("7");
     setTransportationShare("0"); setGuideDriverShare("0"); setSightseeingShare("0"); setAirfarePerPerson("0");
     setHotels([emptyHotel()]);
+    setResolveWarnings([]);
   };
+
+  // Rate-driven costing: prefill the builder from supplier rate cards.
+  const autoFill = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/pricing/resolve", {
+        tourId,
+        paxCount: parseInt(paxCount, 10),
+      });
+      return res.json();
+    },
+    onSuccess: (r: any) => {
+      setTransportationShare(r.components.transportationShare);
+      setGuideDriverShare(r.components.guideDriverShare);
+      setSightseeingShare(r.components.sightseeingShare);
+      setAirfarePerPerson(r.components.airfarePerPerson);
+      if (r.nights > 0) setNights(String(r.nights));
+      if (r.hotels?.length) {
+        setHotels(r.hotels.map((h: any) => ({
+          hotelName: h.hotelName ?? "",
+          hotelId: h.hotelId,
+          rates: {
+            double: h.nightlyRates.double ?? "",
+            single: h.nightlyRates.single ?? "",
+            third_person: h.nightlyRates.third_person ?? "",
+            child: h.nightlyRates.child ?? "",
+          },
+        })));
+      }
+      setResolveWarnings(r.warnings ?? []);
+      toast({ title: t("pe_autofill_done") });
+    },
+    onError: (e: any) => toast({ title: t("error_title"), description: e.message, variant: "destructive" }),
+  });
 
   const createQuote = useMutation({
     mutationFn: () => apiRequest("POST", "/api/pricing/quotes", {
@@ -58,6 +93,7 @@ export default function AdminGroupQuotes() {
       components: { transportationShare, guideDriverShare, sightseeingShare, airfarePerPerson },
       hotels: hotels.map((h, i) => ({
         hotelChoice: i + 1,
+        hotelId: h.hotelId,
         hotelName: h.hotelName || undefined,
         nightlyRates: Object.fromEntries(OCCUPANCIES.filter((o) => h.rates[o] !== "").map((o) => [o, h.rates[o]])),
       })),
@@ -310,6 +346,18 @@ export default function AdminGroupQuotes() {
                 {parseInt(paxCount || "0", 10) >= 16 ? t("pe_professional_guide") : t("pe_driver_chaperone")}
               </div>
             </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">{t("pe_autofill_hint")}</p>
+              <Button size="sm" variant="secondary" disabled={!tourId || autoFill.isPending} onClick={() => autoFill.mutate()} data-testid="button-autofill">
+                {autoFill.isPending ? t("pe_autofill_loading") : t("pe_autofill")}
+              </Button>
+            </div>
+            {resolveWarnings.length > 0 && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-1" data-testid="autofill-warnings">
+                <p className="text-xs font-medium">{t("pe_resolve_warnings")}</p>
+                {resolveWarnings.map((w, i) => <p key={i} className="text-xs text-muted-foreground">• {w}</p>)}
+              </div>
+            )}
             <div className="grid grid-cols-4 gap-3">
               <div><Label>{t("pe_transportation")}</Label><Input value={transportationShare} onChange={(e) => setTransportationShare(e.target.value)} data-testid="input-transportation" /></div>
               <div><Label>{t("pe_guide_driver")}</Label><Input value={guideDriverShare} onChange={(e) => setGuideDriverShare(e.target.value)} data-testid="input-guide-driver" /></div>

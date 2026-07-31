@@ -1312,6 +1312,9 @@ export const pricingQuotes = pgTable("pricing_quotes", {
   marginType: marginTypeEnum("margin_type").notNull().default("percentage"),
   marginValue: numeric("margin_value").notNull().default("0"),
   notes: text("notes"),
+  // Rate-driven costing: which rate records/warnings produced the inputs
+  // (null for manually entered quotes).
+  calculationMeta: jsonb("calculation_meta"),
   // Customer visibility: a quote is only readable by its assigned customer
   // (customerId) or via its unguessable share token, and only once `final`.
   customerId: varchar("customer_id"),

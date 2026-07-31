@@ -1,0 +1,412 @@
+# QA Feature Testing Prompt – Operations Dashboards (Staff Roles)
+
+You are a Senior QA Engineer and Application Security Engineer.
+
+Your task is to perform a comprehensive assessment of the **Operations Dashboards (Staff Roles)** feature, covering functional behavior, business rules, role-based access control, integrations, APIs, UI, security, performance, regression, and edge cases.
+
+## Feature Scope
+
+Test every component related to:
+
+### Staff Dashboards
+
+* Content Editor (`ops/content-editor.tsx`)
+* Transport Manager (`ops/transport-dashboard.tsx`)
+* Flight Agent (`ops/flight-agent.tsx`)
+* Tour Leader (`ops/tour-leader.tsx`)
+* City Manager (`ops/city-manager.tsx`)
+* Accounting (`ops/accounting.tsx`)
+* Support Agent (`ops/support.tsx`)
+* Generic Fallback Dashboard (`ops/generic-dashboard.tsx`)
+
+### Dashboard Features
+
+Verify:
+
+* Dashboard routing
+* Dashboard initialization
+* Role detection
+* Dashboard selection
+* Sidebar navigation
+* Navigation permissions
+* Widgets
+* Statistics
+* Tables
+* Search
+* Filtering
+* Pagination
+* Refresh behavior
+* Session persistence
+* Responsive layout
+* Browser compatibility
+
+Test every related API endpoint, middleware, permission check, frontend component, backend service, database interaction, business rule, and integration.
+
+---
+
+# Testing Requirements
+
+Execute every applicable scenario.
+
+## Functional Testing
+
+Verify:
+
+* Login
+* Logout
+* Dashboard loading
+* Correct dashboard assignment
+* Role switching
+* Navigation
+* Sidebar rendering
+* Menu visibility
+* Widget rendering
+* Statistics accuracy
+* Data refresh
+* Search
+* Filtering
+* Pagination
+* Error handling
+* Loading states
+* Empty states
+* Browser refresh
+* Session persistence
+
+---
+
+## Role-Based Dashboard Testing
+
+For every staff role verify:
+
+### Content Editor
+
+* Dashboard access
+* Accessible modules
+* Restricted modules
+* Content management
+* Read-only restrictions
+* Unauthorized actions
+
+### Transport Manager
+
+Verify:
+
+* Transport dashboard
+* Fleet information
+* Route management
+* Reports
+* Permissions
+
+### Flight Agent
+
+Verify:
+
+* Flight dashboard
+* Flight search
+* Flight management
+* Airline operations
+* Permissions
+
+### Tour Leader
+
+Verify:
+
+* Assigned tours
+* Tour management
+* Tour information
+* Customer information
+* Permissions
+
+### City Manager
+
+Verify:
+
+* City dashboard
+* Local operations
+* Regional information
+* City ownership restrictions
+* Permissions
+
+### Accounting
+
+Verify:
+
+* Financial dashboard
+* Financial reports
+* Payments
+* Revenue
+* Expenses
+* Restricted financial operations
+
+### Support Agent
+
+Verify:
+
+* Support dashboard
+* Customer cases
+* Ticket management
+* Customer information
+* Permissions
+
+---
+
+## Generic Dashboard Testing
+
+Verify:
+
+* Users without a dedicated dashboard are redirected to the Generic Dashboard.
+* Correct fallback behavior.
+* Appropriate widgets are displayed.
+* No privileged information is exposed.
+* Navigation remains functional.
+* Users only see resources permitted by their role.
+* Dashboard gracefully handles unsupported roles.
+
+---
+
+## Navigation Testing
+
+Verify:
+
+* Sidebar rendering
+* Menu visibility
+* Hidden menus
+* Route protection
+* Direct URL access
+* Browser history
+* Breadcrumbs
+* Deep linking
+* Refresh persistence
+
+---
+
+## Authorization Testing
+
+For every role verify:
+
+* Accessible dashboards
+* Forbidden dashboards
+* Accessible APIs
+* Forbidden APIs
+* Hidden menu items
+* Hidden widgets
+* Hidden actions
+* CRUD permissions
+* Read-only permissions
+* Export permissions
+* Import permissions
+* Report access
+
+Attempt:
+
+* Role switching
+* URL manipulation
+* Direct API access
+* Hidden route discovery
+* Privilege escalation
+
+---
+
+## API Testing
+
+Test every endpoint for:
+
+* Successful requests
+* Missing authentication
+* Missing authorization
+* Invalid role
+* Invalid payload
+* Malformed request
+* Unauthorized access
+* Forbidden access
+* Duplicate requests
+* HTTP method validation
+* Error handling
+* Response consistency
+
+---
+
+## Security Testing
+
+Execute:
+
+* Authentication bypass
+* Authorization bypass
+* Privilege escalation
+* Dashboard access bypass
+* IDOR
+* Mass Assignment
+* SQL Injection
+* XSS
+* CSRF
+* Parameter tampering
+* Hidden route discovery
+* Direct API access
+* Session manipulation
+* Cross-role data exposure
+
+---
+
+## Performance Testing
+
+Verify:
+
+* Dashboard loading performance
+* Widget loading
+* Large datasets
+* Search performance
+* Filtering performance
+* Pagination performance
+* Database query efficiency
+* Concurrent users
+
+---
+
+## Regression Testing
+
+Specifically verify:
+
+* Every staff role is routed to its correct dashboard.
+* Users cannot access dashboards belonging to another role.
+* Sidebar menus only display authorized items.
+* Widgets only expose authorized data.
+* Generic Dashboard is only used when a dedicated dashboard does not exist.
+* Generic Dashboard does not expose privileged functionality.
+* Dashboard routing remains consistent after login, refresh, logout, and session expiration.
+
+---
+
+# Documentation
+
+Save every generated document under:
+
+```text
+docs/qa/manu/
+```
+
+Generate or update the following files.
+
+---
+
+## 1. Feature Summary
+
+```text
+docs/qa/manu/ops-dashboards-summary.md
+```
+
+Include:
+
+* Feature overview
+* Dashboard architecture
+* Dashboard routing flow
+* Role hierarchy
+* Permission model
+* Navigation model
+* User flows
+* Dependencies
+* Risks
+* Assumptions
+* Test coverage summary
+
+---
+
+## 2. Findings
+
+```text
+docs/qa/manu/ops-dashboards-findings.md
+```
+
+For every issue include:
+
+* Finding ID
+* Title
+* Severity
+* Priority
+* Component
+* Role
+* Endpoint/Page
+* Description
+* Steps to Reproduce
+* Expected Result
+* Actual Result
+* Business/Security Impact
+* Root Cause
+* Recommendation
+* Retest Status
+
+---
+
+## 3. Testing Suite
+
+```text
+docs/qa/manu/ops-dashboards-testing-suite.md
+```
+
+Create a comprehensive test suite covering:
+
+* Functional tests
+* Dashboard tests
+* Role-based access tests
+* Navigation tests
+* Sidebar tests
+* API tests
+* Authorization tests
+* Security tests
+* Performance tests
+* Integration tests
+* Regression tests
+* Edge cases
+
+Each test case must contain:
+
+* Test ID
+* Category
+* Role
+* Objective
+* Preconditions
+* Test Steps
+* Expected Result
+* Status
+
+---
+
+## 4. Testing Report
+
+```text
+docs/qa/manu/ops-dashboards-testing-report.md
+```
+
+Include:
+
+* Executive Summary
+* Scope
+* Environment
+* Roles Tested
+* Dashboards Tested
+* APIs Tested
+* Pages Tested
+* Total Test Cases
+* Passed
+* Failed
+* Blocked
+* Not Applicable
+* Functional Findings
+* Security Findings
+* Performance Findings
+* Coverage Analysis
+* Remaining Risks
+* Recommendations
+* Final Feature Assessment
+
+---
+
+# Execution Rules
+
+* Execute every applicable scenario.
+* Test every staff role independently.
+* Verify both frontend and backend behavior.
+* Validate dashboard routing, role detection, authorization, navigation, and permissions.
+* Do not stop after discovering the first issue.
+* Continuously update all documentation as testing progresses.
+* Document any additional defects or vulnerabilities discovered outside the predefined scope.
+* Do not finish until every dashboard, role, workflow, API, navigation path, permission rule, and regression scenario has been fully tested and all documentation has been generated under `docs/qa/manu/`.

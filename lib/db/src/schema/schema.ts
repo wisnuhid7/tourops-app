@@ -5,6 +5,19 @@ import { z } from "zod/v4";
 
 export * from "./auth";
 
+// Drizzle numeric() columns are typed as string in insert schemas, and
+// drizzle-zod does not check that the string is actually a valid number.
+// Without this, "abc" passes zod validation and only fails at the database
+// with a 500 that leaks the SQL statement, and "-5" is stored as a negative
+// price. Use this for optional non-negative money fields on rate cards.
+const optionalMoneyString = z
+  .string()
+  .refine((v) => v.trim() !== "" && Number.isFinite(Number(v)) && Number(v) >= 0, {
+    message: "must be a non-negative number",
+  })
+  .nullable()
+  .optional();
+
 export const userRoleEnum = pgEnum("user_role", [
   "super_admin",
   "admin",
@@ -774,7 +787,7 @@ export const hotelRates = pgTable("hotel_rates", {
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
 });
-export const insertHotelRateSchema = createInsertSchema(hotelRates).omit({ id: true, createdAt: true });
+export const insertHotelRateSchema = createInsertSchema(hotelRates).omit({ id: true, createdAt: true }).extend({ pricePerRoomPerNight: optionalMoneyString });
 export type InsertHotelRate = z.infer<typeof insertHotelRateSchema>;
 export type HotelRate = typeof hotelRates.$inferSelect;
 
@@ -802,7 +815,7 @@ export const transportRates = pgTable("transport_rates", {
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
 });
-export const insertTransportRateSchema = createInsertSchema(transportRates).omit({ id: true, createdAt: true });
+export const insertTransportRateSchema = createInsertSchema(transportRates).omit({ id: true, createdAt: true }).extend({ basePrice: optionalMoneyString, overtimePerHour: optionalMoneyString, extraPerKm: optionalMoneyString });
 export type InsertTransportRate = z.infer<typeof insertTransportRateSchema>;
 export type TransportRate = typeof transportRates.$inferSelect;
 
@@ -830,7 +843,7 @@ export const guideRates = pgTable("guide_rates", {
   // Per-language translated copies of text fields: { es: { language, notes }, id: { ... } }
   translations: jsonb("translations"),
 });
-export const insertGuideRateSchema = createInsertSchema(guideRates).omit({ id: true, createdAt: true });
+export const insertGuideRateSchema = createInsertSchema(guideRates).omit({ id: true, createdAt: true }).extend({ price: optionalMoneyString });
 export type InsertGuideRate = z.infer<typeof insertGuideRateSchema>;
 export type GuideRate = typeof guideRates.$inferSelect;
 
@@ -851,7 +864,7 @@ export const sightsRates = pgTable("sights_rates", {
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
 });
-export const insertSightsRateSchema = createInsertSchema(sightsRates).omit({ id: true, createdAt: true });
+export const insertSightsRateSchema = createInsertSchema(sightsRates).omit({ id: true, createdAt: true }).extend({ pricePerPerson: optionalMoneyString });
 export type InsertSightsRate = z.infer<typeof insertSightsRateSchema>;
 export type SightsRate = typeof sightsRates.$inferSelect;
 
@@ -873,7 +886,7 @@ export const airlineRates = pgTable("airline_rates", {
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
 });
-export const insertAirlineRateSchema = createInsertSchema(airlineRates).omit({ id: true, createdAt: true });
+export const insertAirlineRateSchema = createInsertSchema(airlineRates).omit({ id: true, createdAt: true }).extend({ price: optionalMoneyString });
 export type InsertAirlineRate = z.infer<typeof insertAirlineRateSchema>;
 export type AirlineRate = typeof airlineRates.$inferSelect;
 

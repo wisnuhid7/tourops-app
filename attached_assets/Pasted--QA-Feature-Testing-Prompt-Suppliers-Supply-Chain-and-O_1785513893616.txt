@@ -1,0 +1,444 @@
+# QA Feature Testing Prompt – Suppliers & Supply Chain and Operations Dashboards
+
+You are a Senior QA Engineer and Application Security Engineer.
+
+Your task is to perform a comprehensive assessment of the **Suppliers & Supply Chain** and **Operations Dashboards** features, covering functional behavior, business rules, integrations, APIs, permissions, UI, security, performance, regression, and edge cases.
+
+## Feature Scope
+
+### Suppliers & Supply Chain
+
+Test every component related to:
+
+* Supplier portals
+
+  * Airline Supplier
+  * Hotel Manager
+  * Guide Manager
+  * Sights Manager
+* Supplier authentication
+* Supplier authorization
+* Supplier dashboards
+* Supplier profile management
+* Supplier navigation
+* Hotel catalog management
+* Sight catalog management
+* Transport company catalog management
+* Airline agency catalog management
+* Supplier catalog CRUD
+* Supplier ownership validation
+* Supplier search, filtering, and pagination
+* Rate Cards (`admin/rate-cards.tsx`)
+* Numeric price columns stored as strings in the insert schema
+* Airline flight search
+* Simulated airline pricing
+* Distance-based pricing
+* Seasonality pricing
+* `supplier/airline-search.tsx`
+* Redirect into supplier tab
+* Partial integration validation
+* Transport module
+* Bus types
+* Transport routes
+* `/admin/transport`
+* `/ops/transport`
+* Duplicate route consistency
+
+### Operations Dashboards
+
+Test every dashboard related to:
+
+* Content Editor (`ops/content-editor.tsx`)
+* Transport Manager (`ops/transport-dashboard.tsx`)
+* Flight Agent (`ops/flight-agent.tsx`)
+* Tour Leader (`ops/tour-leader.tsx`)
+* City Manager (`ops/city-manager.tsx`)
+* Accounting (`ops/accounting.tsx`)
+* Support Agent (`ops/support.tsx`)
+* Generic Fallback Dashboard (`ops/generic-dashboard.tsx`)
+
+Test every related API endpoint, middleware, permission check, frontend component, backend service, database interaction, business rule, and navigation flow.
+
+---
+
+# Testing Requirements
+
+Execute every applicable scenario.
+
+## Functional Testing
+
+Verify:
+
+* Dashboard access
+* Dashboard routing
+* Navigation
+* CRUD operations
+* Search
+* Filtering
+* Pagination
+* Sorting
+* Validation
+* Error handling
+* Loading states
+* Empty states
+* Responsive behavior
+* Browser compatibility
+* Session persistence
+
+---
+
+## Supplier Portal Testing
+
+Verify each supplier role independently:
+
+* Login
+* Logout
+* Dashboard access
+* Accessible pages
+* Restricted pages
+* CRUD permissions
+* Catalog ownership
+* Profile management
+* Navigation
+* Session handling
+* Cross-portal isolation
+
+---
+
+## Catalog Management Testing
+
+Verify:
+
+* Hotel CRUD
+* Sight CRUD
+* Airline Agency CRUD
+* Transport Company CRUD
+* Category management
+* Status changes
+* Images
+* Attachments
+* Validation
+* Duplicate records
+* Ownership enforcement
+* Bulk operations
+
+---
+
+## Rate Card Testing
+
+Verify:
+
+* Create
+* Update
+* Delete
+* Search
+* Filtering
+* Currency handling
+* Decimal values
+* Large numbers
+* Zero values
+* Invalid values
+* Numeric string validation
+* Insert schema validation
+* Update schema validation
+
+Specifically confirm:
+
+* Numeric price fields correctly accept string values.
+* Invalid values are rejected.
+* No data corruption occurs.
+* Stored values remain consistent.
+
+---
+
+## Airline Search Testing
+
+Verify:
+
+* Flight search
+* Search filters
+* Simulated pricing
+* Distance calculation
+* Seasonality calculation
+* Empty results
+* Invalid airports
+* Invalid dates
+* Passenger validation
+* Pricing consistency
+* Search performance
+
+Verify `supplier/airline-search.tsx`:
+
+* Redirect behavior
+* State persistence
+* Browser refresh
+* Deep linking
+* Supplier tab integration
+* Partial integration limitations
+
+---
+
+## Transport Module Testing
+
+Verify:
+
+* Bus Type CRUD
+* Route CRUD
+* Route validation
+* Duplicate route handling
+* Route search
+* Route filtering
+* Active/Inactive status
+
+Compare:
+
+* `/admin/transport`
+* `/ops/transport`
+
+Confirm:
+
+* Functional consistency
+* Authorization consistency
+* Data synchronization
+* No unintended privilege differences
+
+---
+
+## Operations Dashboard Testing
+
+For every dashboard verify:
+
+* Correct dashboard assignment
+* Role-based access
+* Sidebar visibility
+* Navigation permissions
+* Accessible widgets
+* Hidden widgets
+* Available actions
+* Restricted actions
+* Dashboard data accuracy
+* Dashboard refresh
+* Session handling
+* Unauthorized access prevention
+
+---
+
+## Generic Dashboard Testing
+
+Verify:
+
+* Users without dedicated dashboards are redirected correctly.
+* Generic dashboard displays appropriate information.
+* No privileged data is exposed.
+* Navigation remains functional.
+* Role permissions are respected.
+
+---
+
+## API Testing
+
+Test every endpoint for:
+
+* Success responses
+* Invalid payloads
+* Missing fields
+* Unauthorized requests
+* Forbidden requests
+* Invalid identifiers
+* Malformed requests
+* Duplicate submissions
+* HTTP method validation
+* Error handling
+* Response consistency
+
+---
+
+## Security Testing
+
+Execute:
+
+* Authentication bypass
+* Authorization bypass
+* Privilege escalation
+* Supplier ownership bypass
+* Dashboard privilege escalation
+* IDOR
+* SQL Injection
+* XSS
+* CSRF
+* Mass Assignment
+* Parameter tampering
+* Hidden endpoint discovery
+* Direct API access
+* Route manipulation
+* Cross-role data exposure
+
+---
+
+## Performance Testing
+
+Verify:
+
+* Large supplier catalogs
+* Large transport routes
+* Dashboard loading performance
+* Airline pricing calculation performance
+* Pagination performance
+* Search performance
+* Database query efficiency
+* Bulk operations
+
+---
+
+## Regression Testing
+
+Specifically verify:
+
+* Supplier portals only expose authorized resources.
+* Catalog ownership restrictions remain enforced.
+* Rate Cards correctly handle numeric string fields.
+* Simulated airline pricing remains consistent.
+* `supplier/airline-search.tsx` correctly redirects into the supplier workflow.
+* Duplicate transport routes remain synchronized and enforce identical permissions.
+* Every Operations Dashboard only exposes functionality appropriate to its assigned role.
+* Generic dashboard is only shown to roles without a dedicated dashboard.
+* No dashboard leaks data intended for another role.
+
+---
+
+# Documentation
+
+Save every generated document under:
+
+```text
+docs/qa/manu/
+```
+
+Generate or update the following files.
+
+---
+
+## 1. Feature Summary
+
+```text
+docs/qa/manu/suppliers-supply-chain-summary.md
+```
+
+Include:
+
+* Feature overview
+* Supplier architecture
+* Operations dashboard architecture
+* User flows
+* Business rules
+* Permission model
+* Dependencies
+* Risks
+* Assumptions
+* Test coverage summary
+
+---
+
+## 2. Findings
+
+```text
+docs/qa/manu/suppliers-supply-chain-findings.md
+```
+
+For every issue include:
+
+* Finding ID
+* Title
+* Severity
+* Priority
+* Component
+* Role
+* Endpoint/Page
+* Description
+* Steps to Reproduce
+* Expected Result
+* Actual Result
+* Business/Security Impact
+* Root Cause
+* Recommendation
+* Retest Status
+
+---
+
+## 3. Testing Suite
+
+```text
+docs/qa/manu/suppliers-supply-chain-testing-suite.md
+```
+
+Create a comprehensive test suite covering:
+
+* Functional tests
+* Supplier portal tests
+* Catalog management tests
+* Rate Card tests
+* Airline search tests
+* Transport module tests
+* Dashboard tests
+* Authorization tests
+* API tests
+* Security tests
+* Performance tests
+* Integration tests
+* Regression tests
+* Edge cases
+
+Each test case must contain:
+
+* Test ID
+* Category
+* Feature
+* Role
+* Objective
+* Preconditions
+* Test Steps
+* Expected Result
+* Status
+
+---
+
+## 4. Testing Report
+
+```text
+docs/qa/manu/suppliers-supply-chain-testing-report.md
+```
+
+Include:
+
+* Executive Summary
+* Scope
+* Environment
+* Roles Tested
+* Features Tested
+* APIs Tested
+* Pages Tested
+* Total Test Cases
+* Passed
+* Failed
+* Blocked
+* Not Applicable
+* Functional Findings
+* Security Findings
+* Performance Findings
+* Coverage Analysis
+* Remaining Risks
+* Recommendations
+* Final Feature Assessment
+
+---
+
+# Execution Rules
+
+* Execute every applicable scenario.
+* Test every supplier role and every operations role independently.
+* Validate frontend and backend behavior.
+* Verify all business rules, authorization rules, ownership restrictions, and dashboard permissions.
+* Do not stop after discovering the first issue.
+* Continuously update all documentation as testing progresses.
+* Document any additional defects or vulnerabilities discovered outside the predefined scope.
+* Do not finish until every supplier portal, catalog module, rate card, airline search, transport feature, operations dashboard, API, permission rule, workflow, and regression scenario has been fully tested and all documentation has been generated under `docs/qa/manu/`.

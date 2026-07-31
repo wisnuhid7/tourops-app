@@ -15,8 +15,8 @@ _QA sweep date: 2026-07-31. Roles tested via authenticated API._
 - **Actual Result:** Full list for accounting/support/flight_agent.
 - **Business/Security Impact:** Potential over-exposure of customer booking data across roles.
 - **Root Cause:** Endpoint gated by role membership only; no row scoping for these roles.
-- **Recommendation:** Confirm intended visibility; if narrower, add per-role scoping (e.g., support sees only bookings with open tickets, flight_agent sees only bookings needing flights). **No change made** — needs product decision.
-- **Retest Status:** Open (needs product input).
+- **Recommendation / Fix applied (2026-07-31):** Introduced a dedicated `BOOKING_READ_ROLES` allowlist (`super_admin, admin, country_manager, operations_manager, accounting, support_agent`) for `GET /api/bookings`, replacing the reuse of `PLATFORM_WIDE_READ_ROLES + accounting + support_agent`. flight_agent and tour_builder are now excluded — their dashboards consume `/api/flight-agent/workflows` and `/api/tours` respectively, never `/api/bookings`, so the full booking book was pure PII over-exposure. accounting (finance) and support_agent (customer assistance) retain legitimate access; tour_leader remains row-scoped to own/led bookings. Verified: flight_agent 403, accounting/support/ops/country 200 (19 rows), tour_leader 200 (0), content_editor/customer 403.
+- **Retest Status:** Fixed & retested 2026-07-31.
 
 ---
 
@@ -31,8 +31,8 @@ _QA sweep date: 2026-07-31. Roles tested via authenticated API._
 - **Actual Result:** Three parallel maps.
 - **Business/Security Impact:** Maintenance risk; possible future mis-routing.
 - **Root Cause:** Duplicated role configuration.
-- **Recommendation:** Consolidate into one role-config module. **No change made** (refactor beyond QA scope).
-- **Retest Status:** Open (informational).
+- **Recommendation / Fix applied (2026-07-31):** `src/lib/roles.ts` (`ROLE_HOME` / `getRoleHome`) is now the single source of truth for each role's dashboard URL. `components/app-sidebar.tsx` derives its per-role dashboard link via `getRoleHome(role)` instead of hardcoded literals, and `components/login-form.tsx` post-login redirect now calls `getRoleHome(role)` instead of its own duplicated `opsRoleHomes` map. The sidebar retains only presentation (label + icon). Routing (App.tsx) already used `getRoleHome`. All previously-duplicated URLs were verified identical to `ROLE_HOME` before the change, so behavior is unchanged while drift is now impossible. (The generic-dashboard `dashboardMap` is title/label config, not routing, and is left as-is.)
+- **Retest Status:** Fixed 2026-07-31 (typecheck clean; URLs provably equal to prior values).
 
 ---
 

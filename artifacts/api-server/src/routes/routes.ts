@@ -145,6 +145,12 @@ const SUPPORT_READ_ROLES = [...ADMIN_ROLES, "support_agent"];
 // accounting handles the financial lifecycle: bookings (read), invoices and
 // payments (read + record/confirm). No operational or master-data authority.
 export const FINANCE_ROLES = ["super_admin", "admin", "accounting"];
+// Who may read the full customer booking book: management/oversight roles plus
+// finance (accounting) and support (support_agent). Deliberately EXCLUDES
+// flight_agent and tour_builder — their dashboards read workflows/tours, not
+// bookings — to avoid over-exposing customer PII. tour_leader is handled
+// separately above with row scoping to their own/led bookings.
+const BOOKING_READ_ROLES = ["super_admin", "admin", "country_manager", "operations_manager", "accounting", "support_agent"];
 // Master records (countries/cities/airports and other global reference data)
 // may only be mutated by operational manager roles — not by city_manager
 // (single-city remit) or content_editor (content-only remit).
@@ -906,7 +912,12 @@ export async function registerRoutes(
         const all = await storage.getAllBookings();
         return res.json(all.filter(b => b.customerId === userId || b.leaderUserId === userId));
       }
-      if (!await requireRole(req, res, [...PLATFORM_WIDE_READ_ROLES, "accounting", "support_agent"])) return;
+      // Booking read is limited to management + finance/support roles who have a
+      // genuine need for the customer booking book. Operational/builder roles
+      // (flight_agent works off /api/flight-agent/workflows; tour_builder off
+      // /api/tours) are intentionally excluded — their dashboards never consume
+      // this endpoint, so granting the full list is unnecessary PII exposure.
+      if (!await requireRole(req, res, BOOKING_READ_ROLES)) return;
       res.json(await storage.getAllBookings());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });

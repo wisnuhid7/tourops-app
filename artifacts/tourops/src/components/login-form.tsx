@@ -7,26 +7,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import { LogIn, Loader2, AlertCircle, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { Link } from "wouter";
+import { getRoleHome } from "@/lib/roles";
 
-function getRedirectUrl(role: string, portal: string): string {
-  if (role === "admin" || role === "super_admin") return "/admin";
-  const supplierRoles = ["airline_supplier", "hotel_manager", "guide_manager", "sights_manager", "supplier"];
-  const opsRoleHomes: Record<string, string> = {
-    country_manager: "/ops",
-    transport_manager: "/ops/transport",
-    city_manager: "/ops/city-manager",
-    content_editor: "/ops/content-editor",
-    flight_agent: "/ops/flight-agent",
-    tour_builder: "/ops/tour-builder",
-    tour_leader: "/ops/tour-leader",
-    accounting: "/ops/accounting",
-    operations_manager: "/ops",
-    support_agent: "/ops/support",
-  };
-  if (supplierRoles.includes(role)) return "/supplier";
-  if (role in opsRoleHomes) return opsRoleHomes[role];
-  // customer or unknown
-  return "/tours";
+// Post-login redirect resolves through the single source of truth in
+// lib/roles.ts (ROLE_HOME) so it can never drift from the sidebar / routing.
+function getRedirectUrl(role: string): string {
+  return getRoleHome(role);
 }
 
 interface LoginFormProps {
@@ -49,7 +35,7 @@ export function LoginForm({ portal, title, subtitle, onShowRegister }: LoginForm
 
   async function finishLogin(data: any) {
     await refetch();
-    window.location.href = getRedirectUrl(data.role || "", portal);
+    window.location.href = getRedirectUrl(data.role || "");
   }
 
   async function handleSubmit(e: React.FormEvent) {

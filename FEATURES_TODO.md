@@ -90,8 +90,8 @@
 - [x] ~~Accounting (`ops/accounting.tsx`)~~ ✅ `/api/payments` restricted to accounting+admin (support/flight/leader/city/customer 403)
 - [x] ~~Support agent (`ops/support.tsx`)~~ ✅ booking access gated; payments forbidden
 - [x] ~~Generic fallback dashboard (`ops/generic-dashboard.tsx`)~~ ✅ used only for roles without a dedicated view; renders only role-gated data (no privileged leak)
-- [ ] Open (needs product decision): `/api/bookings` returns the full list to accounting/support/flight_agent — confirm intended visibility and add per-role scoping if narrower (`docs/qa/manu/ops-dashboards-findings.md` OD-01)
-- [ ] Tech-debt: role→dashboard is defined across 3 parallel maps (routing/config/sidebar) that can drift — consider consolidating (OD-02)
+- [x] ~~Open: `/api/bookings` full-list visibility (OD-01)~~ ✅ Fixed 2026-07-31 — dedicated `BOOKING_READ_ROLES` allowlist (management + accounting + support_agent); flight_agent & tour_builder excluded (their dashboards never consume bookings); tour_leader stays row-scoped. Verified per role via API.
+- [x] ~~Tech-debt: role→dashboard defined across 3 parallel maps (OD-02)~~ ✅ Fixed 2026-07-31 — `lib/roles.ts` `ROLE_HOME`/`getRoleHome` is now the single source; sidebar dashboard links and login-form redirect derive from it (behavior unchanged, drift no longer possible).
 
 ## Master Data
 - [x] Countries, cities, airports, sights, hotels management (`admin/master-data.tsx`)

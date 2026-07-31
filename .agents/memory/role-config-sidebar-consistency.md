@@ -20,3 +20,5 @@ Also: role-scoped dashboards that depend on a foreign-key link (e.g. `transport_
 
 ## Sidebar active-state rule (app-sidebar.tsx)
 Plain-path nav items match by pathname but must yield when a query-based sibling (?tab=...) is the exact match, or two items highlight at once. Also: supplier dashboard Tabs must be controlled (value synced to ?tab via useEffect), not defaultValue-only, or sidebar tab links don't switch a mounted dashboard.
+
+**Update (2026-07-31):** Consolidated — `lib/roles.ts` `ROLE_HOME`/`getRoleHome` is now the single source for role→dashboard URLs; sidebar and login redirect derive from it (labels/icons stay in the sidebar). When adding a role, add it to ROLE_HOME and the sidebar branch only needs label+icon.

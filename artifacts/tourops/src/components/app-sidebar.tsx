@@ -27,6 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useLanguage } from "@/hooks/use-language";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/layout/notification-bell";
+import { getRoleHome } from "@/lib/roles";
 
 function getRoleIcon(role: string | undefined) {
   switch (role) {
@@ -80,9 +81,13 @@ export function AppSidebar() {
         { title: t("nav_assignments"), url: "/admin/assignments", icon: UserCheck },
       ];
     }
+    // Each role's dashboard URL is derived from the single source of truth in
+    // lib/roles.ts (getRoleHome) so the sidebar link can never drift from the
+    // login redirect / routing. Sidebar owns only presentation (label + icon).
+    const home = getRoleHome(role);
     if (role === "country_manager") {
       return [
-        { title: t("dashboard"), url: "/ops", icon: LayoutDashboard },
+        { title: t("dashboard"), url: home, icon: LayoutDashboard },
         { title: t("master_data"), url: "/admin/master-data", icon: Database },
       ];
     }
@@ -94,24 +99,24 @@ export function AppSidebar() {
       ];
     }
     if (profile?.isTourLeader) return [{ title: t("leader_dashboard"), url: "/leader-dashboard", icon: ShieldCheck }];
-    if (role === "transport_manager") return [{ title: t("transport_dashboard"), url: "/ops/transport", icon: Bus }];
-    if (role === "hotel_manager") return [{ title: t("hotel_dashboard"), url: "/supplier", icon: Hotel }];
-    if (role === "guide_manager") return [{ title: t("guide_dashboard"), url: "/supplier", icon: UserCheck2 }];
+    if (role === "transport_manager") return [{ title: t("transport_dashboard"), url: home, icon: Bus }];
+    if (role === "hotel_manager") return [{ title: t("hotel_dashboard"), url: home, icon: Hotel }];
+    if (role === "guide_manager") return [{ title: t("guide_dashboard"), url: home, icon: UserCheck2 }];
     if (role === "sights_manager") return [
-      { title: t("sights_dashboard"), url: "/supplier", icon: Ticket },
+      { title: t("sights_dashboard"), url: home, icon: Ticket },
       { title: t("nav_sights"), url: "/supplier?tab=sights_catalog", icon: Landmark },
     ];
-    if (role === "airline_supplier") return [{ title: t("airline_dashboard"), url: "/supplier", icon: Plane }];
-    if (role === "city_manager") return [{ title: t("city_dashboard"), url: "/ops/city-manager", icon: Globe }];
-    if (role === "content_editor") return [{ title: t("editor_dashboard"), url: "/ops/content-editor", icon: FileText }];
-    if (role === "flight_agent") return [{ title: t("flight_dashboard"), url: "/ops/flight-agent", icon: Plane }];
-    if (role === "tour_builder") return [{ title: t("builder_dashboard"), url: "/ops/tour-builder", icon: Wand2 }];
-    if (role === "supplier") return [{ title: t("supplier_dashboard"), url: "/supplier", icon: Database }];
-    if (role === "tour_leader") return [{ title: t("agent_dashboard"), url: "/ops/tour-leader", icon: Users }];
-    if (role === "accounting") return [{ title: t("finance_dashboard"), url: "/ops/accounting", icon: DollarSign }];
-    if (role === "support_agent") return [{ title: t("support_dashboard"), url: "/ops/support", icon: Headset }];
+    if (role === "airline_supplier") return [{ title: t("airline_dashboard"), url: home, icon: Plane }];
+    if (role === "city_manager") return [{ title: t("city_dashboard"), url: home, icon: Globe }];
+    if (role === "content_editor") return [{ title: t("editor_dashboard"), url: home, icon: FileText }];
+    if (role === "flight_agent") return [{ title: t("flight_dashboard"), url: home, icon: Plane }];
+    if (role === "tour_builder") return [{ title: t("builder_dashboard"), url: home, icon: Wand2 }];
+    if (role === "supplier") return [{ title: t("supplier_dashboard"), url: home, icon: Database }];
+    if (role === "tour_leader") return [{ title: t("agent_dashboard"), url: home, icon: Users }];
+    if (role === "accounting") return [{ title: t("finance_dashboard"), url: home, icon: DollarSign }];
+    if (role === "support_agent") return [{ title: t("support_dashboard"), url: home, icon: Headset }];
     if (role === "operations_manager") return [
-      { title: t("dashboard"), url: "/ops", icon: LayoutDashboard },
+      { title: t("dashboard"), url: home, icon: LayoutDashboard },
       { title: t("nav_assignments"), url: "/ops/assignments", icon: UserCheck },
       { title: t("pe_tab_quotes"), url: "/admin/pricing-engine", icon: Calculator },
     ];

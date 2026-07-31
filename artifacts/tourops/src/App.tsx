@@ -40,6 +40,7 @@ import BrowseTours from "@/pages/customer/browse-tours";
 import TourDetail from "@/pages/customer/tour-detail";
 import MyBookings from "@/pages/customer/my-bookings";
 import CustomerBookingDetail from "@/pages/customer/booking-detail";
+import Checkout from "@/pages/customer/checkout";
 import JoinGroups from "@/pages/customer/join-groups";
 import LeaderDashboard from "@/pages/customer/leader-dashboard";
 import LeaderPayments from "@/pages/customer/leader-payments";
@@ -165,6 +166,7 @@ function AuthenticatedLayout() {
             <Route path="/manage-passengers" component={ManagePassengers} />
             <Route path="/my-bookings" component={MyBookings} />
             <Route path="/my-bookings/:id" component={CustomerBookingDetail} />
+            <Route path="/checkout/:bookingId" component={Checkout} />
             <Route path="/join-groups" component={JoinGroups} />
             <Route path="/quotes/shared/:token" component={CustomerQuoteView} />
             <Route path="/quotes/:id" component={CustomerQuoteView} />

@@ -385,26 +385,85 @@ export const insertMessageSchema = createInsertSchema(messages).omit({ id: true,
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
 export type Message = typeof messages.$inferSelect;
 
-export const paymentStatusEnum = pgEnum("payment_status", ["pending", "paid", "failed", "refunded"]);
+// "processing" = provider is still working on it (async confirmation);
+// "partially_refunded" complements the legacy "refunded" (full) value.
+export const paymentStatusEnum = pgEnum("payment_status", ["pending", "processing", "paid", "failed", "canceled", "refunded", "partially_refunded"]);
 export const paymentMethodEnum = pgEnum("payment_method", ["bank_transfer", "card", "cash", "other"]);
+export const refundStatusEnum = pgEnum("refund_status", ["none", "pending", "partial", "full", "failed"]);
 
+// All monetary columns on payments/refunds are integer minor units (cents).
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bookingId: varchar("booking_id").notNull(),
+  customerId: varchar("customer_id"),
   invoiceId: varchar("invoice_id"),
-  amount: integer("amount").notNull(),
+  provider: text("provider").default("manual"), // 'manual' | 'offline_test' | 'stripe' (future)
+  paymentIntentId: text("payment_intent_id"),
+  transactionId: text("transaction_id"),
+  amount: integer("amount").notNull(), // grand total charged, cents
+  subtotal: integer("subtotal"),
+  taxes: integer("taxes").default(0),
+  fees: integer("fees").default(0),
+  discount: integer("discount").default(0),
+  refundedAmount: integer("refunded_amount").default(0),
   currency: text("currency").default("USD"),
   method: paymentMethodEnum("payment_method").default("bank_transfer"),
   status: paymentStatusEnum("payment_status").default("pending"),
+  refundStatus: refundStatusEnum("refund_status").default("none"),
   receiptUrl: text("receipt_url"),
+  metadata: jsonb("metadata"),
   notes: text("notes"),
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  bookingIdx: index("payments_booking_idx").on(table.bookingId),
+  intentIdx: index("payments_intent_idx").on(table.paymentIntentId),
+}));
 
-export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true, createdAt: true });
+export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type Payment = typeof payments.$inferSelect;
+
+export const refundStateEnum = pgEnum("refund_state", ["pending", "succeeded", "failed"]);
+
+export const refunds = pgTable("refunds", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  paymentId: varchar("payment_id").notNull(),
+  bookingId: varchar("booking_id").notNull(),
+  provider: text("provider").notNull(),
+  providerRefundId: text("provider_refund_id"),
+  amount: integer("amount").notNull(), // cents
+  currency: text("currency").default("USD"),
+  reason: text("reason").notNull(),
+  notes: text("notes"),
+  status: refundStateEnum("status").default("pending"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  paymentIdx: index("refunds_payment_idx").on(table.paymentId),
+}));
+
+export const insertRefundSchema = createInsertSchema(refunds).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertRefund = z.infer<typeof insertRefundSchema>;
+export type Refund = typeof refunds.$inferSelect;
+
+// Webhook/event ledger: the (provider, eventId) unique key makes webhook
+// processing idempotent — duplicate deliveries insert-conflict and are skipped.
+export const paymentEvents = pgTable("payment_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  provider: text("provider").notNull(),
+  eventId: text("event_id").notNull(),
+  type: text("type").notNull(),
+  paymentId: varchar("payment_id"),
+  payload: jsonb("payload"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  providerEventUnique: uniqueIndex("payment_events_provider_event_unique").on(table.provider, table.eventId),
+}));
+
+export type PaymentEvent = typeof paymentEvents.$inferSelect;
 
 export const countries = pgTable("countries", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

@@ -66,11 +66,11 @@
   - [x] ~~Known bug: PATCH `/api/assignments/:id` with notes-only body → 500~~ ✅ fixed — missing `notes` column added + strict field allowlist (see `docs/qa/security-features-2026-07-27.md`)
 
 ## Payments
-- [~] Payments table + admin payments page (`admin/payments.tsx`) — internal record-keeping
-- [x] Payment status email notification (`sendPaymentStatusNotification`)
-- [ ] Stripe / external payment gateway integration (no SDK present)
-- [ ] Online checkout for customers
-- [ ] Refund management
+- [x] ~~Payments table + admin payments page (`admin/payments.tsx`)~~ ✅ extended 2026-07-31 — provider/intent/transaction ids, subtotal/taxes/fees/discount, refunded_amount, refund_status, metadata; admin page rebuilt with server-side search/filter/sort/pagination, detail dialog, refund UI (e2e verified)
+- [x] Payment status email notification (`sendPaymentStatusNotification`) — now also fired via webhook pipeline with in-app notifications
+- [x] ~~Payment gateway integration~~ ✅ 2026-07-31 — provider abstraction (`lib/payments/`) with offline test provider: intents, HMAC-signed webhooks (replay protection, idempotent via `payment_events` unique (provider,event_id)), ~10 normalized event types. Stripe slots in later as another provider (user deferred connecting Stripe)
+- [x] ~~Online checkout for customers~~ ✅ `/checkout/:bookingId` — order summary (subtotal/taxes/fees/discount), duplicate-payment prevention, session recovery, success/failed/processing states with polling (e2e verified)
+- [x] ~~Refund management~~ ✅ full/partial refunds with reasons + notes, FINANCE_ROLES-only, over-refund guard, audit logs, customer notifications, refund history in admin dialog (e2e verified)
 
 ## Suppliers & Supply Chain
 - [x] Supplier portals: airline_supplier, hotel_manager, guide_manager, sights_manager

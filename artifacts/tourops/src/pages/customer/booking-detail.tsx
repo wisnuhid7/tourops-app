@@ -236,23 +236,6 @@ export default function CustomerBookingDetail() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
-  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
-  const completePayment = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/my-bookings/${bookingId}/payments`, {
-      amount: Math.round((booking?.totalPrice || 0) * 100),
-      method: "card",
-      status: "paid",
-      reference: `STRIPE_${Math.random().toString(36).substring(7).toUpperCase()}`,
-      currency: "USD",
-    }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/my-bookings", bookingId, "payments"] });
-      setShowPaymentDialog(false);
-      toast({ title: t("payment_successful_title"), description: t("payment_successful_desc") });
-    },
-    onError: (e: Error) => toast({ title: t("payment_failed"), description: e.message, variant: "destructive" }),
-  });
-
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
 
@@ -1077,40 +1060,11 @@ export default function CustomerBookingDetail() {
                     <span className="font-bold">{t("online_payment")}</span>
                   </div>
                   <p className="text-xs text-muted-foreground">{t("pay_securely_desc")}</p>
-                  <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-                    <DialogTrigger asChild>
-                      <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold" data-testid="button-pay-online">
-                        {t("pay_with_card")}
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>{t("secure_checkout")}</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="flex justify-between border-b pb-2">
-                          <span className="text-muted-foreground">{t("tour_booking_prefix")} {booking.bookingCode}</span>
-                          <span className="font-bold">${booking.totalPrice.toLocaleString()}</span>
-                        </div>
-                        <div className="space-y-2">
-                          <Label>{t("card_number")}</Label>
-                          <Input placeholder="4242 4242 4242 4242" defaultValue="4242 4242 4242 4242" />
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2"><Label>{t("expiry_label")}</Label><Input placeholder="MM/YY" defaultValue="12/26" /></div>
-                          <div className="space-y-2"><Label>{t("cvc_label")}</Label><Input placeholder="123" defaultValue="123" /></div>
-                        </div>
-                        <Button
-                          className="w-full bg-indigo-600 hover:bg-indigo-700 h-12 text-lg font-bold"
-                          onClick={() => completePayment.mutate()}
-                          disabled={completePayment.isPending}
-                        >
-                          {completePayment.isPending ? t("processing") : t("complete_payment")}
-                        </Button>
-                        <p className="text-[10px] text-center text-muted-foreground">{t("powered_by_stripe_sim")}</p>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  <Link href={`/checkout/${booking.id}`}>
+                    <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold" data-testid="button-pay-online">
+                      {t("pay_with_card")}
+                    </Button>
+                  </Link>
                 </CardContent>
               </Card>
             </div>

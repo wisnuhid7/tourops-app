@@ -61,7 +61,18 @@ function clearFailedAttempts(username: string): void {
 // (login / registration) to defend against session fixation.
 function regenerateSession(req: Request): Promise<void> {
   return new Promise((resolve, reject) => {
-    req.session.regenerate((err) => (err ? reject(err) : resolve()));
+    req.session.regenerate((err) => {
+      if (err) return reject(err);
+      // regenerate() rebuilds the cookie from the original session options,
+      // wiping the per-request plain-HTTP downgrade applied in setupAuth.
+      // Re-apply it: SameSite=None without Secure is rejected by browsers.
+      if (!req.secure) {
+        req.session.cookie.sameSite = "lax";
+        req.session.cookie.secure = false;
+        (req.session.cookie as any).partitioned = false;
+      }
+      resolve();
+    });
   });
 }
 

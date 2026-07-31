@@ -27,6 +27,9 @@ app.use(
   }),
 );
 app.use(cors());
+// Payment webhooks are signature-verified over the raw body, so this path
+// must bypass JSON parsing (express.json skips it once raw has consumed it).
+app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

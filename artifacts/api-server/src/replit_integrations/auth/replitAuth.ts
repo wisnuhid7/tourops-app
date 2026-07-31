@@ -44,6 +44,18 @@ export function getSession() {
 export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(getSession());
+  // Browsers reject SameSite=None cookies that lack Secure, so the iframe
+  // attributes above only make sense over HTTPS (the Replit preview proxy).
+  // For plain-HTTP access (local browsers, e2e testers, curl) downgrade the
+  // cookie to SameSite=Lax without Secure/Partitioned per request.
+  app.use((req, _res, next) => {
+    if (req.session && !req.secure) {
+      req.session.cookie.sameSite = "lax";
+      req.session.cookie.secure = false;
+      (req.session.cookie as any).partitioned = false;
+    }
+    next();
+  });
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {

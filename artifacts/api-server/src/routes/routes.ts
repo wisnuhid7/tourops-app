@@ -47,6 +47,7 @@ function pickPublicTranslations(translations: any, allowedKeys: string[]) {
 import { queues } from "../lib/workers";
 import { scraperSafety } from "../lib/scraperSafety";
 import { setupAuth, isAuthenticated } from "../replit_integrations/auth";
+import { registerPaymentRoutes } from "./paymentRoutes";
 import { registerAuthRoutes, passwordSchema } from "../replit_integrations/auth";
 import { authStorage } from "../replit_integrations/auth/storage";
 import { db } from "@workspace/db";
@@ -143,7 +144,7 @@ const PLATFORM_WIDE_READ_ROLES = INTERNAL_STAFF_ROLES.filter(r => !["city_manage
 const SUPPORT_READ_ROLES = [...ADMIN_ROLES, "support_agent"];
 // accounting handles the financial lifecycle: bookings (read), invoices and
 // payments (read + record/confirm). No operational or master-data authority.
-const FINANCE_ROLES = ["super_admin", "admin", "accounting"];
+export const FINANCE_ROLES = ["super_admin", "admin", "accounting"];
 // Master records (countries/cities/airports and other global reference data)
 // may only be mutated by operational manager roles — not by city_manager
 // (single-city remit) or content_editor (content-only remit).
@@ -175,7 +176,7 @@ const TOUR_BUILDER_ROLES = [...ADMIN_ROLES, "tour_builder"];
 // Content editors + tour builders can edit tour marketing/content fields
 const TOUR_CONTENT_ROLES = [...ADMIN_ROLES, "tour_builder", "content_editor"];
 
-function getUserId(req: Request): string | undefined {
+export function getUserId(req: Request): string | undefined {
   return req.session?.userId;
 }
 
@@ -187,7 +188,7 @@ async function getUserName(req: Request): Promise<string> {
   return user?.username || "User";
 }
 
-async function canAccessBooking(userId: string, bookingId: string) {
+export async function canAccessBooking(userId: string, bookingId: string) {
   const booking = await storage.getBooking(bookingId);
   if (!booking) return null;
   if (booking.customerId === userId) return booking;
@@ -226,7 +227,7 @@ async function initializeBookingWorkflows(bookingId: string) {
   }
 }
 
-async function requireRole(req: Request, res: Response, roles: string[]): Promise<boolean> {
+export async function requireRole(req: Request, res: Response, roles: string[]): Promise<boolean> {
   const userId = getUserId(req);
   if (!userId) { res.status(401).json({ message: "Unauthorized" }); return false; }
   let profile;
@@ -302,6 +303,7 @@ export async function registerRoutes(
 ): Promise<Server> {
   await setupAuth(app);
   registerAuthRoutes(app);
+  registerPaymentRoutes(app);
 
   // Pre-create uploads directory so it exists before any request hits
   const uploadsDir = path.join(process.cwd(), "uploads", "images");
@@ -1373,9 +1375,26 @@ export async function registerRoutes(
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const booking = await canAccessBooking(userId, req.params.id as string);
       if (!booking) return res.status(403).json({ message: "Forbidden" });
-      const parsed = insertPaymentSchema.safeParse({ ...req.body, bookingId: req.params.id as string, createdBy: userId });
-      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.json(await storage.createPayment(parsed.data));
+      // Customers may only RECORD an offline payment (e.g. bank transfer with
+      // a receipt) — never mark anything paid or touch provider/refund
+      // fields. Online card payments must go through /api/checkout.
+      const customerPaymentSchema = z.object({
+        amount: z.number().int().positive(),
+        method: z.enum(["bank_transfer", "cash", "other"]).default("bank_transfer"),
+        currency: z.string().max(8).optional(),
+        receiptUrl: z.string().max(2000).optional(),
+        notes: z.string().max(2000).optional(),
+      }).strict();
+      const parsed = customerPaymentSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Only amount, method (bank_transfer/cash/other), currency, receiptUrl and notes are accepted; use the checkout flow for card payments" });
+      res.json(await storage.createPayment({
+        ...parsed.data,
+        bookingId: req.params.id as string,
+        customerId: booking.customerId,
+        provider: "manual",
+        status: "pending",
+        createdBy: userId,
+      }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
@@ -2325,16 +2344,49 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, FINANCE_ROLES)) return;
       const userId = getUserId(req);
-      const parsed = insertPaymentSchema.safeParse({ ...req.body, bookingId: req.params.id as string, createdBy: userId });
-      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      res.json(await storage.createPayment(parsed.data));
+      // Finance staff record manual payments; provider/refund/intent fields
+      // are owned by the checkout + webhook pipeline and cannot be set here.
+      const staffPaymentSchema = z.object({
+        amount: z.number().int().positive(),
+        method: z.enum(["bank_transfer", "card", "cash", "other"]).default("bank_transfer"),
+        status: z.enum(["pending", "paid"]).default("pending"),
+        currency: z.string().max(8).optional(),
+        invoiceId: z.string().optional(),
+        receiptUrl: z.string().max(2000).optional(),
+        notes: z.string().max(2000).optional(),
+      }).strict();
+      const parsed = staffPaymentSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid payment: provider/refund fields are managed by the payment pipeline" });
+      const targetBooking = await storage.getBooking(req.params.id as string);
+      if (!targetBooking) return res.status(404).json({ message: "Booking not found" });
+      res.json(await storage.createPayment({
+        ...parsed.data,
+        bookingId: targetBooking.id,
+        customerId: targetBooking.customerId,
+        provider: "manual",
+        createdBy: userId,
+      }));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
   app.patch("/api/payments/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, FINANCE_ROLES)) return;
-      const updated = await storage.updatePayment(req.params.id as string, req.body);
+      // Field allowlist: finance staff may adjust bookkeeping fields only —
+      // never provider identifiers, amounts, or refund totals (those are
+      // managed by the checkout/refund pipeline).
+      const patchSchema = z.object({
+        status: z.enum(["pending", "processing", "paid", "failed", "canceled"]).optional(),
+        method: z.enum(["bank_transfer", "card", "cash", "other"]).optional(),
+        receiptUrl: z.string().max(2000).nullable().optional(),
+        notes: z.string().max(2000).nullable().optional(),
+        invoiceId: z.string().nullable().optional(),
+      }).strict();
+      const parsedPatch = patchSchema.safeParse(req.body);
+      if (!parsedPatch.success) {
+        return res.status(400).json({ message: "Only status, method, receiptUrl, notes and invoiceId can be updated" });
+      }
+      const updated = await storage.updatePayment(req.params.id as string, parsedPatch.data);
       
       // Notify customer if payment is confirmed as paid (non-blocking)
       if (req.body.status === "paid") {

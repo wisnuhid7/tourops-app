@@ -1,4 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
+import { logger } from "../lib/logger";
+import { routeError } from "../lib/routeError";
 import Decimal from "decimal.js";
 import { createServer, type Server } from "http";
 import { storage } from "../storage";
@@ -333,7 +335,7 @@ export async function registerRoutes(
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const profile = await storage.getOrCreateProfile(userId);
       res.json(profile);
-    } catch (e: any) { res.status(e?.statusCode || 500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/user-profiles", isAuthenticated, async (req, res) => {
@@ -346,7 +348,7 @@ export async function registerRoutes(
         return res.json(all.filter(p => p.countryCode && requester.countryCode && p.countryCode.toUpperCase() === requester.countryCode.toUpperCase()));
       }
       res.json(all);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/user-profiles/:id", isAuthenticated, async (req, res) => {
@@ -356,7 +358,7 @@ export async function registerRoutes(
       const parsed = updateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateProfile(req.params.id as string, parsed.data as any));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/admin/users", isAuthenticated, async (req, res) => {
@@ -400,7 +402,7 @@ export async function registerRoutes(
       }
 
       res.json({ user: { id: user.id, username: user.username, firstName: user.firstName, lastName: user.lastName, email: user.email }, profile });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/admin/users/:id/password", isAuthenticated, async (req, res) => {
@@ -414,7 +416,7 @@ export async function registerRoutes(
       if (!user) return res.status(404).json({ message: "User not found" });
       await authStorage.upsertUser({ ...user, passwordHash, updatedAt: new Date() });
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Tours ----
@@ -423,19 +425,19 @@ export async function registerRoutes(
       // operations_manager needs the tour list for the pricing quote builder.
       if (!await requireRole(req, res, ["super_admin", "admin", "country_manager", "tour_builder", "content_editor", "operations_manager"])) return;
       res.json(await storage.getAllTours());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/tours/accommodation-summary", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       res.json(await storage.getTourAccommodationSummary());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/tours/public", async (_req, res) => {
     try { res.json(await storage.getPublishedTours()); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
+    catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/destinations/popular", async (_req, res) => {
@@ -492,7 +494,7 @@ export async function registerRoutes(
 
       res.json(popularDestinations);
     } catch (e: any) {
-      res.status(500).json({ message: e.message });
+      routeError(res, e);
     }
   });
 
@@ -509,7 +511,7 @@ export async function registerRoutes(
       // deduped + failure-cooldown inside the helper).
       maybeAutoTranslateTourInBackground(tour as any);
       res.json(tour);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   /** PG unique-constraint violation (code 23505), possibly wrapped by the driver. */
@@ -562,7 +564,7 @@ export async function registerRoutes(
       // TOUR-04: translate unique-slug violations into a clean 409.
       if (isSlugUniqueViolation(e)) return res.status(409).json({ message: "A tour with this slug already exists" });
         if (isUniqueViolation(e)) return res.status(409).json({ message: "Duplicate value violates a unique constraint" });
-      res.status(500).json({ message: e.message });
+      routeError(res, e);
     }
   });
 
@@ -587,7 +589,7 @@ export async function registerRoutes(
       } catch (e: any) {
         if (isSlugUniqueViolation(e)) return res.status(409).json({ message: "A tour with this slug already exists" });
         if (isUniqueViolation(e)) return res.status(409).json({ message: "Duplicate value violates a unique constraint" });
-        res.status(500).json({ message: e.message });
+        routeError(res, e);
       }
     });
 
@@ -635,7 +637,7 @@ export async function registerRoutes(
       } catch (e: any) {
         if (isSlugUniqueViolation(e)) return res.status(409).json({ message: "A tour with this slug already exists" });
         if (isUniqueViolation(e)) return res.status(409).json({ message: "Duplicate value violates a unique constraint" });
-        res.status(500).json({ message: e.message });
+        routeError(res, e);
       }
     });
 
@@ -644,7 +646,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       await storage.deleteTour(req.params.id as string);
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/ai/generate-itinerary", isAuthenticated, async (req, res) => {
@@ -652,7 +654,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const itinerary = await aiService.generateItinerary(req.body);
       res.json(itinerary);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/ai/translate-content", isAuthenticated, async (req, res) => {
@@ -660,7 +662,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const translated = await aiService.translateTourContent(req.body);
       res.json(translated);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Auto-fill ES/ID translations for a tour and all of its itinerary days using
@@ -676,7 +678,7 @@ export async function registerRoutes(
       res.json({ success: true, tour: result.tour, days: result.days });
     } catch (e: any) {
       if (e.message === "Tour not found") return res.status(404).json({ message: e.message });
-      res.status(500).json({ message: e.message });
+      routeError(res, e);
     }
   });
 
@@ -729,7 +731,7 @@ export async function registerRoutes(
       if (!await ensureTourViewable(req, res, req.params.id as string)) return;
       res.json(await storage.getTourDays(req.params.id as string));
     }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
+    catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/tours/:id/day-items", async (req, res) => {
@@ -739,7 +741,7 @@ export async function registerRoutes(
       maybeAutoTranslateEntitiesInBackground("tourDayItem", items as any);
       res.json(items);
     }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
+    catch (e: any) { routeError(res, e); }
   });
 
   // Public: consolidated list of unique guides assigned across all days of a tour.
@@ -768,7 +770,7 @@ export async function registerRoutes(
           translations: pickPublicTranslations((g as any).translations, ["language"]),
         }));
       res.json(guides);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Public: consolidated list of unique hotels assigned across all days of a tour.
@@ -804,7 +806,7 @@ export async function registerRoutes(
           translations: pickPublicTranslations((h as any).translations, ["description"]),
         }));
       res.json(hotels);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/tours/:id/days", isAuthenticated, async (req, res) => {
@@ -818,7 +820,7 @@ export async function registerRoutes(
       }
 
       res.json(await storage.createTourDay(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/tour-days/:id", isAuthenticated, async (req, res) => {
@@ -832,7 +834,7 @@ export async function registerRoutes(
       }
 
       res.json(await storage.updateTourDay(req.params.id as string, req.body));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.delete("/api/tour-days/:id", isAuthenticated, async (req, res) => {
@@ -840,7 +842,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, TOUR_BUILDER_ROLES)) return;
       await storage.deleteTourDay(req.params.id as string);
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Departures ----
@@ -848,7 +850,7 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getAllDepartures());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/tours/:id/departures", async (req, res) => {
@@ -856,7 +858,7 @@ export async function registerRoutes(
       if (!await ensureTourViewable(req, res, req.params.id as string)) return;
       res.json(await storage.getDeparturesByTour(req.params.id as string));
     }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
+    catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/departures", isAuthenticated, async (req, res) => {
@@ -865,7 +867,7 @@ export async function registerRoutes(
       const parsed = insertTourDepartureSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createDeparture(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Field allowlist: capacityBooked is system-managed via booking flows, and
@@ -883,7 +885,7 @@ export async function registerRoutes(
       }
       if (Object.keys(update).length === 0) return res.status(400).json({ message: "No updatable fields provided" });
       res.json(await storage.updateDeparture(req.params.id as string, update));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.delete("/api/departures/:id", isAuthenticated, async (req, res) => {
@@ -899,7 +901,7 @@ export async function registerRoutes(
       }
       await storage.deleteDeparture(id);
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Bookings ----
@@ -919,7 +921,7 @@ export async function registerRoutes(
       // this endpoint, so granting the full list is unnecessary PII exposure.
       if (!await requireRole(req, res, BOOKING_READ_ROLES)) return;
       res.json(await storage.getAllBookings());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/bookings/by-code/:code", isAuthenticated, async (req, res) => {
@@ -944,7 +946,7 @@ export async function registerRoutes(
         });
       }
       res.json(booking);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/bookings/:id", isAuthenticated, async (req, res) => {
@@ -964,7 +966,7 @@ export async function registerRoutes(
       const booking = await storage.getBooking(req.params.id as string);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       res.json(booking);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/bookings", isAuthenticated, async (req, res) => {
@@ -1067,7 +1069,7 @@ export async function registerRoutes(
       }
 
       res.json(booking);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/bookings/:id", isAuthenticated, async (req, res) => {
@@ -1188,7 +1190,7 @@ export async function registerRoutes(
       }
       
       res.json(updated);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.delete("/api/bookings/:id", isAuthenticated, async (req, res) => {
@@ -1196,7 +1198,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       await storage.deleteBooking(req.params.id as string);
       res.json({ success: true, message: "Booking deleted" });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/bookings/bulk-initialize", isAuthenticated, async (req, res) => {
@@ -1223,7 +1225,7 @@ export async function registerRoutes(
         initialized++;
       }
       res.json({ initialized });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/bookings/join", isAuthenticated, async (req, res) => {
@@ -1289,7 +1291,7 @@ export async function registerRoutes(
         }
         throw insertErr;
       }
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Customer booking routes ----
@@ -1298,7 +1300,7 @@ export async function registerRoutes(
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       res.json(await storage.getBookingsByCustomer(userId));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/my-bookings/:id", isAuthenticated, async (req, res) => {
@@ -1309,7 +1311,7 @@ export async function registerRoutes(
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       if (booking.customerId !== userId) return res.status(403).json({ message: "Not your booking" });
       res.json(booking);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/my-bookings/:id/travelers", isAuthenticated, async (req, res) => {
@@ -1322,7 +1324,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Forbidden" });
       }
       res.json(await storage.getTravelers(req.params.id as string));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/my-bookings/:id/workflows", isAuthenticated, async (req, res) => {
@@ -1332,7 +1334,7 @@ export async function registerRoutes(
       const booking = await storage.getBooking(req.params.id as string);
       if (!booking || booking.customerId !== userId) return res.status(403).json({ message: "Forbidden" });
       res.json(await storage.getWorkflows(req.params.id as string));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/my-bookings/:id/messages", isAuthenticated, async (req, res) => {
@@ -1343,7 +1345,7 @@ export async function registerRoutes(
       if (!booking || booking.customerId !== userId) return res.status(403).json({ message: "Forbidden" });
       const msgs = await storage.getMessages(req.params.id as string);
       res.json(msgs.filter(m => m.visibility === "customer_visible"));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Customer Documents ----
@@ -1354,7 +1356,7 @@ export async function registerRoutes(
       const booking = await canAccessBooking(userId, req.params.id as string);
       if (!booking) return res.status(403).json({ message: "Forbidden" });
       res.json(await storage.getDocuments(req.params.id as string));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/my-bookings/:id/documents", isAuthenticated, async (req, res) => {
@@ -1366,7 +1368,7 @@ export async function registerRoutes(
       const parsed = insertDocumentSchema.safeParse({ ...req.body, bookingId: req.params.id as string, uploadedBy: userId });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createDocument(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Customer Payments ----
@@ -1377,7 +1379,7 @@ export async function registerRoutes(
       const booking = await canAccessBooking(userId, req.params.id as string);
       if (!booking) return res.status(403).json({ message: "Forbidden" });
       res.json(await storage.getPayments(req.params.id as string));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/my-bookings/:id/payments", isAuthenticated, async (req, res) => {
@@ -1406,7 +1408,7 @@ export async function registerRoutes(
         status: "pending",
         createdBy: userId,
       }));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/my-bookings/:id/payments/:paymentId", isAuthenticated, async (req, res) => {
@@ -1426,7 +1428,7 @@ export async function registerRoutes(
       });
 
       res.json(updated);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Leader Group Participants ----
@@ -1440,7 +1442,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Forbidden" });
       }
       res.json(await storage.getGroupParticipants(req.params.id as string));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/my-bookings/:id/participants/:participantBookingId/cancel", isAuthenticated, async (req, res) => {
@@ -1459,7 +1461,7 @@ export async function registerRoutes(
       }
       const updated = await storage.updateBooking(req.params.participantBookingId as string, { status: "cancelled" });
       res.json(updated);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Customer Self-Cancellation ----
@@ -1487,7 +1489,7 @@ export async function registerRoutes(
         note: req.body.reason || "Customer self-cancelled",
       });
       res.json(updated);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Public Groups (Joinable Departures) ----
@@ -1507,14 +1509,14 @@ export async function registerRoutes(
           joinCode: b.joinCode,
         }));
       res.json(publicGroups);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/public-groups", async (req, res) => {
     try {
       const publicGroups = await storage.getPublicGroups();
       res.json(publicGroups);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Audit Logs ----
@@ -1522,7 +1524,7 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getAuditLogs(req.params.entityType as string, req.params.entityId as string));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Scraping ----
@@ -1542,7 +1544,7 @@ export async function registerRoutes(
       res.json({ success: true, count: results.length, jobId: job.id });
     } catch (e: any) { 
       if (job) await storage.updateImportJob(job.id, { status: "failed", errors: e.message, completedAt: new Date() });
-      res.status(500).json({ message: e.message }); 
+      routeError(res, e); 
     }
   });
 
@@ -1566,7 +1568,7 @@ export async function registerRoutes(
       res.json({ success: true, count: results.length, jobId: job.id });
     } catch (e: any) { 
       if (job) await storage.updateImportJob(job.id, { status: "failed", errors: e.message, completedAt: new Date() });
-      res.status(500).json({ message: e.message }); 
+      routeError(res, e); 
     }
   });
 
@@ -1590,7 +1592,7 @@ export async function registerRoutes(
       res.json({ success: true, count: results.length, jobId: job.id });
     } catch (e: any) { 
       if (job) await storage.updateImportJob(job.id, { status: "failed", errors: e.message, completedAt: new Date() });
-      res.status(500).json({ message: e.message }); 
+      routeError(res, e); 
     }
   });
 
@@ -1614,7 +1616,7 @@ export async function registerRoutes(
       res.json({ success: true, count: results.length, jobId: job.id });
     } catch (e: any) { 
       if (job) await storage.updateImportJob(job.id, { status: "failed", errors: e.message, completedAt: new Date() });
-      res.status(500).json({ message: e.message }); 
+      routeError(res, e); 
     }
   });
 
@@ -1624,7 +1626,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       const itinerary = await aiService.generateItinerary(req.body);
       res.json(itinerary);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/admin/ai/enrich-sight/:id", isAuthenticated, async (req, res) => {
@@ -1635,7 +1637,7 @@ export async function registerRoutes(
       const enriched = await aiService.enrichSightDescription(sight.name, sight.description || "");
       const updated = await storage.updateSight(sight.id, { longDescription: enriched });
       res.json(updated);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Tour Day Items ----
@@ -1645,7 +1647,7 @@ export async function registerRoutes(
       maybeAutoTranslateEntitiesInBackground("tourDayItem", items as any);
       res.json(items);
     }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
+    catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/tour-days/:dayId/items", isAuthenticated, async (req, res) => {
@@ -1653,26 +1655,26 @@ export async function registerRoutes(
       const data = { ...req.body, tourDayId: req.params.dayId };
       const item = await storage.createTourDayItem(data);
       res.status(201).json(item);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/tour-day-items/:id", isAuthenticated, async (req, res) => {
     try { res.json(await storage.updateTourDayItem(req.params.id as string, req.body)); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
+    catch (e: any) { routeError(res, e); }
   });
 
   app.delete("/api/tour-day-items/:id", isAuthenticated, async (req, res) => {
     try {
       await storage.deleteTourDayItem(req.params.id as string);
       res.sendStatus(204);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Master Records ----
   app.get("/api/master-records", isAuthenticated, async (req, res) => {
     try {
       res.json(await storage.getMasterRecords(req.query.type as string));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/master-records", isAuthenticated, async (req, res) => {
@@ -1715,7 +1717,7 @@ export async function registerRoutes(
       }
       
       res.status(201).json(record);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/master-records/:id", isAuthenticated, async (req, res) => {
@@ -1735,7 +1737,7 @@ export async function registerRoutes(
       }
       
       res.json(updated);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.delete("/api/master-records/:id", isAuthenticated, async (req, res) => {
@@ -1753,7 +1755,7 @@ export async function registerRoutes(
       
       await storage.deleteMasterRecord(req.params.id as string);
       res.sendStatus(204);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Supplier Rates ----
@@ -1779,7 +1781,7 @@ export async function registerRoutes(
       const visible = ownerId ? all.filter(h => (h as any).createdBy === ownerId) : all;
       maybeAutoTranslateEntitiesInBackground("hotel", visible as any);
       res.json(visible);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Direct room rates (Matrimonial/Doble/Triple $/night) must be positive
@@ -1812,7 +1814,7 @@ export async function registerRoutes(
       // Registration always starts as "draft"; only admin/super_admin can approve.
       // Force the status server-side so a hotel_manager can't self-approve via the payload.
       res.status(201).json(await storage.createHotel({ ...parsed.data, status: "draft", createdBy: getUserId(req)! }));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Approve a registered hotel — admin/super_admin only.
@@ -1820,7 +1822,7 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.updateHotel(req.params.id as string, { status: "approved" }));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/hotels/:id", isAuthenticated, async (req, res) => {
@@ -1846,7 +1848,7 @@ export async function registerRoutes(
       // Ownership is server-managed; never accept it from the payload.
       delete data.createdBy;
       res.json(await storage.updateHotel(req.params.id as string, data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.delete("/api/hotels/:id", isAuthenticated, async (req, res) => {
@@ -1861,7 +1863,7 @@ export async function registerRoutes(
       }
       await storage.deleteHotel(req.params.id as string);
       res.sendStatus(204);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Leader Dashboard ----
@@ -1883,7 +1885,7 @@ export async function registerRoutes(
         bookings: allBookings,
         alerts,
       });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Leader Payments Report ----
@@ -1899,7 +1901,7 @@ export async function registerRoutes(
       }
       const report = await storage.getLeaderPaymentsReport(userId, allBookings);
       res.json(report);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Travelers ----
@@ -1907,7 +1909,7 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getTravelers(req.params.id as string));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/bookings/:id/travelers", isAuthenticated, async (req, res) => {
@@ -1926,7 +1928,7 @@ export async function registerRoutes(
       const parsed = insertTravelerSchema.safeParse({ ...req.body, bookingId: req.params.id as string });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTraveler(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/bookings/:id/travelers/bulk", isAuthenticated, async (req, res) => {
@@ -1956,14 +1958,14 @@ export async function registerRoutes(
         }
       }
       res.json({ success: true, inserted: results.length });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/travelers/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.updateTraveler(req.params.id as string, req.body));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.delete("/api/travelers/:id", isAuthenticated, async (req, res) => {
@@ -1971,7 +1973,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       await storage.deleteTraveler(req.params.id as string);
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/my-travelers/:id", isAuthenticated, async (req, res) => {
@@ -1986,7 +1988,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Forbidden" });
       }
       res.json(await storage.updateTraveler(req.params.id as string, req.body));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.delete("/api/my-travelers/:id", isAuthenticated, async (req, res) => {
@@ -2002,7 +2004,7 @@ export async function registerRoutes(
       }
       await storage.deleteTraveler(req.params.id as string);
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Assignments ----
@@ -2010,14 +2012,14 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, PLATFORM_WIDE_READ_ROLES)) return;
       res.json(await storage.getAllAssignments());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/bookings/:id/assignments", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, PLATFORM_WIDE_READ_ROLES)) return;
       res.json(await storage.getAssignments(req.params.id as string));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/bookings/:id/assignments", isAuthenticated, async (req, res) => {
@@ -2073,7 +2075,7 @@ export async function registerRoutes(
       } catch (err) {
         console.error("Post-confirmation notifications failed:", err);
       }
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/assignments/:id", isAuthenticated, async (req, res) => {
@@ -2096,7 +2098,7 @@ export async function registerRoutes(
       const updated = await storage.updateAssignment(req.params.id as string, patch as any);
       if (!updated) return res.status(404).json({ message: "Assignment not found" });
       res.json(updated);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.delete("/api/assignments/:id", isAuthenticated, async (req, res) => {
@@ -2104,7 +2106,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, OPS_DISPATCH_ROLES)) return;
       await storage.deleteAssignment(req.params.id as string);
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Workflows ----
@@ -2112,7 +2114,7 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, PLATFORM_WIDE_READ_ROLES)) return;
       res.json(await storage.getAllWorkflows());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/bookings/:id/workflows", isAuthenticated, async (req, res) => {
@@ -2128,7 +2130,7 @@ export async function registerRoutes(
       }
       if (!await requireRole(req, res, PLATFORM_WIDE_READ_ROLES)) return;
       res.json(await storage.getWorkflows(req.params.id as string));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Flight agent: all airline-service workflows across bookings, enriched with booking info
@@ -2142,7 +2144,7 @@ export async function registerRoutes(
         return { ...wf, booking };
       }));
       res.json(enriched);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Shared read guard: platform-wide readers, the assigned staff member, or a
@@ -2165,7 +2167,7 @@ export async function registerRoutes(
       const wf = await canReadWorkflow(req, res, req.params.id as string);
       if (!wf) return;
       res.json(wf);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/workflows/:id/steps", isAuthenticated, async (req, res) => {
@@ -2173,7 +2175,7 @@ export async function registerRoutes(
       const wf = await canReadWorkflow(req, res, req.params.id as string);
       if (!wf) return;
       res.json(await storage.getWorkflowSteps(req.params.id as string));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/workflows/:id", isAuthenticated, async (req, res) => {
@@ -2198,7 +2200,7 @@ export async function registerRoutes(
       } else {
         res.status(403).json({ message: "Forbidden" });
       }
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/workflow-steps/:id", isAuthenticated, async (req, res) => {
@@ -2209,7 +2211,7 @@ export async function registerRoutes(
       const isStaff = ALL_STAFF_ROLES.includes(profile.role as any);
       if (!isStaff) return res.status(403).json({ message: "Forbidden" });
       res.json(await storage.updateWorkflowStep(req.params.id as string, { ...req.body, updatedBy: userId }));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Documents ----
@@ -2217,7 +2219,7 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, PLATFORM_WIDE_READ_ROLES)) return;
       res.json(await storage.getAllDocuments());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/bookings/:id/documents", isAuthenticated, async (req, res) => {
@@ -2234,7 +2236,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Forbidden" });
       }
       res.json(await storage.getDocuments(req.params.id as string));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/bookings/:id/documents", isAuthenticated, async (req, res) => {
@@ -2251,7 +2253,7 @@ export async function registerRoutes(
       const parsed = insertDocumentSchema.safeParse({ ...req.body, bookingId: req.params.id as string, uploadedBy: userId });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createDocument(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/documents/:id", isAuthenticated, async (req, res) => {
@@ -2280,7 +2282,7 @@ export async function registerRoutes(
       }
 
       res.json(updated);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Messages ----
@@ -2288,14 +2290,14 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getAllMessages());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/bookings/:id/messages", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, SUPPORT_READ_ROLES)) return;
       res.json(await storage.getMessages(req.params.id as string));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/bookings/:id/messages", isAuthenticated, async (req, res) => {
@@ -2317,7 +2319,7 @@ export async function registerRoutes(
         senderUserId: userId, senderName: await getUserName(req),
         visibility: (parsed.data.visibility as any) || "customer_visible",
       }));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Payments ----
@@ -2325,14 +2327,14 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, FINANCE_ROLES)) return;
       res.json(await storage.getAllPayments());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/bookings/:id/invoices", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, [...FINANCE_ROLES, "support_agent"])) return;
       res.json(await storage.getInvoices(req.params.id as string));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/bookings/:id/invoices", isAuthenticated, async (req, res) => {
@@ -2341,14 +2343,14 @@ export async function registerRoutes(
       const parsed = insertInvoiceSchema.safeParse({ ...req.body, bookingId: req.params.id as string });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createInvoice(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/bookings/:id/payments", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, [...FINANCE_ROLES, "support_agent"])) return;
       res.json(await storage.getPayments(req.params.id as string));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/bookings/:id/payments", isAuthenticated, async (req, res) => {
@@ -2377,7 +2379,7 @@ export async function registerRoutes(
         provider: "manual",
         createdBy: userId,
       }));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/payments/:id", isAuthenticated, async (req, res) => {
@@ -2420,7 +2422,7 @@ export async function registerRoutes(
       }
 
       res.json(updated);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Supplier/Ops ----
@@ -2435,7 +2437,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Forbidden" });
       }
       res.json(await storage.getWorkflowsByUser(userId));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/supplier/bookings/:id", isAuthenticated, async (req, res) => {
@@ -2465,7 +2467,7 @@ export async function registerRoutes(
         : allDocuments.filter(d => d.uploadedBy === userId);
       
       res.json({ ...booking, travelers, documents });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/supplier/bookings/:id/messages", isAuthenticated, async (req, res) => {
@@ -2481,7 +2483,7 @@ export async function registerRoutes(
 
       const allMessages = await storage.getMessages(req.params.id as string);
       res.json(allMessages.filter(m => m.visibility === "internal_only" || m.senderUserId === userId));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/supplier/bookings/:id/messages", isAuthenticated, async (req, res) => {
@@ -2504,7 +2506,7 @@ export async function registerRoutes(
         visibility: "internal_only",
       });
       res.json(message);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/supplier/workflows/:id/documents", isAuthenticated, async (req, res) => {
@@ -2535,7 +2537,7 @@ export async function registerRoutes(
       });
 
       res.json(document);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/ops/workflows", isAuthenticated, async (req, res) => {
@@ -2548,7 +2550,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Forbidden" });
       }
       res.json(await storage.getWorkflowsByUser(userId));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Master Data: Countries ----
@@ -2567,7 +2569,7 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       res.json(await storage.getAllCountries());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/master/countries", isAuthenticated, async (req, res) => {
     try {
@@ -2575,7 +2577,7 @@ export async function registerRoutes(
       const parsed = insertCountrySchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createCountry(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/master/countries/:id", isAuthenticated, async (req, res) => {
     try {
@@ -2587,14 +2589,14 @@ export async function registerRoutes(
       const parsed = insertCountrySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateCountry(req.params.id as string, parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/master/countries/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["super_admin", "admin"])) return;
       await storage.deleteCountry(req.params.id as string);
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/master/countries/import", isAuthenticated, async (req, res) => {
@@ -2604,7 +2606,7 @@ export async function registerRoutes(
       const rows = z.array(insertCountrySchema).safeParse(data);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       res.json(await storage.bulkCreateCountries(rows.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Master Data: Cities ----
@@ -2614,7 +2616,7 @@ export async function registerRoutes(
   app.get("/api/master/cities", isAuthenticated, async (_req, res) => {
     try {
       res.json(await storage.getAllCities());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/master/cities", isAuthenticated, async (req, res) => {
@@ -2628,7 +2630,7 @@ export async function registerRoutes(
         return res.status(403).json({ message: "Country managers can only create cities in their assigned country" });
       }
       res.json(await storage.createCity(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/master/cities/:id", isAuthenticated, async (req, res) => {
     try {
@@ -2648,7 +2650,7 @@ export async function registerRoutes(
       const parsed = insertCitySchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateCity(req.params.id as string, parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/master/cities/:id", isAuthenticated, async (req, res) => {
     try {
@@ -2663,7 +2665,7 @@ export async function registerRoutes(
       }
       await storage.deleteCity(req.params.id as string);
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/master/cities/import", isAuthenticated, async (req, res) => {
     try {
@@ -2701,13 +2703,13 @@ export async function registerRoutes(
         return res.json({ imported: response.length, skipped: skipped.length, skippedSample: Array.from(new Set(skipped)).slice(0, 10) });
       }
       res.json(response);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Master Data: Airports ----
   app.get("/api/master/airports", isAuthenticated, async (_req, res) => {
     try { res.json(await storage.getAllAirports()); }
-    catch (e: any) { res.status(500).json({ message: e.message }); }
+    catch (e: any) { routeError(res, e); }
   });
   app.post("/api/master/airports", isAuthenticated, async (req, res) => {
     try {
@@ -2715,7 +2717,7 @@ export async function registerRoutes(
       const parsed = insertAirportSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createAirport(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/master/airports/:id", isAuthenticated, async (req, res) => {
     try {
@@ -2723,14 +2725,14 @@ export async function registerRoutes(
       const parsed = insertAirportSchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateAirport(req.params.id as string, parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/master/airports/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       await storage.deleteAirport(req.params.id as string);
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/master/airports/import", isAuthenticated, async (req, res) => {
     try {
@@ -2768,7 +2770,7 @@ export async function registerRoutes(
         return res.json({ imported: response.length, skipped: skipped.length, skippedSample: Array.from(new Set(skipped)).slice(0, 10) });
       }
       res.json(response);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Master Data: Sights ----
@@ -2776,7 +2778,7 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       res.json(await storage.getAllSights());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/master/sights", isAuthenticated, async (req, res) => {
     try {
@@ -2784,7 +2786,7 @@ export async function registerRoutes(
       const parsed = insertSightSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createSight(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/master/sights/:id", isAuthenticated, async (req, res) => {
     try {
@@ -2792,14 +2794,14 @@ export async function registerRoutes(
       const parsed = insertSightSchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateSight(req.params.id as string, parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/master/sights/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, SIGHTS_MANAGE_ROLES)) return;
       await storage.deleteSight(req.params.id as string);
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/master/sights/import", isAuthenticated, async (req, res) => {
     try {
@@ -2876,7 +2878,7 @@ export async function registerRoutes(
       if (createdCities.length > 0) result2.citiesCreated = createdCities.length;
       if (skipped.length > 0) { result2.skipped = skipped.length; result2.skippedSample = Array.from(new Set(skipped)).slice(0, 10); }
       res.json(result2);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Master Data: Transport Companies ----
@@ -2885,7 +2887,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       // Transport companies are shared/global by design: no per-owner filtering.
       res.json(await storage.getAllTransportCompanies());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/master/transport-companies", isAuthenticated, async (req, res) => {
     try {
@@ -2894,7 +2896,7 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       const { userId } = await ownerScope(req, ["transport_manager"]);
       res.json(await storage.createTransportCompany({ ...parsed.data, createdBy: userId }));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/master/transport-companies/:id", isAuthenticated, async (req, res) => {
     try {
@@ -2904,14 +2906,14 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       const { createdBy: _ignoredCb, ...updateData } = parsed.data;
       res.json(await storage.updateTransportCompany(req.params.id as string, updateData));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/master/transport-companies/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, TRANSPORT_COMPANY_MANAGE_ROLES)) return;
       await storage.deleteTransportCompany(req.params.id as string);
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/master/transport-companies/import", isAuthenticated, async (req, res) => {
     try {
@@ -2921,7 +2923,7 @@ export async function registerRoutes(
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       const { userId } = await ownerScope(req, ["transport_manager"]);
       res.json(await storage.bulkCreateTransportCompanies(rows.data.map(r => ({ ...r, createdBy: userId }))));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Master Data: Airline Agencies ----
@@ -2930,7 +2932,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
       // Airlines catalog is shared/global by design: no per-owner filtering.
       res.json(await storage.getAllAirlineAgencies());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/master/airline-agencies", isAuthenticated, async (req, res) => {
     try {
@@ -2939,7 +2941,7 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       const { userId } = await ownerScope(req, ["airline_supplier"]);
       res.json(await storage.createAirlineAgency({ ...parsed.data, createdBy: userId }));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/master/airline-agencies/:id", isAuthenticated, async (req, res) => {
     try {
@@ -2949,7 +2951,7 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       const { createdBy: _ignoredCb, ...updateData } = parsed.data;
       res.json(await storage.updateAirlineAgency(req.params.id as string, updateData));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/master/airline-agencies/:id", isAuthenticated, async (req, res) => {
     try {
@@ -2957,7 +2959,7 @@ export async function registerRoutes(
       // Airlines catalog is shared/global by design: no ownership check.
       await storage.deleteAirlineAgency(req.params.id as string);
       res.json({ ok: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/master/airline-agencies/import", isAuthenticated, async (req, res) => {
     try {
@@ -2967,7 +2969,7 @@ export async function registerRoutes(
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       const { userId } = await ownerScope(req, ["airline_supplier"]);
       res.json(await storage.bulkCreateAirlineAgencies(rows.data.map(r => ({ ...r, createdBy: userId }))));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Helper: get transport manager's company ID (returns null for admin, enforces scope for transport_manager)
@@ -2990,7 +2992,7 @@ export async function registerRoutes(
       if (scope.companyId) res.json(await storage.getBusTypes(scope.companyId));
       else if (scope.isAdmin) res.json(await storage.getAllBusTypes());
       else res.json([]);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/transport/bus-types", isAuthenticated, async (req, res) => {
     try {
@@ -3000,14 +3002,14 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       if (!scope.isAdmin && parsed.data.companyId !== scope.companyId) return res.status(403).json({ message: "Cannot create for another company" });
       res.json(await storage.createBusType(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/transport/bus-types/:id", isAuthenticated, async (req, res) => {
     try {
       const scope = await getTransportScope(req, res);
       if (!scope) return;
       res.json(await storage.updateBusType(req.params.id as string, req.body));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/transport/bus-types/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3015,7 +3017,7 @@ export async function registerRoutes(
       if (!scope) return;
       await storage.deleteBusType(req.params.id as string);
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Transport: Routes ----
@@ -3026,7 +3028,7 @@ export async function registerRoutes(
       if (scope.companyId) res.json(await storage.getTransportRoutes(scope.companyId));
       else if (scope.isAdmin) res.json(await storage.getAllTransportRoutes());
       else res.json([]);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/transport/routes", isAuthenticated, async (req, res) => {
     try {
@@ -3036,14 +3038,14 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       if (!scope.isAdmin && parsed.data.companyId !== scope.companyId) return res.status(403).json({ message: "Cannot create for another company" });
       res.json(await storage.createTransportRoute(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/transport/routes/:id", isAuthenticated, async (req, res) => {
     try {
       const scope = await getTransportScope(req, res);
       if (!scope) return;
       res.json(await storage.updateTransportRoute(req.params.id as string, req.body));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/transport/routes/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3051,7 +3053,7 @@ export async function registerRoutes(
       if (!scope) return;
       await storage.deleteTransportRoute(req.params.id as string);
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Transport: Route Pricing ----
@@ -3063,7 +3065,7 @@ export async function registerRoutes(
       if (routeId) res.json(await storage.getRoutePricing(routeId));
       else if (scope.isAdmin) res.json(await storage.getAllRoutePricing());
       else res.json([]);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/transport/route-pricing", isAuthenticated, async (req, res) => {
     try {
@@ -3072,14 +3074,14 @@ export async function registerRoutes(
       const parsed = insertTransportRoutePricingSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createRoutePricing(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/transport/route-pricing/:id", isAuthenticated, async (req, res) => {
     try {
       const scope = await getTransportScope(req, res);
       if (!scope) return;
       res.json(await storage.updateRoutePricing(req.params.id as string, req.body));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/transport/route-pricing/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3087,7 +3089,7 @@ export async function registerRoutes(
       if (!scope) return;
       await storage.deleteRoutePricing(req.params.id as string);
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Transport: Bookings ----
@@ -3096,7 +3098,7 @@ export async function registerRoutes(
       const scope = await getTransportScope(req, res);
       if (!scope) return;
       res.json(await storage.getTransportBookings(scope.companyId));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.get("/api/transport/bookings/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3106,7 +3108,7 @@ export async function registerRoutes(
       if (!tb) return res.status(404).json({ message: "Not found" });
       if (!scope.isAdmin && tb.companyId !== scope.companyId) return res.status(403).json({ message: "Forbidden" });
       res.json(tb);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/transport/bookings", isAuthenticated, async (req, res) => {
     try {
@@ -3116,7 +3118,7 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       if (!scope.isAdmin && parsed.data.companyId !== scope.companyId) return res.status(403).json({ message: "Cannot create for another company" });
       res.json(await storage.createTransportBooking(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/transport/bookings/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3130,7 +3132,7 @@ export async function registerRoutes(
         data.confirmedAt = new Date();
       }
       res.json(await storage.updateTransportBooking(req.params.id as string, data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Transport: Invoices ----
@@ -3139,7 +3141,7 @@ export async function registerRoutes(
       const scope = await getTransportScope(req, res);
       if (!scope) return;
       res.json(await storage.getTransportInvoices(scope.companyId));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/transport/invoices", isAuthenticated, async (req, res) => {
     try {
@@ -3149,7 +3151,7 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       if (!scope.isAdmin && parsed.data.companyId !== scope.companyId) return res.status(403).json({ message: "Cannot create for another company" });
       res.json(await storage.createTransportInvoice(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/transport/invoices/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3159,7 +3161,7 @@ export async function registerRoutes(
         data.approvedAt = new Date();
       }
       res.json(await storage.updateTransportInvoice(req.params.id as string, data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Transport: Payments ----
@@ -3168,7 +3170,7 @@ export async function registerRoutes(
       const scope = await getTransportScope(req, res);
       if (!scope) return;
       res.json(await storage.getTransportPayments(scope.companyId));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/transport/payments", isAuthenticated, async (req, res) => {
     try {
@@ -3176,13 +3178,13 @@ export async function registerRoutes(
       const parsed = insertTransportPaymentSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTransportPayment(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/transport/payments/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, TRANSPORT_FINANCE_ROLES)) return;
       res.json(await storage.updateTransportPayment(req.params.id as string, req.body));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   const validRateStatuses = ["draft", "active", "archived"] as const;
@@ -3202,7 +3204,7 @@ export async function registerRoutes(
       let rows = await storage.getHotelRates();
       if (ownerId) rows = rows.filter(r => r.createdBy === ownerId);
       res.json(rows);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/rates/hotel", isAuthenticated, async (req, res) => {
     try {
@@ -3211,7 +3213,7 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       const { userId } = await ownerScope(req, []);
       res.json(await storage.createHotelRate({ ...parsed.data, createdBy: userId }));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/rates/hotel/bulk", isAuthenticated, async (req, res) => {
     try {
@@ -3220,7 +3222,7 @@ export async function registerRoutes(
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       const { userId } = await ownerScope(req, []);
       res.json(await storage.bulkCreateHotelRates(rows.data.map(r => ({ ...r, createdBy: userId }))));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/rates/hotel/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3233,7 +3235,7 @@ export async function registerRoutes(
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateHotelRate(req.params.id as string, data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/rates/hotel/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3245,7 +3247,7 @@ export async function registerRoutes(
       }
       await storage.deleteHotelRate(req.params.id as string);
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- One-time maintenance: remap legacy role values ----
@@ -3257,7 +3259,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["super_admin"])) return;
       const updated = await storage.remapLegacyRoles("travel_agent", "tour_leader");
       res.json({ ok: true, updated });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Rate Cards: Transport Rates ----
@@ -3265,7 +3267,7 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ["super_admin", "admin", "country_manager", "transport_manager"])) return;
       res.json(await storage.getTransportRates());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/rates/transport", isAuthenticated, async (req, res) => {
     try {
@@ -3273,7 +3275,7 @@ export async function registerRoutes(
       const parsed = insertTransportRateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTransportRate(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/rates/transport/bulk", isAuthenticated, async (req, res) => {
     try {
@@ -3281,7 +3283,7 @@ export async function registerRoutes(
       const rows = z.array(insertTransportRateSchema).safeParse(req.body);
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       res.json(await storage.bulkCreateTransportRates(rows.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/rates/transport/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3289,14 +3291,14 @@ export async function registerRoutes(
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateTransportRate(req.params.id as string, data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/rates/transport/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ["super_admin", "admin", "country_manager", "transport_manager"])) return;
       await storage.deleteTransportRate(req.params.id as string);
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Rate Cards: Guide Rates ----
@@ -3307,7 +3309,7 @@ export async function registerRoutes(
       let rows = await storage.getGuideRates();
       if (ownerId) rows = rows.filter(r => r.createdBy === ownerId);
       res.json(rows);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/rates/guide", isAuthenticated, async (req, res) => {
     try {
@@ -3316,7 +3318,7 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       const { userId } = await ownerScope(req, []);
       res.json(await storage.createGuideRate({ ...parsed.data, createdBy: userId }));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/rates/guide/bulk", isAuthenticated, async (req, res) => {
     try {
@@ -3325,7 +3327,7 @@ export async function registerRoutes(
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       const { userId } = await ownerScope(req, []);
       res.json(await storage.bulkCreateGuideRates(rows.data.map(r => ({ ...r, createdBy: userId }))));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/rates/guide/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3338,7 +3340,7 @@ export async function registerRoutes(
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateGuideRate(req.params.id as string, data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/rates/guide/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3350,7 +3352,7 @@ export async function registerRoutes(
       }
       await storage.deleteGuideRate(req.params.id as string);
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Rate Cards: Sights Rates ----
@@ -3360,7 +3362,7 @@ export async function registerRoutes(
       // Sights rates are a shared global table: superadmin and sights managers
       // all see and manage the same rows (no per-owner isolation by design).
       res.json(await storage.getSightsRates());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/rates/sights", isAuthenticated, async (req, res) => {
     try {
@@ -3369,7 +3371,7 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       const { userId } = await ownerScope(req, ["sights_manager"]);
       res.json(await storage.createSightsRate({ ...parsed.data, createdBy: userId }));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/rates/sights/bulk", isAuthenticated, async (req, res) => {
     try {
@@ -3378,7 +3380,7 @@ export async function registerRoutes(
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       const { userId } = await ownerScope(req, ["sights_manager"]);
       res.json(await storage.bulkCreateSightsRates(rows.data.map(r => ({ ...r, createdBy: userId }))));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/rates/sights/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3387,7 +3389,7 @@ export async function registerRoutes(
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateSightsRate(req.params.id as string, data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/rates/sights/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3395,7 +3397,7 @@ export async function registerRoutes(
       // Shared global table — no per-owner check (see GET above).
       await storage.deleteSightsRate(req.params.id as string);
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Rate Cards: Airline Rates ----
@@ -3404,7 +3406,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, AIRLINE_MANAGE_ROLES)) return;
       // Airline rates are shared/global by design: no per-owner filtering.
       res.json(await storage.getAirlineRates());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/rates/airline", isAuthenticated, async (req, res) => {
     try {
@@ -3413,7 +3415,7 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       const { userId } = await ownerScope(req, ["airline_supplier"]);
       res.json(await storage.createAirlineRate({ ...parsed.data, createdBy: userId }));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/rates/airline/bulk", isAuthenticated, async (req, res) => {
     try {
@@ -3422,7 +3424,7 @@ export async function registerRoutes(
       if (!rows.success) return res.status(400).json({ message: rows.error.message });
       const { userId } = await ownerScope(req, ["airline_supplier"]);
       res.json(await storage.bulkCreateAirlineRates(rows.data.map(r => ({ ...r, createdBy: userId }))));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/rates/airline/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3431,7 +3433,7 @@ export async function registerRoutes(
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
       res.json(await storage.updateAirlineRate(req.params.id as string, data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/rates/airline/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3439,7 +3441,7 @@ export async function registerRoutes(
       // Airline rates are shared/global by design: no ownership check.
       await storage.deleteAirlineRate(req.params.id as string);
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Seed default admin user if none exists
@@ -3478,7 +3480,7 @@ export async function registerRoutes(
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const list = await storage.getNotifications(userId);
       res.json(list.map(n => ({ ...n, read: n.isRead })));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/notifications/:id/read", isAuthenticated, async (req, res) => {
@@ -3490,7 +3492,7 @@ export async function registerRoutes(
       if (notification.userId !== userId) return res.status(403).json({ message: "Forbidden" });
       const updated = await storage.markNotificationAsRead(req.params.id as string);
       res.json({ ...updated, read: updated.isRead });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Notification Counts ----
@@ -3528,7 +3530,7 @@ export async function registerRoutes(
           payments: paymentsCount,
         });
       }
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Admin: Email Queue Diagnostics ----
@@ -3536,7 +3538,7 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(getQueueStats());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/admin/analytics", isAuthenticated, async (req, res) => {
@@ -3544,14 +3546,14 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ["admin", "super_admin", "country_manager"])) return;
       const analytics = await storage.getAnalytics();
       res.json(analytics);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   // ---- Pricing & Markups ----
   app.get("/api/admin/pricing/markup-rules", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, [...ADMIN_ROLES, "country_manager"])) return;
       res.json(await storage.getMarkupRules());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Affiliates ----
@@ -3559,7 +3561,7 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getAffiliates());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/admin/affiliates", isAuthenticated, async (req, res) => {
@@ -3568,7 +3570,7 @@ export async function registerRoutes(
       const parsed = insertAffiliateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Invalid data" });
       res.json(await storage.createAffiliate(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Tracking referral clicks
@@ -3592,7 +3594,7 @@ export async function registerRoutes(
     try {
       if (!await requireRole(req, res, ["super_admin", "admin", "country_manager"])) return;
       res.json(await storage.getGlobalSalesStats());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Data Import & Scrapers ----
@@ -3607,7 +3609,7 @@ export async function registerRoutes(
         to: (to as string) || new Date().toISOString() 
       });
       res.json(hotels);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/admin/data-import/countries/run", isAuthenticated, async (req, res) => {
@@ -3616,7 +3618,7 @@ export async function registerRoutes(
       if (!queues.countryImport) return res.status(503).json({ message: "Background queues are not available" });
       const job = await queues.countryImport.add('import-countries', {});
       res.json({ message: "Country import started in background", jobId: job.id });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/admin/data-import/cities/run", isAuthenticated, async (req, res) => {
@@ -3627,7 +3629,7 @@ export async function registerRoutes(
       if (!queues.cityImport) return res.status(503).json({ message: "Background queues are not available" });
       const job = await queues.cityImport.add('import-cities', { countryCode, countryId });
       res.json({ message: "City import started in background", jobId: job.id });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/admin/data-import/sights/run", isAuthenticated, async (req, res) => {
@@ -3638,7 +3640,7 @@ export async function registerRoutes(
       if (!queues.sightDiscovery) return res.status(503).json({ message: "Background queues are not available" });
       const job = await queues.sightDiscovery.add('import-sights', { cityId, cityName, osmId });
       res.json({ message: "Sight import started in background", jobId: job.id });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/admin/sights/:id/enrich", isAuthenticated, async (req, res) => {
@@ -3649,7 +3651,7 @@ export async function registerRoutes(
       if (!queues.sightEnrichment) return res.status(503).json({ message: "Background queues are not available" });
       const job = await queues.sightEnrichment.add('enrich-sight', { sightId: sight.id, sightName: sight.name });
       res.json({ message: "Sight enrichment started in background", jobId: job.id });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/hotels/search-prices", isAuthenticated, async (req, res) => {
@@ -3666,7 +3668,7 @@ export async function registerRoutes(
       // In a real scenario, we'd also create price snapshots here.
       // For now, returning the created/updated hotels.
       res.json({ message: `Found and updated ${result.length} hotels`, count: result.length, hotels: result });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/admin/scraper/block", isAuthenticated, async (req, res) => {
@@ -3676,7 +3678,7 @@ export async function registerRoutes(
       if (!domain) return res.status(400).json({ message: "domain is required" });
       scraperSafety.blockDomain(domain);
       res.json({ message: `Domain ${domain} blocked` });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/admin/scraper/unblock", isAuthenticated, async (req, res) => {
@@ -3686,14 +3688,14 @@ export async function registerRoutes(
       if (!domain) return res.status(400).json({ message: "domain is required" });
       scraperSafety.unblockDomain(domain);
       res.json({ message: `Domain ${domain} unblocked` });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/admin/audit-logs", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getAuditLogs());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/admin/ai-consultant", isAuthenticated, async (req, res) => {
@@ -3702,7 +3704,7 @@ export async function registerRoutes(
       const stats = await storage.getGlobalSalesStats();
       const analysis = await aiService.analyzeBusinessPerformance(stats);
       res.json(analysis);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/flights/search", isAuthenticated, async (req, res) => {
@@ -3722,7 +3724,7 @@ export async function registerRoutes(
       });
 
       res.json(results);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/ai/tour-generator", isAuthenticated, async (req, res) => {
@@ -3742,7 +3744,7 @@ export async function registerRoutes(
       });
       
       res.json(itinerary);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/admin/pricing/markup-rules", isAuthenticated, async (req, res) => {
@@ -3751,7 +3753,7 @@ export async function registerRoutes(
       const parsed = insertMarkupRuleSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createMarkupRule(parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/admin/pricing/markup-rules/:id", isAuthenticated, async (req, res) => {
@@ -3760,7 +3762,7 @@ export async function registerRoutes(
       const parsed = insertMarkupRuleSchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateMarkupRule(req.params.id as string, parsed.data));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.delete("/api/admin/pricing/markup-rules/:id", isAuthenticated, async (req, res) => {
@@ -3768,28 +3770,28 @@ export async function registerRoutes(
       if (!await requireRole(req, res, [...ADMIN_ROLES, "country_manager"])) return;
       await storage.deleteMarkupRule(req.params.id as string);
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/admin/pricing/settings", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       res.json(await storage.getGlobalSettings());
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.post("/api/admin/pricing/settings", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, [...ADMIN_ROLES, "country_manager"])) return;
       res.json(await storage.updateGlobalSetting(req.body.key, req.body.value));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/tours/:id/price-breakdown", isAuthenticated, async (req, res) => {
     try {
       const breakdown = await pricingService.calculateTourPrice(req.params.id as string);
       res.json(breakdown);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Image Proxy & Optimization ----
@@ -3814,7 +3816,7 @@ export async function registerRoutes(
 
       // Serve the local file path
       res.redirect(result.path);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/tours/:id/pdf", isAuthenticated, async (req, res) => {
@@ -3823,7 +3825,7 @@ export async function registerRoutes(
       res.contentType("application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename="itinerary-${req.params.id}.pdf"`);
       res.send(pdfBuffer);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ==== Pricing Engine (Phase 1 & 2) ====
@@ -3850,7 +3852,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
       const bands = await db.select().from(groupSizeBands).orderBy(groupSizeBands.sortOrder);
       res.json(bands);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/pricing/group-size-bands", isAuthenticated, async (req, res) => {
     try {
@@ -3865,7 +3867,7 @@ export async function registerRoutes(
       res.json(band);
     } catch (e: any) {
       if (isUniqueViolation(e)) return res.status(409).json({ message: "A band with this label already exists" });
-      res.status(500).json({ message: e.message });
+      routeError(res, e);
     }
   });
   app.patch("/api/pricing/group-size-bands/:id", isAuthenticated, async (req, res) => {
@@ -3889,7 +3891,7 @@ export async function registerRoutes(
       res.json(band);
     } catch (e: any) {
       if (isUniqueViolation(e)) return res.status(409).json({ message: "A band with this label already exists" });
-      res.status(500).json({ message: e.message });
+      routeError(res, e);
     }
   });
   app.delete("/api/pricing/group-size-bands/:id", isAuthenticated, async (req, res) => {
@@ -3902,7 +3904,7 @@ export async function registerRoutes(
         .where(eq(groupSizeBands.id, req.params.id as string)).returning();
       if (!band) return res.status(404).json({ message: "Band not found" });
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Pricing rules ----
@@ -3911,7 +3913,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
       const rules = await db.select().from(pricingRules).orderBy(desc(pricingRules.createdAt));
       res.json(rules);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/pricing/rules", isAuthenticated, async (req, res) => {
     try {
@@ -3924,7 +3926,7 @@ export async function registerRoutes(
         return r;
       });
       res.json(rule);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/pricing/rules/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3939,7 +3941,7 @@ export async function registerRoutes(
       });
       if (!rule) return res.status(404).json({ message: "Rule not found" });
       res.json(rule);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/pricing/rules/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3951,7 +3953,7 @@ export async function registerRoutes(
         .where(eq(pricingRules.id, req.params.id as string)).returning();
       if (!rule) return res.status(404).json({ message: "Rule not found" });
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Airfare rates ----
@@ -3960,7 +3962,7 @@ export async function registerRoutes(
       if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
       const rates = await db.select().from(airfareRates).orderBy(airfareRates.origin, airfareRates.destination);
       res.json(rates);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/pricing/airfare-rates", isAuthenticated, async (req, res) => {
     try {
@@ -3969,7 +3971,7 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       const [rate] = await db.insert(airfareRates).values(parsed.data).returning();
       res.json(rate);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.patch("/api/pricing/airfare-rates/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3986,7 +3988,7 @@ export async function registerRoutes(
         .where(eq(airfareRates.id, req.params.id as string)).returning();
       if (!rate) return res.status(404).json({ message: "Airfare rate not found" });
       res.json(rate);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/pricing/airfare-rates/:id", isAuthenticated, async (req, res) => {
     try {
@@ -3995,7 +3997,7 @@ export async function registerRoutes(
         .where(eq(airfareRates.id, req.params.id as string)).returning();
       if (!rate) return res.status(404).json({ message: "Airfare rate not found" });
       res.json({ success: true });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Quotes: compute + persist ----
@@ -4128,7 +4130,7 @@ export async function registerRoutes(
   const quoteErrorResponse = (res: Response, e: any) => {
     if (e instanceof QuoteError) return res.status(e.statusCode).json({ message: e.message });
     if (e instanceof PricingInputError) return res.status(400).json({ message: e.message });
-    return res.status(e?.statusCode === 404 ? 404 : 500).json({ message: e.message });
+    return routeError(res, e);
   };
 
   app.post("/api/pricing/quotes", isAuthenticated, async (req, res) => {
@@ -4214,7 +4216,7 @@ export async function registerRoutes(
         .where(tourId ? eq(pricingQuotes.tourId, tourId) : undefined)
         .orderBy(desc(pricingQuotes.createdAt));
       res.json(rows);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Internal breakdown view: full cost/margin/adjustment detail.
@@ -4231,7 +4233,7 @@ export async function registerRoutes(
         ? (await db.select().from(groupSizeBands).where(eq(groupSizeBands.id, quote.groupSizeBandId)))[0] ?? null
         : null;
       res.json({ ...quote, groupSizeBand: band, lineItems });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Update quote status / customer assignment / notes (internal only).
@@ -4250,7 +4252,7 @@ export async function registerRoutes(
         .where(eq(pricingQuotes.id, req.params.id as string)).returning();
       if (!quote) return res.status(404).json({ message: "Quote not found" });
       res.json(quote);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Shape a quote for customer eyes: ONLY final selling prices per hotel
@@ -4294,7 +4296,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Quote not found" });
 
       res.json(await customerQuoteView(quote));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Share-token access: unguessable link for customers without an assigned
@@ -4309,7 +4311,7 @@ export async function registerRoutes(
       if (!quote || quote.status !== "final")
         return res.status(404).json({ message: "Quote not found" });
       res.json(await customerQuoteView(quote));
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   return httpServer;

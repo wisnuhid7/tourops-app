@@ -5,6 +5,7 @@ import { db, payments, refunds, paymentEvents, bookings, users, type Payment } f
 import { and, desc, asc, eq, ilike, or, sql, count } from "drizzle-orm";
 import { storage } from "../storage";
 import { logger } from "../lib/logger";
+import { routeError } from "../lib/routeError";
 import { isAuthenticated } from "../replit_integrations/auth";
 import { getPaymentProvider, processPaymentEvent, applyRefundTotals } from "../lib/payments";
 import { FINANCE_ROLES, getUserId, canAccessBooking, requireRole } from "./routes";
@@ -82,7 +83,7 @@ export function registerPaymentRoutes(app: Express): void {
         fullyPaid: covered >= summary.total && summary.total > 0,
         openPayment: openPayment ? { id: openPayment.id, status: openPayment.status, amount: openPayment.amount, currency: openPayment.currency } : null,
       });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Create (or resume) a payment intent for the booking's outstanding total.
@@ -148,7 +149,7 @@ export function registerPaymentRoutes(app: Express): void {
       }
       await storage.createAuditLog({ entityType: "payment", entityId: payment.id, action: "created", changedBy: userId, previousValue: null, newValue: `intent ${intentId} for ${(summary.total / 100).toFixed(2)} ${summary.currency}`, note: `booking ${booking.bookingCode}` } as any);
       res.json({ paymentId: payment.id, intentId, status: payment.status, amount: payment.amount, currency: payment.currency, resumed: false });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Confirm the payment with a (test) instrument. PCI-friendly: the
@@ -198,7 +199,7 @@ export function registerPaymentRoutes(app: Express): void {
       // Success side effects (notify/email) run via the provider webhook so
       // they behave identically for sync and async settlements.
       res.json({ status: nextStatus, paymentId: payment.id, failureReason: result.failureReason ?? null });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Poll a payment's status (pending-payment screens, session recovery).
@@ -211,7 +212,7 @@ export function registerPaymentRoutes(app: Express): void {
       const [payment] = await db.select().from(payments).where(eq(payments.id, req.params.paymentId as string));
       if (!payment || payment.bookingId !== booking.id) return res.status(404).json({ message: "Payment not found" });
       res.json({ id: payment.id, status: payment.status, amount: payment.amount, currency: payment.currency, refundedAmount: payment.refundedAmount, failureReason: (payment.metadata as any)?.failureReason ?? null });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Admin: payments list (search / filter / sort / pagination) ----
@@ -267,7 +268,7 @@ export function registerPaymentRoutes(app: Express): void {
         })(),
       ]);
       res.json({ rows, total, page: q.page, pageSize: q.pageSize });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // Admin: payment detail (customer, booking, refunds, event/transaction history)
@@ -282,7 +283,7 @@ export function registerPaymentRoutes(app: Express): void {
       const events = await db.select().from(paymentEvents).where(eq(paymentEvents.paymentId, payment.id)).orderBy(desc(paymentEvents.createdAt));
       const audit = await storage.getAuditLogs("payment", payment.id);
       res.json({ payment, booking: booking ?? null, customer, refunds: refundRows, events, audit });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   // ---- Refunds ----
@@ -357,7 +358,7 @@ export function registerPaymentRoutes(app: Express): void {
         }
       } catch (err) { logger.error({ err }, "refund notification failed"); }
       res.json({ refund: finalRefund, payment: finalPayment });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.get("/api/payments/:id/refunds", isAuthenticated, async (req, res) => {
@@ -365,6 +366,6 @@ export function registerPaymentRoutes(app: Express): void {
       if (!await requireRole(req, res, FINANCE_ROLES)) return;
       const rows = await db.select().from(refunds).where(eq(refunds.paymentId, req.params.id as string)).orderBy(desc(refunds.createdAt));
       res.json(rows);
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { routeError(res, e); }
   });
 }

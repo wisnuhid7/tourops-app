@@ -252,13 +252,26 @@ export default function TourDetail() {
   const { data: tour, isLoading } = useQuery<Tour>({ queryKey: ["/api/tours", tourId] });
   const { data: departures } = useQuery<TourDeparture[]>({ queryKey: ["/api/tours", tourId, "departures"] });
   const { data: days } = useQuery<TourDay[]>({ queryKey: ["/api/tours", tourId, "days"] });
+  const { data: tourHotels } = useQuery<any[]>({ queryKey: ["/api/tours", tourId, "hotels"], enabled: !!tourId });
 
   const [showBooking, setShowBooking] = useState(false);
   const [bookingType, setBookingType] = useState("join_public_group");
   const [departureId, setDepartureId] = useState("");
   const [groupName, setGroupName] = useState("");
   const [partySize, setPartySize] = useState(1);
+  const [roomType, setRoomType] = useState("");
   const [notes, setNotes] = useState("");
+
+  // Room types offered by at least one hotel on this tour, with the
+  // per-night rate range shown to the customer.
+  const roomTypeOptions = [
+    { value: "matrimonial", labelKey: "room_matrimonial", field: "roomRateMatrimonial" },
+    { value: "doble", labelKey: "room_double", field: "roomRateDouble" },
+    { value: "triple", labelKey: "room_triple", field: "roomRateTriple" },
+  ].map((o) => {
+    const rates = (tourHotels || []).map((h: any) => h[o.field]).filter((r: any) => r && Number(r) > 0).map(Number);
+    return { ...o, available: rates.length > 0, minRate: rates.length ? Math.min(...rates) : 0, currency: (tourHotels || [])[0]?.currency || "USD" };
+  }).filter((o) => o.available);
   const [joinedGroup, setJoinedGroup] = useState<any>(null);
 
   // Handle Join Code from URL
@@ -618,6 +631,21 @@ export default function TourDetail() {
                               <div><Label>{t("group_name")}</Label><Input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder={t("my_travel_group_placeholder")} data-testid="input-group-name" /></div>
                             )}
                             <div><Label>{t("party_size")}</Label><Input type="number" min={1} value={partySize} onChange={(e) => setPartySize(parseInt(e.target.value) || 1)} data-testid="input-party-size" /></div>
+                            {roomTypeOptions.length > 0 && (
+                              <div>
+                                <Label>{t("room_type")}</Label>
+                                <Select value={roomType} onValueChange={setRoomType}>
+                                  <SelectTrigger data-testid="select-room-type"><SelectValue placeholder={t("select_room_type")} /></SelectTrigger>
+                                  <SelectContent>
+                                    {roomTypeOptions.map((o) => (
+                                      <SelectItem key={o.value} value={o.value} data-testid={`option-room-${o.value}`}>
+                                        {t(o.labelKey as any)} — {o.currency} {o.minRate} {t("per_night_label")}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
                             <div><Label>{t("notes_optional")}</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("special_requests_placeholder")} /></div>
                             <Button
                               className="w-full"
@@ -627,10 +655,11 @@ export default function TourDetail() {
                                 bookingType,
                                 groupName: bookingType === "leader_group" ? groupName : undefined,
                                 partySizeExpected: partySize,
+                                roomType: roomType || undefined,
                                 notes,
                                 totalPrice: Number(dep.pricePerPerson || tour.basePrice || 0) * partySize,
                               })}
-                              disabled={bookMutation.isPending}
+                              disabled={bookMutation.isPending || (roomTypeOptions.length > 0 && !roomType)}
                               data-testid="button-confirm-booking"
                             >
                               {bookMutation.isPending ? t("loading") : t("confirm_booking")}

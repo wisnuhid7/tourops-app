@@ -214,6 +214,10 @@ export const bookings = pgTable("bookings", {
   fulfillmentStatus: fulfillmentStatusEnum("fulfillment_status").default("pending"),
   totalPrice: integer("total_price"),
   currency: text("currency").default("USD"),
+  // Customer's chosen room type (matrimonial | doble | triple) and the
+  // server-computed accommodation cost (selected room rate × tour nights).
+  roomType: text("room_type"),
+  accommodationCost: numeric("accommodation_cost"),
   notes: text("notes"),
   internalNotes: text("internal_notes"),
   isUrgent: boolean("is_urgent").default(false),

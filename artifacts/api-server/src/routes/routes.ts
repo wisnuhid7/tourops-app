@@ -1,4 +1,5 @@
 import type { Express, Request, Response, NextFunction } from "express";
+import Decimal from "decimal.js";
 import { createServer, type Server } from "http";
 import { storage } from "../storage";
 import multer from "multer";
@@ -101,7 +102,7 @@ import {
   insertGroupSizeBandSchema, insertPricingRuleSchema, insertAirfareRateSchema
 } from "@workspace/db";
 import { computeQuote, assistanceTypeForPax, PricingInputError, OCCUPANCY_TYPES, type HotelChoiceInput } from "../services/pricing-engine";
-import { resolveTourComponents } from "../services/rate-resolver";
+import { resolveTourComponents, accommodationForTour, tourOffersRoomTypes, BOOKING_ROOM_TYPES, type BookingRoomType } from "../services/rate-resolver";
 
 import { sendWhatsApp, sendSMS, MESSAGE_TEMPLATES } from "../lib/messaging";
 import { generateCode as genCode } from "../lib/utils";
@@ -961,6 +962,40 @@ export async function registerRoutes(
         if (aff) affiliateId = aff.id;
       }
 
+      // Room-type selection: accommodation is priced server-side from the
+      // hotel's registered nightly rate × the tour's hotel nights. Never
+      // trust a client-provided accommodation figure.
+      let roomType: BookingRoomType | undefined;
+      let accommodationCost: string | undefined;
+      let totalPrice: number | undefined = req.body.totalPrice;
+      let bookingCurrency: string | undefined;
+      if (req.body.roomType != null && req.body.roomType !== "") {
+        if (!BOOKING_ROOM_TYPES.includes(req.body.roomType)) {
+          return res.status(400).json({ message: `roomType must be one of: ${BOOKING_ROOM_TYPES.join(", ")}` });
+        }
+        if (!req.body.tourId) return res.status(400).json({ message: "roomType requires a tourId" });
+        roomType = req.body.roomType;
+        const acc = await accommodationForTour(db, req.body.tourId, roomType!);
+        // Only add accommodation when its currency matches the booking currency
+        // (no FX conversion yet) — never sum mixed currencies.
+        const bodyCurrency = (req.body.currency || "USD").toUpperCase();
+        if (new Decimal(acc.total).greaterThan(0) && acc.currency.toUpperCase() !== bodyCurrency) {
+          return res.status(400).json({
+            message: `Accommodation is priced in ${acc.currency} but the booking is in ${bodyCurrency}; currency conversion is not supported yet.`,
+          });
+        }
+        accommodationCost = acc.total;
+        bookingCurrency = acc.currency;
+        totalPrice = new Decimal(totalPrice ?? 0).plus(acc.total).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toNumber();
+      } else if (req.body.tourId && req.body.bookingType !== "join_leader_group") {
+        // Customers starting a booking on a tour that offers room types must
+        // pick one. (join_leader_group participants share the leader's rooms;
+        // accommodation is billed on the leader's booking.)
+        if (await tourOffersRoomTypes(db, req.body.tourId)) {
+          return res.status(400).json({ message: "Please select a room type (matrimonial, doble, or triple) for this tour." });
+        }
+      }
+
       const booking = await storage.createBooking({
         ...req.body, 
         customerId, 
@@ -968,6 +1003,10 @@ export async function registerRoutes(
         joinCode, 
         leaderUserId, 
         affiliateId,
+        roomType: roomType ?? null,
+        accommodationCost: accommodationCost ?? null,
+        currency: bookingCurrency ?? req.body.currency ?? "USD",
+        totalPrice,
         status: req.body.status || ("submitted" as const), 
         fulfillmentStatus: req.body.fulfillmentStatus || ("pending" as const),
       });
@@ -1013,6 +1052,10 @@ export async function registerRoutes(
           if (!OPS_FIELDS.includes(key)) delete req.body[key];
         }
       }
+      // Room type & accommodation cost are server-computed at booking time;
+      // never accept them on generic edits (use a recalculation flow instead).
+      delete req.body.roomType;
+      delete req.body.accommodationCost;
       const userName = (profile?.user?.firstName ? `${profile.user.firstName} ${profile.user.lastName || ""}` : profile?.user?.username) || "Admin";
 
       const oldBooking = await storage.getBooking(req.params.id as string);
@@ -1672,6 +1715,12 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       const rateErr = normalizeRoomRates(parsed.data as any);
       if (rateErr) return res.status(400).json({ message: rateErr });
+      // New registrations must price all 3 room types (Matrimonial/Doble/Triple).
+      for (const f of ROOM_RATE_FIELDS) {
+        if ((parsed.data as any)[f] == null) {
+          return res.status(400).json({ message: "All three room rates (Matrimonial, Doble, Triple) are required" });
+        }
+      }
       // Registration always starts as "draft"; only admin/super_admin can approve.
       // Force the status server-side so a hotel_manager can't self-approve via the payload.
       res.status(201).json(await storage.createHotel({ ...parsed.data, status: "draft", createdBy: getUserId(req)! }));

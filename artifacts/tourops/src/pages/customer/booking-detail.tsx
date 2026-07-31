@@ -486,6 +486,18 @@ export default function CustomerBookingDetail() {
                     <span className="text-muted-foreground">{t("party_size")}</span>
                     <span>{booking.partySizeExpected}</span>
                   </div>
+                  {booking.roomType && (
+                    <div className="flex justify-between gap-2" data-testid="row-room-type">
+                      <span className="text-muted-foreground">{t("room_type")}</span>
+                      <span>{t((booking.roomType === "matrimonial" ? "room_matrimonial" : booking.roomType === "doble" ? "room_double" : "room_triple") as any)}</span>
+                    </div>
+                  )}
+                  {booking.accommodationCost != null && (
+                    <div className="flex justify-between gap-2" data-testid="row-accommodation-cost">
+                      <span className="text-muted-foreground">{t("accommodation_cost_label")}</span>
+                      <span>${booking.accommodationCost}</span>
+                    </div>
+                  )}
                   {booking.totalPrice != null && (
                     <div className="flex justify-between gap-2">
                       <span className="text-muted-foreground">{t("total_price")}</span>

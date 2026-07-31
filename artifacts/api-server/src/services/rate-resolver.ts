@@ -315,3 +315,85 @@ export async function resolveTourComponents(db: Db, input: ResolveInput): Promis
     meta,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Booking accommodation: total cost of one room of the selected type across
+// the whole tour = Σ over the tour's hotels of (that hotel's nightly rate for
+// the selected room type × the nights spent at that hotel).
+// ---------------------------------------------------------------------------
+export type BookingRoomType = "matrimonial" | "doble" | "triple";
+export const BOOKING_ROOM_TYPES: BookingRoomType[] = ["matrimonial", "doble", "triple"];
+
+const ROOM_TYPE_COLUMN: Record<BookingRoomType, "roomRateMatrimonial" | "roomRateDouble" | "roomRateTriple"> = {
+  matrimonial: "roomRateMatrimonial",
+  doble: "roomRateDouble",
+  triple: "roomRateTriple",
+};
+
+export interface AccommodationResult {
+  total: string;          // one room of the selected type, whole tour
+  nights: number;         // total hotel nights on the tour
+  currency: string;
+  breakdown: { hotelName: string; nights: number; ratePerNight: string }[];
+  warnings: string[];
+}
+
+export async function accommodationForTour(db: Db, tourId: string, roomType: BookingRoomType): Promise<AccommodationResult> {
+  const warnings: string[] = [];
+  const days = await db.select().from(tourDays).where(eq(tourDays.tourId, tourId));
+  const dayIds = days.map((d: any) => d.id);
+  const items: any[] = dayIds.length
+    ? await db.select().from(tourDayItems).where(inArray(tourDayItems.tourDayId, dayIds))
+    : [];
+  const hotelItems = items.filter((i: any) => i.itemType === "hotel" && i.hotelId);
+  const nightsByHotel = new Map<string, number>();
+  const order: string[] = [];
+  for (const it of hotelItems) {
+    if (!nightsByHotel.has(it.hotelId!)) order.push(it.hotelId!);
+    nightsByHotel.set(it.hotelId!, (nightsByHotel.get(it.hotelId!) ?? 0) + 1);
+  }
+  const rows = order.length ? await db.select().from(hotelsTable).where(inArray(hotelsTable.id, order)) : [];
+  const byId = new Map(rows.map((h: any) => [h.id, h]));
+  let total = new Decimal(0);
+  let nights = 0;
+  let currency: string | null = null;
+  const col = ROOM_TYPE_COLUMN[roomType];
+  const breakdown: AccommodationResult["breakdown"] = [];
+  for (const hid of order) {
+    const hotel: any = byId.get(hid);
+    const n = nightsByHotel.get(hid) ?? 0;
+    if (!hotel) { warnings.push(`Hotel ${hid} missing; skipped.`); continue; }
+    const rate = hotel[col];
+    if (rate == null || new Decimal(rate).lessThanOrEqualTo(0)) {
+      warnings.push(`Hotel "${hotel.name}" does not offer the ${roomType} room type.`);
+      continue;
+    }
+    // Never sum across currencies — the first priced hotel fixes the currency;
+    // mismatched hotels are skipped with a warning (no FX conversion yet).
+    const hc = (hotel.currency || "USD").toUpperCase();
+    if (currency == null) currency = hc;
+    else if (hc !== currency) {
+      warnings.push(`Hotel "${hotel.name}" is priced in ${hc}, not ${currency}; skipped (no currency conversion).`);
+      continue;
+    }
+    total = total.plus(new Decimal(rate).mul(n));
+    nights += n;
+    breakdown.push({ hotelName: hotel.name, nights: n, ratePerNight: money(new Decimal(rate)) });
+  }
+  if (!breakdown.length) warnings.push(`No hotel on this tour offers the ${roomType} room type; accommodation cost is 0.`);
+  return { total: money(total), nights, currency: currency ?? "USD", breakdown, warnings };
+}
+
+// True when at least one hotel on the tour has any positive direct room rate —
+// i.e. the tour supports room-type selection at booking time.
+export async function tourOffersRoomTypes(db: Db, tourId: string): Promise<boolean> {
+  const days = await db.select().from(tourDays).where(eq(tourDays.tourId, tourId));
+  const dayIds = days.map((d: any) => d.id);
+  if (!dayIds.length) return false;
+  const items: any[] = await db.select().from(tourDayItems).where(inArray(tourDayItems.tourDayId, dayIds));
+  const hotelIds = [...new Set(items.filter((i: any) => i.itemType === "hotel" && i.hotelId).map((i: any) => i.hotelId))];
+  if (!hotelIds.length) return false;
+  const rows: any[] = await db.select().from(hotelsTable).where(inArray(hotelsTable.id, hotelIds));
+  return rows.some((h) => [h.roomRateMatrimonial, h.roomRateDouble, h.roomRateTriple]
+    .some((r) => r != null && new Decimal(r).greaterThan(0)));
+}

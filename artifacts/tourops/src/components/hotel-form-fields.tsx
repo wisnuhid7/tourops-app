@@ -122,9 +122,9 @@ export function HotelFormFields({
         </Select>
       </div>
       <div className="grid grid-cols-3 gap-3">
-        <div><Label>{t("room_rate_matrimonial_label")}</Label><Input type="number" step="0.01" min="0" value={value.roomRateMatrimonial} onChange={(e) => set({ roomRateMatrimonial: e.target.value })} placeholder="120.00" data-testid="input-hotel-rate-matrimonial" /></div>
-        <div><Label>{t("room_rate_double_label")}</Label><Input type="number" step="0.01" min="0" value={value.roomRateDouble} onChange={(e) => set({ roomRateDouble: e.target.value })} placeholder="150.00" data-testid="input-hotel-rate-double" /></div>
-        <div><Label>{t("room_rate_triple_label")}</Label><Input type="number" step="0.01" min="0" value={value.roomRateTriple} onChange={(e) => set({ roomRateTriple: e.target.value })} placeholder="180.00" data-testid="input-hotel-rate-triple" /></div>
+        <div><Label>{t("room_rate_matrimonial_label")} *</Label><Input type="number" step="0.01" min="0.01" required value={value.roomRateMatrimonial} onChange={(e) => set({ roomRateMatrimonial: e.target.value })} placeholder="120.00" data-testid="input-hotel-rate-matrimonial" /></div>
+        <div><Label>{t("room_rate_double_label")} *</Label><Input type="number" step="0.01" min="0.01" required value={value.roomRateDouble} onChange={(e) => set({ roomRateDouble: e.target.value })} placeholder="150.00" data-testid="input-hotel-rate-double" /></div>
+        <div><Label>{t("room_rate_triple_label")} *</Label><Input type="number" step="0.01" min="0.01" required value={value.roomRateTriple} onChange={(e) => set({ roomRateTriple: e.target.value })} placeholder="180.00" data-testid="input-hotel-rate-triple" /></div>
       </div>
       <div><Label>{t("currency_label")}</Label><Input value={value.currency} onChange={(e) => set({ currency: e.target.value })} placeholder="USD" data-testid="input-hotel-currency" /></div>
       <div><Label>{t("google_maps_url_label")}</Label><Input value={value.googleMapsUrl} onChange={(e) => set({ googleMapsUrl: e.target.value })} placeholder="https://maps.google.com/..." data-testid="input-hotel-maps-url" /></div>

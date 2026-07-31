@@ -918,7 +918,17 @@ export async function registerRoutes(
       const profile = await storage.getOrCreateProfile(userId);
       const isStaff = ALL_STAFF_ROLES.includes(profile.role as any);
       if (!isStaff && booking.customerId !== userId && booking.leaderUserId !== userId) {
-        return res.status(403).json({ message: "Forbidden" });
+        // Prospective joiners hold the code, so give them just enough to render
+        // the join dialog — never the leader's full booking (contact/payment data).
+        return res.json({
+          id: booking.id,
+          tourId: booking.tourId,
+          departureId: booking.departureId,
+          customerId: booking.customerId, // leader id (needed to label the group)
+          groupName: booking.groupName,
+          partySizeExpected: booking.partySizeExpected,
+          status: booking.status,
+        });
       }
       res.json(booking);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -952,6 +962,14 @@ export async function registerRoutes(
       const profile = await storage.getOrCreateProfile(userId);
       const isStaff = ALL_STAFF_ROLES.includes(profile.role);
       const customerId = (isStaff && req.body.customerId) ? req.body.customerId : userId;
+
+      // Group joins must go through POST /api/bookings/join, which resolves
+      // leader/group/price from the join code and enforces membership rules
+      // (group active, no self-join, no duplicates). Accepting them here
+      // would bypass all of those guards.
+      if (req.body.bookingType === "join_leader_group") {
+        return res.status(400).json({ message: "Use the join code flow (POST /api/bookings/join) to join a group" });
+      }
 
       const bookingCode = `BK-${generateCode(8)}`;
       const joinCode = req.body.bookingType === "leader_group" ? genCode(6) : undefined;
@@ -1199,25 +1217,65 @@ export async function registerRoutes(
     try {
       const userId = getUserId(req);
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
-      const joinSchema = z.object({ joinCode: z.string().min(1) });
+      const joinSchema = z.object({
+        joinCode: z.string().min(1),
+        partySizeExpected: z.number().int().min(1).max(50).optional(),
+      });
       const parsed = joinSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Join code required" });
       const original = await storage.getBookingByJoinCode(parsed.data.joinCode);
       if (!original) return res.status(404).json({ message: "Invalid join code" });
+      // Only active (not cancelled/rejected/completed) groups can be joined
+      if (["cancelled", "rejected", "completed"].includes(original.status || "")) {
+        return res.status(409).json({ message: "This group is no longer accepting members" });
+      }
+      if (original.customerId === userId) {
+        return res.status(400).json({ message: "You are the leader of this group" });
+      }
+      // Prevent duplicate joins of the same group
+      const myBookings = await storage.getBookingsByCustomer(userId);
+      const alreadyJoined = myBookings.some(b =>
+        b.bookingType === "join_leader_group" &&
+        b.leaderUserId === original.customerId &&
+        b.tourId === original.tourId &&
+        b.departureId === original.departureId &&
+        !["cancelled", "rejected"].includes(b.status || "")
+      );
+      if (alreadyJoined) {
+        return res.status(409).json({ message: "You have already joined this group" });
+      }
       if (original.departureId) {
         const departure = await storage.getDeparture(original.departureId);
         if (departure && (departure.capacityBooked || 0) >= (departure.capacityTotal || 0)) {
           return res.status(409).json({ message: "No spots available for this departure" });
         }
       }
+      const partySize = parsed.data.partySizeExpected ?? 1;
+      // Price is derived server-side from the departure (never client input).
+      let totalPrice: number | undefined;
+      if (original.departureId) {
+        const departure = await storage.getDeparture(original.departureId);
+        const perPerson = Number(departure?.pricePerPerson);
+        if (Number.isFinite(perPerson) && perPerson > 0) totalPrice = perPerson * partySize;
+      }
       const bookingCode = `BK-${generateCode(8)}`;
-      const booking = await storage.createBooking({
-        tourId: original.tourId, departureId: original.departureId,
-        customerId: userId, bookingType: "join_leader_group", bookingCode,
-        groupName: original.groupName, leaderUserId: original.customerId,
-        partySizeExpected: 1, status: "submitted", fulfillmentStatus: "pending",
-      });
-      res.json(booking);
+      try {
+        const booking = await storage.createBooking({
+          tourId: original.tourId, departureId: original.departureId,
+          customerId: userId, bookingType: "join_leader_group", bookingCode,
+          groupName: original.groupName, leaderUserId: original.customerId,
+          partySizeExpected: partySize, totalPrice,
+          status: "submitted", fulfillmentStatus: "pending",
+        });
+        return res.json(booking);
+      } catch (insertErr: any) {
+        // Partial unique index uniq_active_group_membership guards the
+        // read-then-insert race: concurrent duplicate joins surface here.
+        if (insertErr?.code === "23505") {
+          return res.status(409).json({ message: "You have already joined this group" });
+        }
+        throw insertErr;
+      }
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 

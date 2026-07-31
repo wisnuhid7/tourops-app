@@ -1,0 +1,208 @@
+# Implement Payment Features and Update FEATURES_TODO.md
+
+Implement the following payment features in the existing project:
+
+* Stripe / external payment gateway integration (no SDK currently present)
+* Online checkout for customers
+* Refund management
+* Payments table + Admin Payments page (`admin/payments.tsx`) for internal payment record management
+
+## Requirements
+
+### 1. Stripe / External Payment Gateway Integration
+
+Implement a complete payment gateway integration.
+
+Include:
+
+* Payment gateway abstraction layer (allow future providers besides Stripe)
+* Stripe SDK integration
+* Environment variable configuration
+* Payment Intent creation
+* Payment confirmation
+* Success and failure handling
+* Payment status synchronization
+* Secure webhook handling
+* Webhook signature verification
+* Idempotency protection
+* Retry-safe processing
+* Error handling
+* Logging
+* Currency support
+* Metadata support
+* Test mode and production mode
+* PCI-friendly implementation (never store card data)
+
+Webhook events should support at least:
+
+* payment_intent.succeeded
+* payment_intent.processing
+* payment_intent.payment_failed
+* payment_intent.canceled
+* charge.refunded
+* refund.updated
+* refund.failed
+* charge.dispute.created
+* charge.dispute.updated
+* charge.dispute.closed
+
+---
+
+### 2. Online Checkout
+
+Create a complete customer checkout flow.
+
+Include:
+
+* Booking summary
+* Selected services
+* Taxes
+* Fees
+* Discounts
+* Promo codes (if supported)
+* Total calculation
+* Payment selection
+* Secure payment confirmation
+* Payment status screen
+* Success page
+* Failure page
+* Pending payment handling
+* Duplicate payment prevention
+* Session recovery after refresh
+
+---
+
+### 3. Refund Management
+
+Implement a complete refund system.
+
+Include:
+
+* Full refund
+* Partial refund
+* Refund reason
+* Refund status tracking
+* Refund history
+* Admin approval (if applicable)
+* Refund notes
+* Payment provider synchronization
+* Refund webhook updates
+* Audit logs
+* Customer notifications
+* Admin notifications
+
+---
+
+### 4. Payments Table
+
+Implement the payments database model.
+
+Include fields such as:
+
+* id
+* booking_id
+* customer_id
+* provider
+* payment_intent_id
+* transaction_id
+* currency
+* subtotal
+* taxes
+* fees
+* discount
+* total
+* refunded_amount
+* payment_method
+* payment_status
+* refund_status
+* metadata
+* created_at
+* updated_at
+
+Create any required migrations.
+
+---
+
+### 5. Admin Payments Page
+
+Complete `admin/payments.tsx`.
+
+Include:
+
+* Payment list
+* Search
+* Filters
+* Sort
+* Pagination
+* Payment details
+* Customer information
+* Booking information
+* Transaction history
+* Refund history
+* Export functionality (if already supported elsewhere)
+* Status badges
+* Manual refresh
+* Secure permission checks
+
+---
+
+### 6. Security
+
+Ensure:
+
+* Authentication
+* Authorization
+* CSRF protection
+* Input validation
+* Rate limiting where appropriate
+* Secure webhook verification
+* No sensitive payment information is stored
+* Proper error handling
+* Comprehensive audit logging
+
+---
+
+### 7. Testing
+
+After implementation, verify:
+
+* Payment creation
+* Successful payment
+* Failed payment
+* Pending payment
+* Duplicate webhook handling
+* Duplicate payment prevention
+* Refund workflow
+* Partial refund
+* Full refund
+* Admin payment management
+* Permission enforcement
+* Error scenarios
+
+Fix any discovered issues before considering the feature complete.
+
+---
+
+### 8. Update `FEATURES_TODO.md`
+
+Locate these features:
+
+* Stripe / external payment gateway integration (no SDK present)
+* Online checkout for customers
+* Refund management
+* Payments table + admin payments page (`admin/payments.tsx`)
+
+Mark them as completed **only after**:
+
+* Implementation is complete
+* Build succeeds
+* No TypeScript errors
+* No lint errors
+* Database migrations succeed
+* Payment flow works correctly
+* Webhooks are verified
+* Tests pass
+
+If the features do not exist in `FEATURES_TODO.md`, add them under the appropriate **Payments** section while preserving the existing document structure.
+
+Do not mark any feature as completed until all implementation and verification steps have successfully finished.

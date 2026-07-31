@@ -69,7 +69,19 @@ export default function MyBookings() {
       setJoinCode("");
       toast({ title: t("successfully_joined_group") });
     },
-    onError: () => toast({ title: t("invalid_join_code"), variant: "destructive" }),
+    onError: (err: any) => {
+      // Surface the server's specific reason (already joined, group closed,
+      // full departure) instead of a blanket "invalid code" message.
+      const serverMsg = String(err?.message || "").replace(/^\d{3}:\s*/, "");
+      let title = t("invalid_join_code");
+      try {
+        const parsed = JSON.parse(serverMsg);
+        if (parsed?.message) title = parsed.message;
+      } catch {
+        if (serverMsg && !/^\s*</.test(serverMsg)) title = serverMsg;
+      }
+      toast({ title, variant: "destructive" });
+    },
   });
 
   if (isLoading) {

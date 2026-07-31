@@ -74,6 +74,7 @@ export default function AdminWorkflowDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/workflows"] });
       toast({ title: t("step_updated") });
     },
+    onError: () => toast({ title: t("update_failed"), variant: "destructive" }),
   });
 
   const [editStepId, setEditStepId] = useState<string | null>(null);
@@ -125,8 +126,8 @@ export default function AdminWorkflowDetail() {
     const data: Record<string, any> = { id: step.id, notes: stepNotes };
     const existing = step.dueDate ? new Date(step.dueDate).toISOString().split("T")[0] : "";
     if (stepDueDate !== existing) data.dueDate = stepDueDate || null;
-    updateStep.mutate(data);
-    setEditStepId(null);
+    // Close the editor only on success so a failed save keeps the draft visible.
+    updateStep.mutate(data, { onSuccess: () => setEditStepId(null) });
   };
 
   const summary = [

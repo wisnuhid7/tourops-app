@@ -54,15 +54,15 @@
 - [x] ~~Promo departure pricing (departure price may be below tour base price)~~ ✅ tested 2026-07-27 — departure at 800 vs base 1000/1200 accepted and served publicly
 
 ## Bookings & Group Travel
-- [x] Booking engine: private and group tours
-- [x] Join-group flow via invitation/join codes (uses departure price)
-- [x] Traveler/passenger management (`manage-passengers.tsx`, travelers table)
-- [x] Group-leader features (`leader-dashboard.tsx`, `leader-payments.tsx`)
-- [x] Customer post-booking: `my-bookings.tsx`, `booking-detail.tsx`
-- [x] Admin order management (`admin/bookings.tsx`, `admin/booking-detail.tsx`)
-- [x] Multi-step service workflow system per booking (Airline, Hotel, Transport, Guide, Sights steps)
-  - [~] `admin/workflow-detail.tsx` — complex multi-step UI, partially polished
-- [x] Booking assignments (staff/resource allocation, `admin/assignments.tsx`)
+- [x] ~~Booking engine: private and group tours~~ ✅ QA passed 2026-07-31 — duplicate-submit bug fixed & retested (`docs/qa/manu/booking-engine.md`)
+- [x] ~~Join-group flow via invitation/join codes (uses departure price)~~ ✅ QA passed 2026-07-31 — cancelled/duplicate/self-join guards added (`docs/qa/manu/group-tour.md`)
+- [x] ~~Traveler/passenger management (`manage-passengers.tsx`, travelers table)~~ ✅ QA passed 2026-07-31 — Manage Passengers link added to booking detail (`docs/qa/manu/travelers.md`)
+- [x] ~~Group-leader features (`leader-dashboard.tsx`, `leader-payments.tsx`)~~ ✅ QA passed 2026-07-31 (`docs/qa/manu/leader-features.md`)
+- [x] ~~Customer post-booking: `my-bookings.tsx`, `booking-detail.tsx`~~ ✅ QA passed 2026-07-31 incl. IDOR checks
+- [x] ~~Admin order management (`admin/bookings.tsx`, `admin/booking-detail.tsx`)~~ ✅ QA passed 2026-07-31 (`docs/qa/manu/admin-bookings.md`)
+- [x] ~~Multi-step service workflow system per booking (Airline, Hotel, Transport, Guide, Sights steps)~~ ✅ QA passed 2026-07-31 (`docs/qa/manu/workflow.md`)
+  - [x] ~~`admin/workflow-detail.tsx` — complex multi-step UI, partially polished~~ ✅ redesigned (timeline, inline notes editor) & verified 2026-07-31
+- [x] ~~Booking assignments (staff/resource allocation, `admin/assignments.tsx`)~~ ✅ QA passed 2026-07-31 — allowlist & notes-only PATCH re-verified (`docs/qa/manu/assignments.md`)
   - [x] ~~Known bug: PATCH `/api/assignments/:id` with notes-only body → 500~~ ✅ fixed — missing `notes` column added + strict field allowlist (see `docs/qa/security-features-2026-07-27.md`)
 
 ## Payments

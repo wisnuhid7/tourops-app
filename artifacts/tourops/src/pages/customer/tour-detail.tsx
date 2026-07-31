@@ -17,7 +17,7 @@ import { PublicHeader } from "@/components/public-header";
 import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer, Plane, Flag, Bed, Bus, Utensils, User, CircleDollarSign, Languages, Star, Mail, Phone, Cake } from "lucide-react";
 import { getFullImageUrl, getGoogleMapsEmbedUrl } from "@/lib/utils";
 import { Link } from "wouter";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { Tour, TourDeparture, TourDay } from "@workspace/db";
 
 function PublicGroupsList({ departureId }: { departureId: string }) {
@@ -286,8 +286,18 @@ export default function TourDetail() {
 
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
 
+  // Guard against rapid double-clicks: isPending updates async, so a fast
+  // second click can fire before the disabled state re-renders.
+  const submittingRef = useRef(false);
+  const submitBooking = (data: any) => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    bookMutation.mutate(data);
+  };
+
   const bookMutation = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/bookings", data),
+    onSettled: () => { submittingRef.current = false; },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/my-bookings"] });
       setShowBooking(false);
@@ -297,6 +307,33 @@ export default function TourDetail() {
     },
     onError: () => toast({ title: t("booking_failed"), variant: "destructive" }),
   });
+
+  const joinGroupMutation = useMutation({
+    mutationFn: (data: { joinCode: string; partySizeExpected: number }) =>
+      apiRequest("POST", "/api/bookings/join", data),
+    onSettled: () => { submittingRef.current = false; },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/my-bookings"] });
+      setBookingConfirmed(true);
+      toast({ title: t("booking_created_success") });
+      navigate("/my-bookings");
+    },
+    onError: (err: any) => {
+      // Surface the server's specific reason (already joined, group closed, full).
+      const raw = String(err?.message || "").replace(/^\d{3}:\s*/, "");
+      let title = t("booking_failed");
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed?.message) title = parsed.message;
+      } catch { if (raw && !/^\s*</.test(raw)) title = raw; }
+      toast({ title, variant: "destructive" });
+    },
+  });
+  const submitJoin = (data: { joinCode: string; partySizeExpected: number }) => {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    joinGroupMutation.mutate(data);
+  };
 
   if (isLoading) {
     return <div className="p-6"><Skeleton className="h-64" /></div>;
@@ -356,23 +393,18 @@ export default function TourDetail() {
             <Button
               className="w-full h-12 text-lg font-bold shadow-lg shadow-primary/20"
               onClick={() => {
-                if (!joinedGroupData?.departureId) {
+                if (!urlJoinCode) {
                   toast({ title: t("invalid_group_link"), variant: "destructive" });
                   return;
                 }
-                const joinedDep = departures?.find((d) => d.id === joinedGroupData.departureId);
-                bookMutation.mutate({
-                  tourId: tour.id,
-                  departureId: joinedGroupData.departureId,
-                  bookingType: "join_leader_group",
-                  leaderUserId: joinedGroupData.customerId,
-                  partySizeExpected: partySize,
-                  totalPrice: Number(joinedDep?.pricePerPerson || tour.basePrice || 0) * partySize,
-                });
+                // Join goes through the dedicated join endpoint: the server
+                // resolves group/leader/price from the code and enforces
+                // membership rules (active group, no self-join, no duplicates).
+                submitJoin({ joinCode: urlJoinCode, partySizeExpected: partySize });
               }}
-              disabled={bookMutation.isPending}
+              disabled={joinGroupMutation.isPending}
             >
-              {bookMutation.isPending ? t("loading") : t("confirm_and_join")}
+              {joinGroupMutation.isPending ? t("loading") : t("confirm_and_join")}
             </Button>
           </div>
         </DialogContent>
@@ -649,7 +681,7 @@ export default function TourDetail() {
                             <div><Label>{t("notes_optional")}</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("special_requests_placeholder")} /></div>
                             <Button
                               className="w-full"
-                              onClick={() => bookMutation.mutate({
+                              onClick={() => submitBooking({
                                 tourId: tour.id,
                                 departureId: dep.id,
                                 bookingType,

@@ -1,0 +1,647 @@
+id="booking_engine_qa_01"
+
+You are a Senior QA Engineer and Full Stack Engineer.
+
+Goal:
+Perform complete testing, verification, and issue resolution for the Booking Engine feature set.
+
+Workflow:
+
+TEST → REPORT → FIX (if needed) → RETEST → VERIFY → UPDATE FEATURES_TODO.md
+
+Do not enter infinite fix loops.
+
+Maximum fix attempts:
+2 attempts per issue.
+
+After 2 failed attempts:
+Mark as BLOCKED and document.
+
+---
+
+# Feature Scope
+
+Test all features:
+
+1. Booking engine: private and group tours
+
+2. Join-group flow via invitation/join codes
+   - Uses departure price
+
+3. Traveler/passenger management
+   - manage-passengers.tsx
+   - travelers table
+
+4. Group leader features
+   - leader-dashboard.tsx
+   - leader-payments.tsx
+
+5. Customer post-booking
+   - my-bookings.tsx
+   - booking-detail.tsx
+
+6. Admin order management
+   - admin/bookings.tsx
+   - admin/booking-detail.tsx
+
+7. Multi-step service workflow per booking
+
+Steps:
+
+- Airline
+- Hotel
+- Transport
+- Guide
+- Sights
+
+8. Booking assignments
+
+- admin/assignments.tsx
+- Staff/resource allocation
+
+
+---
+
+# Testing Requirement
+
+For every feature execute:
+
+## Positive Testing
+
+Verify:
+
+- Normal user flow works.
+- Data saved correctly.
+- UI updates correctly.
+- Related modules synchronize.
+
+---
+
+## Negative Testing
+
+Test:
+
+- Empty input
+- Invalid input
+- Duplicate action
+- Invalid ID
+- Unauthorized access
+- Expired data
+- Boundary values
+- Refresh during process
+- Multiple tabs
+- Browser back
+- Network failure
+
+
+---
+
+# Booking Engine Testing
+
+## Private Tour
+
+Test:
+
+Customer:
+
+Browse tour
+
+↓
+
+Select private tour
+
+↓
+
+Select date
+
+↓
+
+Select passenger
+
+↓
+
+Select services
+
+↓
+
+Checkout
+
+↓
+
+Payment
+
+↓
+
+Booking created
+
+
+Verify:
+
+- Correct price
+- Correct passenger count
+- Correct booking status
+- Correct payment status
+- Booking visible after completion
+
+
+Negative:
+
+- Past date
+- Invalid passenger count
+- Missing required data
+- Duplicate submit
+
+
+---
+
+## Group Tour
+
+Test:
+
+Create group booking.
+
+Verify:
+
+- Departure price used.
+- Group capacity correct.
+- Available seats correct.
+- Booking status correct.
+
+
+Negative:
+
+- Join full group.
+- Join expired group.
+- Join without code.
+- Invalid code.
+- Reuse code.
+
+
+---
+
+# Join Group Code Testing
+
+Verify:
+
+- Code generated.
+- Code unique.
+- Code belongs to correct departure.
+- Passenger added correctly.
+
+
+Security:
+
+Attempt:
+
+- Guess code.
+- Modify booking ID.
+- Access another group.
+
+
+Expected:
+
+Access denied.
+
+---
+
+# Traveler Management
+
+Page:
+
+manage-passengers.tsx
+
+
+Test:
+
+- Add passenger.
+- Edit passenger.
+- Delete passenger.
+- View passenger list.
+
+
+Validate:
+
+- Required fields.
+- Duplicate passenger.
+- Invalid data.
+
+
+Verify:
+
+traveler table:
+
+- Correct relation.
+- Correct booking.
+- Correct passenger count.
+
+
+---
+
+# Group Leader
+
+Pages:
+
+leader-dashboard.tsx
+
+leader-payments.tsx
+
+
+Test:
+
+Leader can:
+
+- View group.
+- View members.
+- View payments.
+- Track status.
+
+
+Security:
+
+Attempt:
+
+- Access another group.
+- Modify payment.
+- Modify passenger.
+
+
+Expected:
+
+Blocked.
+
+---
+
+# Customer Booking
+
+Pages:
+
+my-bookings.tsx
+
+booking-detail.tsx
+
+
+Verify:
+
+Customer can:
+
+- View bookings.
+- View details.
+- View travelers.
+- View workflow.
+- View payment.
+
+
+Security:
+
+Attempt:
+
+- Change booking ID.
+- Open another customer's booking.
+
+
+Expected:
+
+Forbidden.
+
+---
+
+# Admin Booking Management
+
+Pages:
+
+admin/bookings.tsx
+
+admin/booking-detail.tsx
+
+
+Verify:
+
+Admin can:
+
+- View all bookings.
+- Search.
+- Filter.
+- View details.
+- Update status.
+
+
+Check:
+
+- Customer data.
+- Passenger data.
+- Payment.
+- Workflow.
+
+
+---
+
+# Multi-Step Workflow
+
+Page:
+
+admin/workflow-detail.tsx
+
+
+Workflow:
+
+Airline
+
+↓
+
+Hotel
+
+↓
+
+Transport
+
+↓
+
+Guide
+
+↓
+
+Sights
+
+
+Test:
+
+- Create workflow.
+- Update step.
+- Complete step.
+- Change status.
+- View progress.
+
+
+Validate:
+
+- Step ordering.
+- Required steps.
+- Status transitions.
+
+
+Negative:
+
+- Skip step.
+- Complete invalid order.
+- Delete active step.
+
+
+UI:
+
+Check:
+
+- Timeline.
+- Cards.
+- Forms.
+- Modals.
+- Loading.
+- Empty state.
+
+
+Known:
+
+Complex UI partially polished.
+
+Record:
+
+- Functional issue.
+- UX issue.
+- Visual issue.
+
+
+---
+
+# Booking Assignment
+
+Page:
+
+admin/assignments.tsx
+
+
+Test:
+
+- Assign staff.
+- Assign resource.
+- Update assignment.
+- Remove assignment.
+- Add notes.
+
+
+Known bug verification:
+
+PATCH /api/assignments/:id
+
+Test request:
+
+{
+  "notes": "Updated notes"
+}
+
+
+Verify:
+
+Before:
+500 error
+
+Expected:
+
+200 success.
+
+
+Verify:
+
+- notes saved.
+- Database updated.
+- Response valid.
+
+
+Security:
+
+Send:
+
+{
+ "notes":"test",
+ "invalidField":"attack"
+}
+
+
+Expected:
+
+Invalid fields rejected.
+
+Verify strict allowlist.
+
+
+---
+
+# Regression Testing
+
+Verify changes do not break:
+
+- Payment
+- Booking status
+- Dashboard
+- Notifications
+- Customer view
+- Admin view
+- Traveler data
+- Workflow
+
+
+---
+
+# Playwright Requirement
+
+Automate:
+
+- Private booking flow.
+- Group join flow.
+- Passenger management.
+- Leader dashboard.
+- Admin booking.
+- Workflow.
+- Assignment update.
+
+
+Capture:
+
+- Screenshot on failure.
+- Trace on failure.
+- Console errors.
+- Network errors.
+
+
+---
+
+# Report
+
+Update:
+
+docs/qa/manu/
+
+booking-engine.md
+group-tour.md
+travelers.md
+leader-features.md
+admin-bookings.md
+workflow.md
+assignments.md
+bugs.md
+verification.md
+
+
+Issue format:
+
+ID
+
+Feature
+
+Severity
+
+Steps
+
+Expected
+
+Actual
+
+Root Cause
+
+Fix
+
+Retest Result
+
+
+---
+
+# FEATURES_TODO.md UPDATE
+
+After each feature is PASS:
+
+Update FEATURES_TODO.md.
+
+Example:
+
+Before:
+
+- [ ] Booking engine: private and group tours
+- [ ] Join-group flow via invitation codes
+- [ ] Traveler management
+
+
+After:
+
+- [x] ~~Booking engine: private and group tours~~
+- [x] ~~Join-group flow via invitation codes~~
+- [x] ~~Traveler management~~
+
+
+Rules:
+
+Only strike-through when:
+
+✓ Test completed.
+✓ Positive flow passed.
+✓ Negative tests passed.
+✓ No critical/high issue remains.
+✓ Regression passed.
+
+
+Do not strike-through:
+
+- Failed.
+- Blocked.
+- Partial.
+
+
+Partial:
+
+[~] Multi-step workflow system
+
+
+Failed:
+
+[ ] Booking assignment ❌ FAILED
+
+
+---
+
+# Final Summary
+
+Create:
+
+docs/qa/manu/booking-engine-summary.md
+
+
+Include:
+
+Features Tested
+
+Passed
+
+Failed
+
+Blocked
+
+Fixed Issues
+
+Regression Status
+
+Security Status
+
+Playwright Status
+
+FEATURES_TODO.md Completion:
+
+Completed:
+Failed:
+Partial:
+Blocked:
+
+
+Final recommendation:
+
+READY
+
+or
+
+NOT READY

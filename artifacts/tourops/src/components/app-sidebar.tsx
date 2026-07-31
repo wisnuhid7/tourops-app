@@ -20,7 +20,7 @@ import {
   LayoutDashboard, Globe, BookOpen, Users, 
   BarChart3, Settings, LogOut, Plane, 
   Hotel, Bus, UserCheck, Ticket, Database, Headset,
-  UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart, Wand2, Percent, Calculator, DollarSign, Building2, Flag, Landmark, CalendarDays
+  UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart, Wand2, Percent, DollarSign, Building2, Flag, Landmark, CalendarDays, Calculator
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -66,7 +66,7 @@ export function AppSidebar() {
         { title: t("tour_generator"), url: "/admin/tour-generator", icon: Wand2 },
         { title: t("rate_cards"), url: "/admin/rate-cards", icon: CreditCard },
         { title: t("pricing"), url: "/admin/pricing", icon: Percent },
-        { title: t("pe_group_quotes"), url: "/admin/group-quotes", icon: Calculator },
+        { title: t("pe_tab_quotes"), url: "/admin/pricing-engine", icon: Calculator },
         { title: t("master_data"), url: "/admin/master-data", icon: Database },
         { title: t("hotels"), url: "/admin/master-data?tab=hotels", icon: Hotel },
         { title: t("guides"), url: "/supplier?tab=guide_rates", icon: UserCheck2 },
@@ -113,7 +113,7 @@ export function AppSidebar() {
     if (role === "operations_manager") return [
       { title: t("dashboard"), url: "/ops", icon: LayoutDashboard },
       { title: t("nav_assignments"), url: "/ops/assignments", icon: UserCheck },
-      { title: t("pe_group_quotes"), url: "/admin/group-quotes", icon: Calculator },
+      { title: t("pe_tab_quotes"), url: "/admin/pricing-engine", icon: Calculator },
     ];
     
     return [];

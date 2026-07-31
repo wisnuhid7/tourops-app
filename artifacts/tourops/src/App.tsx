@@ -24,6 +24,7 @@ import AdminWorkflowDetail from "@/pages/admin/workflow-detail";
 import AdminUsers from "@/pages/admin/users";
 import AdminMasterData from "@/pages/admin/master-data";
 import AdminPricingSettings from "@/pages/admin/pricing-settings";
+import AdminPricingEngine from "@/pages/admin/pricing-engine";
 import AdminTransport from "@/pages/admin/transport";
 import AdminRateCards from "@/pages/admin/rate-cards";
 import AdminReports from "@/pages/admin/reports";
@@ -34,6 +35,7 @@ import AdminMessages from "@/pages/admin/messages";
 import AdminAssignments from "@/pages/admin/assignments";
 import AdminGroupQuotes from "@/pages/admin/group-quotes";
 import CustomerQuoteView from "@/pages/customer/quote-view";
+import { QuoteViewById, QuoteViewByToken } from "@/pages/customer/quote-view";
 import BrowseTours from "@/pages/customer/browse-tours";
 import TourDetail from "@/pages/customer/tour-detail";
 import MyBookings from "@/pages/customer/my-bookings";
@@ -97,6 +99,7 @@ function AuthenticatedLayout() {
 
   const isAdmin = role === "admin" || role === "super_admin";
   const isCountryManager = role === "country_manager";
+  const isOpsManager = role === "operations_manager";
 
   // Task #19: staff-only SPA sections must not render their shells for
   // customers (APIs are already server-gated; this closes the UI side).
@@ -108,7 +111,7 @@ function AuthenticatedLayout() {
   if (!isAdmin && location.startsWith("/admin")) {
     if (isCountryManager && location === "/admin/master-data") {
       // Allowed — country_manager can access master data
-    } else if (role === "operations_manager" && location === "/admin/group-quotes") {
+    } else if (isOpsManager && (location === "/admin/pricing-engine" || location === "/admin/group-quotes")) {
       // Allowed — operations_manager is part of the internal pricing roles
     } else {
       if (SUPPLIER_ROLES.includes(role || "")) {
@@ -139,13 +142,14 @@ function AuthenticatedLayout() {
             <Route path="/admin/tours/:id" component={TourDetail} />
             <Route path="/admin/master-data" component={AdminMasterData} />
             <Route path="/admin/pricing" component={AdminPricingSettings} />
+            <Route path="/admin/pricing-engine" component={AdminPricingEngine} />
+            <Route path="/admin/group-quotes" component={AdminGroupQuotes} />
             <Route path="/admin/transport" component={AdminTransport} />
             <Route path="/admin/rate-cards" component={AdminRateCards} />
             <Route path="/admin/documents" component={AdminDocuments} />
             <Route path="/admin/payments" component={AdminPayments} />
             <Route path="/admin/messages" component={AdminMessages} />
             <Route path="/admin/assignments" component={AdminAssignments} />
-            <Route path="/admin/group-quotes" component={AdminGroupQuotes} />
 
             {/* Account security (all authenticated roles) */}
             <Route path="/account/security" component={AccountSecurityPage} />
@@ -242,7 +246,6 @@ function AppRouter() {
           <Route path="/tours/:id/brochure" component={TourBrochure} />
           <Route path="/tours/:id" component={TourDetail} />
           <Route path="/tours" component={BrowseTours} />
-          <Route path="/quotes/shared/:token" component={CustomerQuoteView} />
           <Route component={LandingPage} />
         </Switch>
       </ErrorBoundary>

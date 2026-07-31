@@ -1,0 +1,442 @@
+# QA Feature Testing Prompt – Suppliers & Supply Chain
+
+You are a Senior QA Engineer and Application Security Engineer.
+
+Your task is to perform a comprehensive assessment of the **Suppliers & Supply Chain** feature, covering functional behavior, business rules, integrations, APIs, permissions, UI, security, performance, regression, and edge cases.
+
+## Feature Scope
+
+Test every component related to:
+
+### Supplier Portals
+
+* Airline Supplier Portal (`airline_supplier`)
+* Hotel Manager Portal (`hotel_manager`)
+* Guide Manager Portal (`guide_manager`)
+* Sights Manager Portal (`sights_manager`)
+* Supplier authentication
+* Supplier authorization
+* Supplier dashboard
+* Supplier profile management
+* Supplier navigation
+* Role-based permissions
+
+### Supplier Catalog Management
+
+* Hotel catalog management
+* Sight catalog management
+* Transport Company catalog management
+* Airline Agency catalog management
+* Catalog CRUD operations
+* Search
+* Filtering
+* Pagination
+* Status management
+* Media management
+* Ownership validation
+
+### Rate Cards
+
+* `admin/rate-cards.tsx`
+* Create rate cards
+* Update rate cards
+* Delete rate cards
+* Seasonal pricing
+* Currency handling
+* Numeric price fields
+* Insert schema validation
+* Update schema validation
+
+**Specifically verify that numeric price columns expecting string values in the insert schema behave correctly and do not cause validation, storage, or calculation issues.**
+
+### Airline Flight Search
+
+* Airline search
+* Flight search
+* Simulated pricing
+* Distance-based pricing
+* Seasonality pricing
+* Search filters
+* Search results
+* Pricing calculation
+* Empty results
+* Error handling
+
+### Supplier Airline Search
+
+Verify:
+
+* `supplier/airline-search.tsx`
+* Redirect into supplier tab
+* State persistence
+* Search persistence
+* Browser refresh
+* Partial integration behavior
+
+### Transport Module
+
+Verify:
+
+* Bus Types
+* Transport Routes
+* Route CRUD
+* Route validation
+* Duplicate routes
+* `/admin/transport`
+* `/ops/transport`
+* Route consistency
+* Authorization consistency
+
+Test every related API endpoint, middleware, database interaction, validation, business rule, frontend component, backend service, and integration.
+
+---
+
+# Testing Requirements
+
+Execute every applicable scenario.
+
+## Functional Testing
+
+Verify:
+
+* Create
+* Read
+* Update
+* Delete
+* Search
+* Filtering
+* Pagination
+* Sorting
+* Validation
+* Duplicate records
+* Required fields
+* Empty states
+* Loading states
+* Error handling
+* Responsive layout
+* Browser compatibility
+
+---
+
+## Supplier Portal Testing
+
+Verify every supplier role independently:
+
+* Login
+* Logout
+* Dashboard access
+* Navigation
+* Accessible pages
+* Restricted pages
+* CRUD permissions
+* Session handling
+* Cross-portal isolation
+* Ownership restrictions
+
+---
+
+## Catalog Management Testing
+
+Verify:
+
+* Hotel CRUD
+* Sight CRUD
+* Airline Agency CRUD
+* Transport Company CRUD
+* Categories
+* Images
+* Attachments
+* Status management
+* Duplicate detection
+* Validation rules
+* Ownership enforcement
+* Bulk operations
+
+---
+
+## Rate Card Testing
+
+Verify:
+
+* Create
+* Update
+* Delete
+* Search
+* Filtering
+* Decimal values
+* Currency formatting
+* Zero values
+* Large values
+* Invalid values
+* Numeric string validation
+* Insert schema validation
+* Update schema validation
+
+Specifically confirm:
+
+* Numeric string values are accepted.
+* Invalid values are rejected.
+* Data is stored correctly.
+* No silent conversion occurs.
+* Calculations remain accurate.
+
+---
+
+## Airline Search Testing
+
+Verify:
+
+* Flight search
+* Search filters
+* Distance pricing
+* Seasonality pricing
+* Passenger validation
+* Invalid airports
+* Invalid dates
+* Empty results
+* Pricing consistency
+* Search performance
+
+---
+
+## Supplier Airline Search Testing
+
+Verify:
+
+* Redirect into supplier tab
+* State persistence
+* Browser refresh
+* Navigation
+* Session persistence
+* Partial integration limitations
+
+Document any incomplete integration behavior.
+
+---
+
+## Transport Module Testing
+
+Verify:
+
+* Bus Type CRUD
+* Route CRUD
+* Route validation
+* Route filtering
+* Route search
+* Active/Inactive routes
+
+Compare:
+
+* `/admin/transport`
+* `/ops/transport`
+
+Confirm:
+
+* Functional consistency
+* Data consistency
+* Authorization consistency
+* No unintended privilege differences
+
+---
+
+## API Testing
+
+Test every endpoint for:
+
+* Successful requests
+* Invalid payloads
+* Missing fields
+* Invalid identifiers
+* Unauthorized requests
+* Forbidden requests
+* Malformed requests
+* Duplicate submissions
+* HTTP method validation
+* Error handling
+* Response consistency
+
+---
+
+## Security Testing
+
+Execute:
+
+* Authentication bypass
+* Authorization bypass
+* Supplier ownership bypass
+* Privilege escalation
+* IDOR
+* Mass Assignment
+* SQL Injection
+* XSS
+* CSRF
+* Parameter tampering
+* Hidden endpoint discovery
+* Direct API access
+* Route manipulation
+* Catalog ownership bypass
+* Duplicate route authorization inconsistencies
+
+---
+
+## Performance Testing
+
+Verify:
+
+* Large supplier catalogs
+* Large transport routes
+* Search performance
+* Flight pricing calculation performance
+* Pagination performance
+* Database query efficiency
+* Bulk operations
+
+---
+
+## Regression Testing
+
+Specifically verify:
+
+* Supplier portals only expose authorized resources.
+* Catalog ownership restrictions remain enforced.
+* Numeric string price fields behave correctly in Rate Cards.
+* Invalid values cannot corrupt pricing.
+* Simulated airline pricing remains consistent for identical inputs.
+* `supplier/airline-search.tsx` redirects correctly into the supplier tab while preserving state.
+* Duplicate transport routes (`/admin/transport` and `/ops/transport`) remain synchronized and enforce identical authorization.
+
+---
+
+# Documentation
+
+Save every generated document under:
+
+```text
+docs/qa/manu/
+```
+
+Generate or update the following files.
+
+---
+
+## 1. Feature Summary
+
+```text
+docs/qa/manu/suppliers-supply-chain-summary.md
+```
+
+Include:
+
+* Feature overview
+* Supplier architecture
+* Catalog architecture
+* Rate Card architecture
+* Airline search architecture
+* Transport architecture
+* User flows
+* Business rules
+* Dependencies
+* Risks
+* Assumptions
+* Test coverage summary
+
+---
+
+## 2. Findings
+
+```text
+docs/qa/manu/suppliers-supply-chain-findings.md
+```
+
+For every issue include:
+
+* Finding ID
+* Title
+* Severity
+* Priority
+* Component
+* Endpoint/Page
+* Description
+* Steps to Reproduce
+* Expected Result
+* Actual Result
+* Business/Security Impact
+* Root Cause
+* Recommendation
+* Retest Status
+
+---
+
+## 3. Testing Suite
+
+```text
+docs/qa/manu/suppliers-supply-chain-testing-suite.md
+```
+
+Create a comprehensive test suite covering:
+
+* Functional tests
+* Supplier portal tests
+* Catalog management tests
+* Rate Card tests
+* Airline search tests
+* Transport module tests
+* API tests
+* Authorization tests
+* Security tests
+* Performance tests
+* Integration tests
+* Regression tests
+* Edge cases
+
+Each test case must contain:
+
+* Test ID
+* Category
+* Objective
+* Preconditions
+* Test Steps
+* Expected Result
+* Status
+
+---
+
+## 4. Testing Report
+
+```text
+docs/qa/manu/suppliers-supply-chain-testing-report.md
+```
+
+Include:
+
+* Executive Summary
+* Scope
+* Environment
+* Features Tested
+* APIs Tested
+* Pages Tested
+* Total Test Cases
+* Passed
+* Failed
+* Blocked
+* Not Applicable
+* Functional Findings
+* Security Findings
+* Performance Findings
+* Coverage Analysis
+* Remaining Risks
+* Recommendations
+* Final Feature Assessment
+
+---
+
+# Execution Rules
+
+* Execute every applicable scenario.
+* Test every supplier role independently.
+* Validate both frontend and backend behavior.
+* Verify all business rules, authorization controls, ownership restrictions, pricing logic, and transport workflows.
+* Do not stop after discovering the first issue.
+* Continuously update all documentation as testing progresses.
+* Document any additional defects or vulnerabilities discovered outside the predefined scope.
+* Do not finish until every supplier portal, catalog module, rate card, airline search, transport feature, API, workflow, permission rule, and regression scenario has been fully tested and all documentation has been generated under `docs/qa/manu/`.

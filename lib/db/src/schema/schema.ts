@@ -1221,6 +1221,177 @@ export const insertRegionSchema = createInsertSchema(regions).omit({ id: true })
 export type InsertRegion = z.infer<typeof insertRegionSchema>;
 export type Region = typeof regions.$inferSelect;
 
+// --- Pricing Engine (Phase 1 & 2) -----------------------------------------
+// Centralized group-tour pricing: group size bands with assistance rules,
+// pricing rules (margin + free-passenger policy), airfare rates, and
+// computed quotes with per-hotel/per-occupancy line items.
+
+export const assistanceTypeEnum = pgEnum("assistance_type", [
+  "driver_chaperone",      // 1–15 passengers
+  "professional_guide",    // 16+ passengers
+]);
+export const marginTypeEnum = pgEnum("margin_type", ["fixed", "percentage"]);
+export const occupancyTypeEnum = pgEnum("occupancy_type", [
+  "double", "single", "third_person", "child",
+]);
+export const pricingQuoteStatusEnum = pgEnum("pricing_quote_status", [
+  "draft", "final", "archived",
+]);
+
+export const groupSizeBands = pgTable("group_size_bands", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  label: text("label").notNull(),                    // e.g. "2-5"
+  minPax: integer("min_pax").notNull(),
+  maxPax: integer("max_pax").notNull(),
+  assistanceType: assistanceTypeEnum("assistance_type").notNull(),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+}, (table) => ({
+  labelIdx: uniqueIndex("group_size_bands_label_idx").on(table.label),
+}));
+
+export const pricingRules = pgTable("pricing_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  tourId: varchar("tour_id"),                        // null = global default rule
+  marginType: marginTypeEnum("margin_type").notNull().default("percentage"),
+  // percentage: "20" = +20%; fixed: flat amount per paying passenger
+  marginValue: numeric("margin_value").notNull().default("20"),
+  // Free-passenger policy: freeCount free per payingCount paying
+  // (1 per 3 => group revenue must cover pax*(1+1/3) => factor 4/3).
+  freePassengerPaying: integer("free_passenger_paying").notNull().default(3),
+  freePassengerFree: integer("free_passenger_free").notNull().default(1),
+  currency: text("currency").notNull().default("USD"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  tourIdIdx: index("pricing_rules_tour_id_idx").on(table.tourId),
+}));
+
+export const airfareRates = pgTable("airfare_rates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  origin: text("origin").notNull(),                  // IATA code or city name
+  destination: text("destination").notNull(),
+  airline: text("airline"),
+  ratePerPerson: numeric("rate_per_person").notNull(),
+  childRate: numeric("child_rate"),                  // null = same as adult
+  currency: text("currency").notNull().default("USD"),
+  validFrom: timestamp("valid_from"),
+  validTo: timestamp("valid_to"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  routeIdx: index("airfare_rates_route_idx").on(table.origin, table.destination),
+}));
+
+// Quote header: one computed pricing run for a tour/departure + group size.
+// Internal-only money fields (group cost, margin, adjustment factor) must
+// never be exposed to customers — customer views read line-item selling
+// prices only.
+export const pricingQuotes = pgTable("pricing_quotes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tourId: varchar("tour_id").notNull(),
+  departureId: varchar("departure_id"),
+  pricingRuleId: varchar("pricing_rule_id"),
+  groupSizeBandId: varchar("group_size_band_id"),
+  paxCount: integer("pax_count").notNull(),
+  nights: integer("nights").notNull().default(0),
+  assistanceType: assistanceTypeEnum("assistance_type").notNull(),
+  currency: text("currency").notNull().default("USD"),
+  status: pricingQuoteStatusEnum("status").notNull().default("draft"),
+  // Internal per-person component costs (equal shares of group costs)
+  transportationShare: numeric("transportation_share").notNull().default("0"),
+  guideDriverShare: numeric("guide_driver_share").notNull().default("0"),
+  sightseeingShare: numeric("sightseeing_share").notNull().default("0"),
+  airfarePerPerson: numeric("airfare_per_person").notNull().default("0"),
+  // Internal aggregates (base = per-person before hotel; hotel varies by choice/occupancy)
+  baseCostPerPerson: numeric("base_cost_per_person").notNull().default("0"),
+  totalGroupCost: numeric("total_group_cost").notNull().default("0"),
+  freeAdjustmentFactor: numeric("free_adjustment_factor").notNull().default("1"),
+  marginType: marginTypeEnum("margin_type").notNull().default("percentage"),
+  marginValue: numeric("margin_value").notNull().default("0"),
+  notes: text("notes"),
+  // Customer visibility: a quote is only readable by its assigned customer
+  // (customerId) or via its unguessable share token, and only once `final`.
+  customerId: varchar("customer_id"),
+  shareToken: varchar("share_token").notNull().default(sql`gen_random_uuid()`),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  tourIdIdx: index("pricing_quotes_tour_id_idx").on(table.tourId),
+  departureIdIdx: index("pricing_quotes_departure_id_idx").on(table.departureId),
+  shareTokenIdx: uniqueIndex("pricing_quotes_share_token_idx").on(table.shareToken),
+}));
+
+// One row per hotel choice (1–3) × occupancy type. sellingPrice is the only
+// money field customers may see.
+export const pricingQuoteLineItems = pgTable("pricing_quote_line_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  quoteId: varchar("quote_id").notNull(),
+  hotelChoice: integer("hotel_choice").notNull(),    // 1..3
+  hotelId: varchar("hotel_id"),
+  hotelName: text("hotel_name"),
+  occupancy: occupancyTypeEnum("occupancy").notNull(),
+  // Internal cost breakdown (per person)
+  hotelNightlyRate: numeric("hotel_nightly_rate").notNull().default("0"),
+  hotelCostTotal: numeric("hotel_cost_total").notNull().default("0"), // nightly * nights
+  baseCost: numeric("base_cost").notNull().default("0"),              // step 1
+  marginAmount: numeric("margin_amount").notNull().default("0"),      // step 2 delta
+  freeAdjustmentAmount: numeric("free_adjustment_amount").notNull().default("0"), // step 3 delta
+  // Customer-visible
+  sellingPrice: numeric("selling_price").notNull().default("0"),      // final rounded
+}, (table) => ({
+  quoteIdIdx: index("pricing_quote_line_items_quote_id_idx").on(table.quoteId),
+  quoteChoiceOccIdx: uniqueIndex("pricing_quote_line_items_choice_occ_idx")
+    .on(table.quoteId, table.hotelChoice, table.occupancy),
+}));
+
+// Insert schemas + types
+export const insertGroupSizeBandSchema = createInsertSchema(groupSizeBands)
+  .omit({ id: true })
+  .superRefine((v, ctx) => {
+    if (v.minPax < 1) ctx.addIssue({ code: "custom", path: ["minPax"], message: "minPax must be at least 1" });
+    if (v.maxPax < v.minPax) ctx.addIssue({ code: "custom", path: ["maxPax"], message: "maxPax must be >= minPax" });
+  });
+export type InsertGroupSizeBand = z.infer<typeof insertGroupSizeBandSchema>;
+export type GroupSizeBand = typeof groupSizeBands.$inferSelect;
+
+export const insertPricingRuleSchema = createInsertSchema(pricingRules, {
+  marginValue: (s: z.ZodString) => nonNegativePriceString(s),
+})
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .superRefine((v, ctx) => {
+    if (v.freePassengerPaying !== undefined && v.freePassengerPaying < 1)
+      ctx.addIssue({ code: "custom", path: ["freePassengerPaying"], message: "freePassengerPaying must be at least 1" });
+    if (v.freePassengerFree !== undefined && v.freePassengerFree < 0)
+      ctx.addIssue({ code: "custom", path: ["freePassengerFree"], message: "freePassengerFree must be non-negative" });
+  });
+export type InsertPricingRule = z.infer<typeof insertPricingRuleSchema>;
+export type PricingRule = typeof pricingRules.$inferSelect;
+
+export const insertAirfareRateSchema = createInsertSchema(airfareRates, {
+  ratePerPerson: (s: z.ZodString) => nonNegativePriceString(s),
+  childRate: (s: z.ZodString) => nonNegativePriceString(s),
+}).omit({ id: true, createdAt: true });
+export type InsertAirfareRate = z.infer<typeof insertAirfareRateSchema>;
+export type AirfareRate = typeof airfareRates.$inferSelect;
+
+export const insertPricingQuoteSchema = createInsertSchema(pricingQuotes)
+  .omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertPricingQuote = z.infer<typeof insertPricingQuoteSchema>;
+export type PricingQuote = typeof pricingQuotes.$inferSelect;
+
+export const insertPricingQuoteLineItemSchema = createInsertSchema(pricingQuoteLineItems)
+  .omit({ id: true })
+  .superRefine((v, ctx) => {
+    if (v.hotelChoice < 1 || v.hotelChoice > 3)
+      ctx.addIssue({ code: "custom", path: ["hotelChoice"], message: "hotelChoice must be between 1 and 3" });
+  });
+export type InsertPricingQuoteLineItem = z.infer<typeof insertPricingQuoteLineItemSchema>;
+export type PricingQuoteLineItem = typeof pricingQuoteLineItems.$inferSelect;
+
 // --- New Table for Generic Dashboard Master Records ---
 
 export const masterRecords = pgTable("master_records", {

@@ -49,8 +49,8 @@ import { setupAuth, isAuthenticated } from "../replit_integrations/auth";
 import { registerAuthRoutes, passwordSchema } from "../replit_integrations/auth";
 import { authStorage } from "../replit_integrations/auth/storage";
 import { db } from "@workspace/db";
-import { countries, cities, tourDays, tourDepartures } from "@workspace/db";
-import { eq, and, sql } from "drizzle-orm";
+import { countries, cities, tours, tourDays, tourDepartures } from "@workspace/db";
+import { eq, and, sql, isNull, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { z } from "zod/v4";
@@ -96,8 +96,11 @@ import {
   insertTransportBookingSchema, insertTransportInvoiceSchema, insertTransportPaymentSchema,
   insertHotelRateSchema, insertTransportRateSchema, insertGuideRateSchema, insertSightsRateSchema, insertAirlineRateSchema,
   insertBookingWorkflowSchema, insertWorkflowStepSchema, insertInvoiceSchema,
-  insertAffiliateSchema, insertMarkupRuleSchema
+  insertAffiliateSchema, insertMarkupRuleSchema,
+  groupSizeBands, pricingRules, airfareRates, pricingQuotes, pricingQuoteLineItems,
+  insertGroupSizeBandSchema, insertPricingRuleSchema, insertAirfareRateSchema
 } from "@workspace/db";
+import { computeQuote, assistanceTypeForPax, PricingInputError, OCCUPANCY_TYPES, type HotelChoiceInput } from "../services/pricing-engine";
 
 import { sendWhatsApp, sendSMS, MESSAGE_TEMPLATES } from "../lib/messaging";
 import { generateCode as genCode } from "../lib/utils";
@@ -3622,6 +3625,366 @@ export async function registerRoutes(
       res.contentType("application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename="itinerary-${req.params.id}.pdf"`);
       res.send(pdfBuffer);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ==== Pricing Engine (Phase 1 & 2) ====
+  // Internal pricing data (costs, margins, adjustment factors) is restricted
+  // to admin/super_admin/operations_manager. Customers only ever receive the
+  // final selling prices per hotel choice & occupancy.
+  const PRICING_INTERNAL_ROLES = [...ADMIN_ROLES, "operations_manager"];
+
+  // ---- Group size bands ----
+  app.get("/api/pricing/group-size-bands", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
+      const bands = await db.select().from(groupSizeBands).orderBy(groupSizeBands.sortOrder);
+      res.json(bands);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.post("/api/pricing/group-size-bands", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const parsed = insertGroupSizeBandSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const [band] = await db.insert(groupSizeBands).values(parsed.data).returning();
+      res.json(band);
+    } catch (e: any) {
+      if (isUniqueViolation(e)) return res.status(409).json({ message: "A band with this label already exists" });
+      res.status(500).json({ message: e.message });
+    }
+  });
+  app.patch("/api/pricing/group-size-bands/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const parsed = insertGroupSizeBandSchema.partial().safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const [band] = await db.update(groupSizeBands).set(parsed.data)
+        .where(eq(groupSizeBands.id, req.params.id as string)).returning();
+      if (!band) return res.status(404).json({ message: "Band not found" });
+      res.json(band);
+    } catch (e: any) {
+      if (isUniqueViolation(e)) return res.status(409).json({ message: "A band with this label already exists" });
+      res.status(500).json({ message: e.message });
+    }
+  });
+  app.delete("/api/pricing/group-size-bands/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const [band] = await db.delete(groupSizeBands)
+        .where(eq(groupSizeBands.id, req.params.id as string)).returning();
+      if (!band) return res.status(404).json({ message: "Band not found" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Pricing rules ----
+  app.get("/api/pricing/rules", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
+      const rules = await db.select().from(pricingRules).orderBy(desc(pricingRules.createdAt));
+      res.json(rules);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.post("/api/pricing/rules", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const parsed = insertPricingRuleSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const [rule] = await db.insert(pricingRules).values(parsed.data).returning();
+      res.json(rule);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.patch("/api/pricing/rules/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const parsed = insertPricingRuleSchema.partial().safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const [rule] = await db.update(pricingRules).set({ ...parsed.data, updatedAt: new Date() })
+        .where(eq(pricingRules.id, req.params.id as string)).returning();
+      if (!rule) return res.status(404).json({ message: "Rule not found" });
+      res.json(rule);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.delete("/api/pricing/rules/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const [rule] = await db.delete(pricingRules)
+        .where(eq(pricingRules.id, req.params.id as string)).returning();
+      if (!rule) return res.status(404).json({ message: "Rule not found" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Airfare rates ----
+  app.get("/api/pricing/airfare-rates", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
+      const rates = await db.select().from(airfareRates).orderBy(airfareRates.origin, airfareRates.destination);
+      res.json(rates);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.post("/api/pricing/airfare-rates", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const parsed = insertAirfareRateSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const [rate] = await db.insert(airfareRates).values(parsed.data).returning();
+      res.json(rate);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.patch("/api/pricing/airfare-rates/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const parsed = insertAirfareRateSchema.partial().safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const [rate] = await db.update(airfareRates).set(parsed.data)
+        .where(eq(airfareRates.id, req.params.id as string)).returning();
+      if (!rate) return res.status(404).json({ message: "Airfare rate not found" });
+      res.json(rate);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+  app.delete("/api/pricing/airfare-rates/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const [rate] = await db.delete(airfareRates)
+        .where(eq(airfareRates.id, req.params.id as string)).returning();
+      if (!rate) return res.status(404).json({ message: "Airfare rate not found" });
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // ---- Quotes: compute + persist ----
+  const quoteRequestSchema = z.object({
+    tourId: z.string().min(1),
+    departureId: z.string().optional(),
+    pricingRuleId: z.string().optional(),   // default: active global rule
+    airfareRateId: z.string().optional(),   // alternative to components.airfarePerPerson
+    paxCount: z.number().int().min(1).max(200),
+    nights: z.number().int().min(0).max(120),
+    currency: z.string().optional(),
+    notes: z.string().optional(),
+    components: z.object({
+      transportationShare: z.string(),
+      guideDriverShare: z.string(),
+      sightseeingShare: z.string(),
+      airfarePerPerson: z.string().optional(),
+    }),
+    hotels: z.array(z.object({
+      hotelChoice: z.number().int().min(1).max(3),
+      hotelId: z.string().optional(),
+      hotelName: z.string().optional(),
+      // partialRecord: enum-keyed z.record in zod v4 makes every key required
+      nightlyRates: z.partialRecord(z.enum(["double", "single", "third_person", "child"]), z.string()),
+    })).min(1).max(3),
+  });
+
+  app.post("/api/pricing/quotes", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
+      const parsed = quoteRequestSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const body = parsed.data;
+
+      const [tour] = await db.select().from(tours).where(eq(tours.id, body.tourId));
+      if (!tour) return res.status(404).json({ message: "Tour not found" });
+
+      // Resolve pricing rule. Explicit id must be active and applicable to
+      // this tour (its own rule or a global one). Otherwise precedence is:
+      // newest active tour-specific rule, then newest active global rule.
+      let rule;
+      if (body.pricingRuleId) {
+        [rule] = await db.select().from(pricingRules).where(eq(pricingRules.id, body.pricingRuleId));
+        if (!rule) return res.status(404).json({ message: "Pricing rule not found" });
+        if (!rule.isActive) return res.status(400).json({ message: "Pricing rule is inactive" });
+        if (rule.tourId && rule.tourId !== body.tourId)
+          return res.status(400).json({ message: "Pricing rule belongs to a different tour" });
+      } else {
+        [rule] = await db.select().from(pricingRules)
+          .where(and(eq(pricingRules.tourId, body.tourId), eq(pricingRules.isActive, true)))
+          .orderBy(desc(pricingRules.createdAt)).limit(1);
+        if (!rule) {
+          [rule] = await db.select().from(pricingRules)
+            .where(and(isNull(pricingRules.tourId), eq(pricingRules.isActive, true)))
+            .orderBy(desc(pricingRules.createdAt)).limit(1);
+        }
+        if (!rule) return res.status(400).json({ message: "No active pricing rule configured" });
+      }
+
+      // Resolve airfare: explicit per-person value wins, else an active,
+      // date-valid airfare rate record, else 0.
+      let airfarePerPerson = body.components.airfarePerPerson;
+      if (airfarePerPerson === undefined && body.airfareRateId) {
+        const [rate] = await db.select().from(airfareRates).where(eq(airfareRates.id, body.airfareRateId));
+        if (!rate) return res.status(404).json({ message: "Airfare rate not found" });
+        if (!rate.isActive) return res.status(400).json({ message: "Airfare rate is inactive" });
+        const now = new Date();
+        if ((rate.validFrom && now < rate.validFrom) || (rate.validTo && now > rate.validTo))
+          return res.status(400).json({ message: "Airfare rate is outside its validity period" });
+        airfarePerPerson = rate.ratePerPerson;
+      }
+      airfarePerPerson = airfarePerPerson ?? "0";
+
+      // Resolve group size band (informational; assistance rule is pax-based).
+      const bands = await db.select().from(groupSizeBands)
+        .where(eq(groupSizeBands.isActive, true)).orderBy(groupSizeBands.sortOrder);
+      const band = bands.find((b) => body.paxCount >= b.minPax && body.paxCount <= b.maxPax) ?? null;
+
+      const result = computeQuote({
+        paxCount: body.paxCount,
+        nights: body.nights,
+        components: {
+          transportationShare: body.components.transportationShare,
+          guideDriverShare: body.components.guideDriverShare,
+          sightseeingShare: body.components.sightseeingShare,
+          airfarePerPerson,
+        },
+        hotels: body.hotels as HotelChoiceInput[],
+        rule: {
+          marginType: rule.marginType,
+          marginValue: rule.marginValue,
+          freePassengerPaying: rule.freePassengerPaying,
+          freePassengerFree: rule.freePassengerFree,
+        },
+      });
+
+      const quote = await db.transaction(async (tx) => {
+        const [q] = await tx.insert(pricingQuotes).values({
+          tourId: body.tourId,
+          departureId: body.departureId ?? null,
+          pricingRuleId: rule.id,
+          groupSizeBandId: band?.id ?? null,
+          paxCount: body.paxCount,
+          nights: body.nights,
+          assistanceType: result.assistanceType,
+          currency: body.currency ?? rule.currency,
+          transportationShare: body.components.transportationShare,
+          guideDriverShare: body.components.guideDriverShare,
+          sightseeingShare: body.components.sightseeingShare,
+          airfarePerPerson,
+          baseCostPerPerson: result.baseCostPerPerson,
+          totalGroupCost: result.totalGroupCost,
+          freeAdjustmentFactor: result.freeAdjustmentFactor,
+          marginType: rule.marginType,
+          marginValue: rule.marginValue,
+          notes: body.notes ?? null,
+          createdBy: (req.session as any).userId ?? null,
+        }).returning();
+        if (result.lineItems.length > 0) {
+          await tx.insert(pricingQuoteLineItems).values(
+            result.lineItems.map((li) => ({ ...li, quoteId: q.id })),
+          );
+        }
+        return q;
+      });
+
+      res.json({ ...quote, groupSizeBand: band?.label ?? null, lineItems: result.lineItems });
+    } catch (e: any) {
+      if (e instanceof PricingInputError) return res.status(400).json({ message: e.message });
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  app.get("/api/pricing/quotes", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
+      const tourId = typeof req.query.tourId === "string" ? req.query.tourId : undefined;
+      const rows = await db.select().from(pricingQuotes)
+        .where(tourId ? eq(pricingQuotes.tourId, tourId) : undefined)
+        .orderBy(desc(pricingQuotes.createdAt));
+      res.json(rows);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Internal breakdown view: full cost/margin/adjustment detail.
+  app.get("/api/pricing/quotes/:id/internal", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
+      const [quote] = await db.select().from(pricingQuotes)
+        .where(eq(pricingQuotes.id, req.params.id as string));
+      if (!quote) return res.status(404).json({ message: "Quote not found" });
+      const lineItems = await db.select().from(pricingQuoteLineItems)
+        .where(eq(pricingQuoteLineItems.quoteId, quote.id))
+        .orderBy(pricingQuoteLineItems.hotelChoice);
+      const band = quote.groupSizeBandId
+        ? (await db.select().from(groupSizeBands).where(eq(groupSizeBands.id, quote.groupSizeBandId)))[0] ?? null
+        : null;
+      res.json({ ...quote, groupSizeBand: band, lineItems });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Update quote status / customer assignment / notes (internal only).
+  app.patch("/api/pricing/quotes/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
+      const patchSchema = z.object({
+        status: z.enum(["draft", "final", "archived"]).optional(),
+        customerId: z.string().nullable().optional(),
+        notes: z.string().nullable().optional(),
+      }).strict();
+      const parsed = patchSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const [quote] = await db.update(pricingQuotes)
+        .set({ ...parsed.data, updatedAt: new Date() })
+        .where(eq(pricingQuotes.id, req.params.id as string)).returning();
+      if (!quote) return res.status(404).json({ message: "Quote not found" });
+      res.json(quote);
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Shape a quote for customer eyes: ONLY final selling prices per hotel
+  // choice & occupancy. Never costs, margins, or multiplication factors.
+  async function customerQuoteView(quote: typeof pricingQuotes.$inferSelect) {
+    const lineItems = await db.select().from(pricingQuoteLineItems)
+      .where(eq(pricingQuoteLineItems.quoteId, quote.id))
+      .orderBy(pricingQuoteLineItems.hotelChoice);
+    const hotelChoices: Record<number, { hotelChoice: number; hotelName: string | null; prices: Record<string, string> }> = {};
+    for (const li of lineItems) {
+      hotelChoices[li.hotelChoice] ??= { hotelChoice: li.hotelChoice, hotelName: li.hotelName, prices: {} };
+      hotelChoices[li.hotelChoice].prices[li.occupancy] = li.sellingPrice;
+    }
+    return {
+      id: quote.id,
+      tourId: quote.tourId,
+      departureId: quote.departureId,
+      paxCount: quote.paxCount,
+      nights: quote.nights,
+      currency: quote.currency,
+      status: quote.status,
+      hotelChoices: Object.values(hotelChoices).sort((a, b) => a.hotelChoice - b.hotelChoice),
+    };
+  }
+
+  // Customer quote view. Access: internal pricing roles (preview any state),
+  // or the assigned customer — final quotes only. 404 (not 403) on
+  // unauthorized so quote existence isn't disclosed.
+  app.get("/api/pricing/quotes/:id/customer", isAuthenticated, async (req, res) => {
+    try {
+      const [quote] = await db.select().from(pricingQuotes)
+        .where(eq(pricingQuotes.id, req.params.id as string));
+      if (!quote) return res.status(404).json({ message: "Quote not found" });
+
+      const profile = await storage.getOrCreateProfile((req.session as any).userId);
+      const isInternal = !!profile && PRICING_INTERNAL_ROLES.includes(profile.role);
+      const isAssignedCustomer = !!quote.customerId
+        && quote.customerId === (req.session as any).userId
+        && quote.status === "final";
+      if (!isInternal && !isAssignedCustomer)
+        return res.status(404).json({ message: "Quote not found" });
+
+      res.json(await customerQuoteView(quote));
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // Share-token access: unguessable link for customers without an assigned
+  // account. Final quotes only.
+  app.get("/api/pricing/quotes/shared/:token", isAuthenticated, async (req, res) => {
+    try {
+      const [quote] = await db.select().from(pricingQuotes)
+        .where(eq(pricingQuotes.shareToken, req.params.token as string));
+      if (!quote || quote.status !== "final")
+        return res.status(404).json({ message: "Quote not found" });
+      res.json(await customerQuoteView(quote));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 

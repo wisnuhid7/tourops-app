@@ -1,6 +1,7 @@
 import type { Express, Request } from "express";
 import { authStorage } from "./storage";
 import { isAuthenticated } from "./replitAuth";
+import { routeError } from "../../lib/routeError";
 import { runUserSeed, superAdminExists } from "../../seed-core";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
@@ -256,9 +257,8 @@ export function registerAuthRoutes(app: Express): void {
       req.session.userRole = role;
 
       res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role });
-    } catch (error: any) {
-      console.error("Login error:", error);
-      res.status(500).json({ message: "Login failed" });
+    } catch (error) {
+      routeError(res, error);
     }
   });
 
@@ -322,9 +322,8 @@ export function registerAuthRoutes(app: Express): void {
         email: user.email,
         role: "customer",
       });
-    } catch (error: any) {
-      console.error("Registration error:", error);
-      res.status(500).json({ message: "Registration failed. Please try again." });
+    } catch (error) {
+      routeError(res, error);
     }
   });
 
@@ -348,9 +347,8 @@ export function registerAuthRoutes(app: Express): void {
       req.session.userId = user.id;
       req.session.userRole = role;
       res.json({ id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role });
-    } catch (error: any) {
-      console.error("2FA login error:", error);
-      res.status(500).json({ message: "Login failed" });
+    } catch (error) {
+      routeError(res, error);
     }
   });
 
@@ -380,9 +378,8 @@ export function registerAuthRoutes(app: Express): void {
         );
       }
       res.json({ message: "If an account with that username or email exists, a reset link has been sent." });
-    } catch (error: any) {
-      console.error("Forgot-password error:", error);
-      res.status(500).json({ message: "Request failed. Please try again." });
+    } catch (error) {
+      routeError(res, error);
     }
   });
 
@@ -401,9 +398,8 @@ export function registerAuthRoutes(app: Express): void {
       await authStorage.updateUser(user.id, { passwordHash });
       if (user.username) clearFailedAttempts(user.username);
       res.json({ message: "Password updated. You can now log in." });
-    } catch (error: any) {
-      console.error("Reset-password error:", error);
-      res.status(500).json({ message: "Request failed. Please try again." });
+    } catch (error) {
+      routeError(res, error);
     }
   });
 
@@ -416,9 +412,8 @@ export function registerAuthRoutes(app: Express): void {
       if (user.emailVerified) return res.status(400).json({ message: "Email is already verified." });
       await sendVerificationEmail(req, user.id, user.email);
       res.json({ message: "Verification email sent." });
-    } catch (error: any) {
-      console.error("Send-verification error:", error);
-      res.status(500).json({ message: "Request failed. Please try again." });
+    } catch (error) {
+      routeError(res, error);
     }
   });
 
@@ -430,17 +425,20 @@ export function registerAuthRoutes(app: Express): void {
       if (!token) return res.status(400).json({ message: "This verification link is invalid or has expired." });
       await authStorage.updateUser(token.userId, { emailVerified: true });
       res.json({ message: "Email verified. Thank you!" });
-    } catch (error: any) {
-      console.error("Verify-email error:", error);
-      res.status(500).json({ message: "Request failed. Please try again." });
+    } catch (error) {
+      routeError(res, error);
     }
   });
 
   // ---- Two-factor authentication management (requires active session) ----
   app.get("/api/auth/2fa/status", isAuthenticated, async (req, res) => {
-    const user = await authStorage.getUser(req.session.userId!);
-    if (!user) return res.status(404).json({ message: "User not found" });
-    res.json({ enabled: !!user.totpEnabled, emailVerified: !!user.emailVerified, email: user.email || null });
+    try {
+      const user = await authStorage.getUser(req.session.userId!);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      res.json({ enabled: !!user.totpEnabled, emailVerified: !!user.emailVerified, email: user.email || null });
+    } catch (error) {
+      routeError(res, error);
+    }
   });
 
   app.post("/api/auth/2fa/setup", isAuthenticated, async (req, res) => {
@@ -455,9 +453,8 @@ export function registerAuthRoutes(app: Express): void {
       const otpauth = authenticator.keyuri(label, "TourOps", secret);
       const qrDataUrl = await QRCode.toDataURL(otpauth);
       res.json({ secret, otpauth, qrDataUrl });
-    } catch (error: any) {
-      console.error("2FA setup error:", error);
-      res.status(500).json({ message: "Request failed. Please try again." });
+    } catch (error) {
+      routeError(res, error);
     }
   });
 
@@ -472,9 +469,8 @@ export function registerAuthRoutes(app: Express): void {
       }
       await authStorage.updateUser(user.id, { totpEnabled: true });
       res.json({ message: "Two-factor authentication enabled." });
-    } catch (error: any) {
-      console.error("2FA enable error:", error);
-      res.status(500).json({ message: "Request failed. Please try again." });
+    } catch (error) {
+      routeError(res, error);
     }
   });
 
@@ -491,9 +487,8 @@ export function registerAuthRoutes(app: Express): void {
       }
       await authStorage.updateUser(user.id, { totpEnabled: false, totpSecret: null });
       res.json({ message: "Two-factor authentication disabled." });
-    } catch (error: any) {
-      console.error("2FA disable error:", error);
-      res.status(500).json({ message: "Request failed. Please try again." });
+    } catch (error) {
+      routeError(res, error);
     }
   });
 
@@ -505,8 +500,7 @@ export function registerAuthRoutes(app: Express): void {
       const { passwordHash, ...safeUser } = user;
       res.json(safeUser);
     } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
+      routeError(res, error);
     }
   });
 
@@ -565,9 +559,8 @@ export function registerAuthRoutes(app: Express): void {
       const accounts = await runUserSeed();
       // Do not return plaintext passwords; only report which accounts exist now.
       res.json({ ok: true, count: accounts.length, usernames: accounts.map(a => a.username) });
-    } catch (error: any) {
-      console.error("Seed error:", error);
-      res.status(500).json({ message: "Seeding failed" });
+    } catch (error) {
+      routeError(res, error);
     }
   });
 }

@@ -18,9 +18,9 @@ Decimal.set({ precision: 28, rounding: Decimal.ROUND_HALF_UP });
 
 export type AssistanceType = "driver_chaperone" | "professional_guide";
 export type MarginType = "fixed" | "percentage";
-export type OccupancyType = "double" | "single" | "third_person" | "child";
+export type OccupancyType = "double" | "single" | "third_person" | "child" | "matrimonial";
 
-export const OCCUPANCY_TYPES: OccupancyType[] = ["double", "single", "third_person", "child"];
+export const OCCUPANCY_TYPES: OccupancyType[] = ["matrimonial", "double", "single", "third_person", "child"];
 
 /** Professional tour guide from this passenger count upward; below → driver-chaperone. */
 export const GUIDE_THRESHOLD = 16;

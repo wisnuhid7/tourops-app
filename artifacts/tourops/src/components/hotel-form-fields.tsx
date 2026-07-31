@@ -13,7 +13,9 @@ export interface HotelFormValues {
   name: string;
   cityId: string;
   starRating: string;
-  basePrice: string;
+  roomRateMatrimonial: string;
+  roomRateDouble: string;
+  roomRateTriple: string;
   currency: string;
   googleMapsUrl: string;
   imageUrl: string;
@@ -29,7 +31,9 @@ export const emptyHotelFormValues: HotelFormValues = {
   name: "",
   cityId: "",
   starRating: "3",
-  basePrice: "",
+  roomRateMatrimonial: "",
+  roomRateDouble: "",
+  roomRateTriple: "",
   currency: "USD",
   googleMapsUrl: "",
   imageUrl: "",
@@ -46,7 +50,9 @@ export function hotelToFormValues(h: any): HotelFormValues {
     name: h?.name || "",
     cityId: h?.cityId || "",
     starRating: String(h?.starRating || 3),
-    basePrice: h?.basePrice || "",
+    roomRateMatrimonial: h?.roomRateMatrimonial || "",
+    roomRateDouble: h?.roomRateDouble || "",
+    roomRateTriple: h?.roomRateTriple || "",
     currency: h?.currency || "USD",
     googleMapsUrl: h?.googleMapsUrl || "",
     imageUrl: h?.imageUrl || "",
@@ -64,7 +70,12 @@ export function hotelFormToPayload(f: HotelFormValues) {
     name: f.name,
     cityId: f.cityId,
     starRating: parseInt(f.starRating),
-    basePrice: f.basePrice || undefined,
+    roomRateMatrimonial: f.roomRateMatrimonial || null,
+    roomRateDouble: f.roomRateDouble || null,
+    roomRateTriple: f.roomRateTriple || null,
+    // Keep legacy basePrice in sync as a fallback price (cheapest per-room rate).
+    basePrice: [f.roomRateMatrimonial, f.roomRateDouble, f.roomRateTriple]
+      .filter((r) => r !== "").map(Number).sort((a, b) => a - b)[0]?.toString() ?? undefined,
     currency: f.currency,
     googleMapsUrl: f.googleMapsUrl || null,
     imageUrl: f.imageUrl || undefined,
@@ -110,10 +121,12 @@ export function HotelFormFields({
           </SelectContent>
         </Select>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div><Label>{t("base_price_label")}</Label><Input type="number" step="0.01" value={value.basePrice} onChange={(e) => set({ basePrice: e.target.value })} placeholder="150.00" data-testid="input-hotel-price" /></div>
-        <div><Label>{t("currency_label")}</Label><Input value={value.currency} onChange={(e) => set({ currency: e.target.value })} placeholder="USD" data-testid="input-hotel-currency" /></div>
+      <div className="grid grid-cols-3 gap-3">
+        <div><Label>{t("room_rate_matrimonial_label")}</Label><Input type="number" step="0.01" min="0" value={value.roomRateMatrimonial} onChange={(e) => set({ roomRateMatrimonial: e.target.value })} placeholder="120.00" data-testid="input-hotel-rate-matrimonial" /></div>
+        <div><Label>{t("room_rate_double_label")}</Label><Input type="number" step="0.01" min="0" value={value.roomRateDouble} onChange={(e) => set({ roomRateDouble: e.target.value })} placeholder="150.00" data-testid="input-hotel-rate-double" /></div>
+        <div><Label>{t("room_rate_triple_label")}</Label><Input type="number" step="0.01" min="0" value={value.roomRateTriple} onChange={(e) => set({ roomRateTriple: e.target.value })} placeholder="180.00" data-testid="input-hotel-rate-triple" /></div>
       </div>
+      <div><Label>{t("currency_label")}</Label><Input value={value.currency} onChange={(e) => set({ currency: e.target.value })} placeholder="USD" data-testid="input-hotel-currency" /></div>
       <div><Label>{t("google_maps_url_label")}</Label><Input value={value.googleMapsUrl} onChange={(e) => set({ googleMapsUrl: e.target.value })} placeholder="https://maps.google.com/..." data-testid="input-hotel-maps-url" /></div>
       <div><Label>{t("image_url_label")}</Label><Input value={value.imageUrl} onChange={(e) => set({ imageUrl: e.target.value })} placeholder="https://..." data-testid="input-hotel-image" /></div>
       <div className="grid grid-cols-2 gap-3">

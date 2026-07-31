@@ -165,6 +165,16 @@ function TourHotelsSummary({ tourId }: { tourId: string }) {
                 </div>
               )}
               <CardContent className="p-5 space-y-3">
+                {[h.roomRateMatrimonial, h.roomRateDouble, h.roomRateTriple].some((r: any) => r) && (
+                  <div data-testid={`room-rates-${h.id}`}>
+                    <p className="text-xs text-muted-foreground mb-1">{t("room_rates_from_label")}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {h.roomRateMatrimonial && <Badge variant="secondary">{t("room_matrimonial")}: {h.currency} {h.roomRateMatrimonial}</Badge>}
+                      {h.roomRateDouble && <Badge variant="secondary">{t("room_double")}: {h.currency} {h.roomRateDouble}</Badge>}
+                      {h.roomRateTriple && <Badge variant="secondary">{t("room_triple")}: {h.currency} {h.roomRateTriple}</Badge>}
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-start justify-between gap-3">
                   <p className="font-semibold text-slate-900 dark:text-slate-50 leading-snug" data-testid={`text-hotel-name-${h.id}`}>
                     {h.name}

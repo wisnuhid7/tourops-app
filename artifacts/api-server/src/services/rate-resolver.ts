@@ -45,7 +45,7 @@ export interface ResolvedHotel {
   hotelId?: string;
   hotelName?: string;
   nights: number;
-  nightlyRates: Partial<Record<"double" | "single" | "third_person" | "child", string>>;
+  nightlyRates: Partial<Record<"matrimonial" | "double" | "single" | "third_person" | "child", string>>;
   source: string; // "hotel_rates:<id>" | "hotels.basePrice" | "unavailable"
 }
 
@@ -222,6 +222,32 @@ export async function resolveTourComponents(db: Db, input: ResolveInput): Promis
       warnings.push(`Hotel item references missing hotel ${hotelId}; skipped.`);
       continue;
     }
+    // Preference order for room pricing:
+    // 1. Direct per-night room rates registered on the hotel itself
+    //    (Matrimonial / Doble / Triple — kept in sync between the admin and
+    //    hotel-manager portals since both edit the same hotels row).
+    // 2. An active, date-valid hotel_rates card matched by hotel name.
+    // 3. The legacy hotels.basePrice.
+    const hasDirect = [hotel.roomRateMatrimonial, hotel.roomRateDouble, hotel.roomRateTriple]
+      .some((r: any) => r != null && !D(r).isZero());
+    if (hasDirect && sameCurrency(hotel.currency)) {
+      // Per-person raw rates: matrimonial & doble sleep 2, triple sleeps 3.
+      // Zero/absent rates mean "room type not offered" — omit, never price 0.
+      const pos = (v: any) => v != null && D(v).greaterThan(0);
+      const raw: Record<string, Decimal> = {};
+      if (pos(hotel.roomRateMatrimonial)) raw.matrimonial = D(hotel.roomRateMatrimonial).div(2);
+      if (pos(hotel.roomRateDouble)) {
+        raw.double = D(hotel.roomRateDouble).div(2);
+        raw.single = D(hotel.roomRateDouble); // sole occupant pays the room
+      }
+      if (pos(hotel.roomRateTriple)) raw.third_person = D(hotel.roomRateTriple).div(3);
+      resolvedHotels.push({
+        hotelChoice: idx + 1, hotelId, hotelName: hotel.name, nights,
+        nightlyRates: {}, rawRates: raw,
+        source: "hotels.roomRates",
+      } as ResolvedHotel & { rawRates: Record<string, Decimal> });
+      continue;
+    }
     // Match rate cards by name (rate cards store free-text hotel names).
     const candidates: any[] = await db.select().from(hotelRates)
       .where(and(eq(hotelRates.status, "active"), eq(hotelRates.hotelName, hotel.name)))
@@ -229,23 +255,19 @@ export async function resolveTourComponents(db: Db, input: ResolveInput): Promis
     const rate = candidates.find((r) =>
       dateValid(r.validFrom, r.validTo, onDate) &&
       r.pricePerRoomPerNight != null && sameCurrency(r.currency));
-    if (rate) {
+    const roomRate = rate ? D(rate.pricePerRoomPerNight)
+      : (hotel.basePrice != null && sameCurrency(hotel.currency)) ? D(hotel.basePrice)
+      : null;
+    if (roomRate) {
+      if (!rate) warnings.push(`No room rates or rate card for hotel "${hotel.name}"; using its base price.`);
       resolvedHotels.push({
         hotelChoice: idx + 1, hotelId, hotelName: hotel.name, nights,
         nightlyRates: {},
-        roomRate: D(rate.pricePerRoomPerNight),
-        source: `hotel_rates:${rate.id}`,
-      } as ResolvedHotel & { roomRate: Decimal });
-    } else if (hotel.basePrice != null && sameCurrency(hotel.currency)) {
-      warnings.push(`No active date-valid rate card for hotel "${hotel.name}"; using its base price.`);
-      resolvedHotels.push({
-        hotelChoice: idx + 1, hotelId, hotelName: hotel.name, nights,
-        nightlyRates: {},
-        roomRate: D(hotel.basePrice),
-        source: "hotels.basePrice",
-      } as ResolvedHotel & { roomRate: Decimal });
+        rawRates: { double: roomRate.div(2), single: roomRate, third_person: roomRate.div(3) },
+        source: rate ? `hotel_rates:${rate.id}` : "hotels.basePrice",
+      } as ResolvedHotel & { rawRates: Record<string, Decimal> });
     } else {
-      warnings.push(`Hotel "${hotel.name}" has no rate card and no base price; choice unavailable.`);
+      warnings.push(`Hotel "${hotel.name}" has no room rates, rate card, or base price; choice unavailable.`);
     }
   }
   if (!resolvedHotels.length) warnings.push("No priceable hotel choices found on this tour.");
@@ -254,15 +276,14 @@ export async function resolveTourComponents(db: Db, input: ResolveInput): Promis
   // over the global nights equals its true per-night rate × its own nights.
   // Rounding happens exactly once, here.
   const nights = Math.max(0, ...resolvedHotels.map((h) => h.nights), 0);
-  const OCC_DIVISORS = { double: 2, single: 1, third_person: 3 } as const;
-  for (const h of resolvedHotels as (ResolvedHotel & { roomRate: Decimal })[]) {
+  for (const h of resolvedHotels as (ResolvedHotel & { rawRates: Record<string, Decimal> })[]) {
     const scale = nights > 0 && h.nights > 0 && h.nights !== nights
       ? new Decimal(h.nights).div(nights)
       : new Decimal(1);
-    for (const [occ, div] of Object.entries(OCC_DIVISORS) as [keyof typeof OCC_DIVISORS, number][]) {
-      h.nightlyRates[occ] = money(h.roomRate.div(div).mul(scale));
+    for (const [occ, raw] of Object.entries(h.rawRates)) {
+      h.nightlyRates[occ as keyof ResolvedHotel["nightlyRates"]] = money(raw.mul(scale));
     }
-    delete (h as any).roomRate;
+    delete (h as any).rawRates;
   }
   meta.hotels = resolvedHotels.map((h) => ({ choice: h.hotelChoice, name: h.hotelName, nights: h.nights, source: h.source }));
 

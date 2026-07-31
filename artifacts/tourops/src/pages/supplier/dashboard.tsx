@@ -544,7 +544,11 @@ export default function SupplierDashboard() {
                     <TableRow key={h.id}>
                       <TableCell className="font-medium">{h.name}</TableCell>
                       <TableCell>{h.starRating} ⭐</TableCell>
-                      <TableCell>{h.basePrice ? `${h.currency} ${h.basePrice}` : "-"}</TableCell>
+                      <TableCell>
+                        {[h.roomRateMatrimonial, h.roomRateDouble, h.roomRateTriple].some((r: any) => r)
+                          ? `M ${h.roomRateMatrimonial ?? "—"} / D ${h.roomRateDouble ?? "—"} / T ${h.roomRateTriple ?? "—"} ${h.currency}`
+                          : h.basePrice ? `${h.currency} ${h.basePrice}` : "-"}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={h.status === "approved" || h.status === "published" ? "default" : "secondary"} className="capitalize">
                           {h.status === "approved" ? t("approved_status") : h.status === "draft" ? t("pending_approval") : h.status}

@@ -17,7 +17,7 @@ interface CustomerQuote {
   hotelChoices: Array<{ hotelChoice: number; hotelName: string | null; prices: Record<string, string> }>;
 }
 
-const OCC_KEYS = ["double", "single", "third_person", "child"] as const;
+const OCC_KEYS = ["matrimonial", "double", "single", "third_person", "child"] as const;
 
 /**
  * Customer quote page: final selling prices per hotel choice & occupancy

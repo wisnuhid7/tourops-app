@@ -22,3 +22,9 @@ description: Decisions behind the Phase 1&2 pricing engine (decimal strings, quo
 - Hotel rate cards match by exact hotel name (no FK); POST /api/rates/* forces status=draft — rates only resolve after approval (status=active).
 - from-tour endpoint must validate departureId belongs to the tour and derive departureDate from its startDate.
 - Shared-token quote endpoint is now public by design (task #25): token = credential, final-only, customerQuoteView shaping.
+
+## Direct hotel room rates (Matrimonial/Doble/Triple) — 2026-07-31
+- hotels now carry roomRateMatrimonial/Double/Triple ($/room/night); shared hotel-form-fields.tsx keeps admin + hotel-manager portals identical; basePrice kept as legacy fallback, auto-synced to cheapest rate on save.
+- occupancy_type pg enum gained "matrimonial" (add-only, never drop); engine OCCUPANCY_TYPES + routes zod enum + both quote UIs (OCC_KEYS/OCCUPANCIES) must all list new occupancies or the price silently won't render.
+- Resolver preference: direct hotel room rates > active hotel_rates card > basePrice. Per-person: M/2, D/2, single=D, T/3. Zero/absent rate = room not offered → omit, never price 0; route-level normalizeRoomRates coerces 0→null and 400s negatives (insertHotelSchema has no numeric bounds).
+- Customer /api/tours/:id/hotels is a hand-picked field allowlist — new customer-visible columns must be added there explicitly or UI badges silently never render.

@@ -524,6 +524,11 @@ export const hotels = pgTable("hotels", {
   reviewCount: integer("review_count").default(0),
   amenities: text("amenities").array(),
   roomTypes: jsonb("room_types"),
+  // Direct per-night room rates (registered by admin / hotel manager and
+  // consumed by the pricing engine + customer-facing views).
+  roomRateMatrimonial: numeric("room_rate_matrimonial"), // Habitación Matrimonial $/night
+  roomRateDouble: numeric("room_rate_double"),           // Habitación Doble $/night
+  roomRateTriple: numeric("room_rate_triple"),           // Habitación Triple $/night
   checkinTime: text("checkin_time"),
   checkoutTime: text("checkout_time"),
   hotelPolicy: text("hotel_policy"),
@@ -1232,7 +1237,7 @@ export const assistanceTypeEnum = pgEnum("assistance_type", [
 ]);
 export const marginTypeEnum = pgEnum("margin_type", ["fixed", "percentage"]);
 export const occupancyTypeEnum = pgEnum("occupancy_type", [
-  "double", "single", "third_person", "child",
+  "double", "single", "third_person", "child", "matrimonial",
 ]);
 export const pricingQuoteStatusEnum = pgEnum("pricing_quote_status", [
   "draft", "final", "archived",

@@ -17,11 +17,11 @@ import { useLanguage } from "@/hooks/use-language";
 import { Plus, Trash2, Calculator, Eye, Link2, CheckCircle2 } from "lucide-react";
 import type { Tour, PricingQuote, PricingRule, AirfareRate, GroupSizeBand, PricingQuoteLineItem } from "@workspace/db";
 
-const OCCUPANCIES = ["double", "single", "third_person", "child"] as const;
+const OCCUPANCIES = ["matrimonial", "double", "single", "third_person", "child"] as const;
 type Occ = (typeof OCCUPANCIES)[number];
 
 interface HotelForm { hotelName: string; hotelId?: string; rates: Record<Occ, string> }
-const emptyHotel = (): HotelForm => ({ hotelName: "", rates: { double: "", single: "", third_person: "", child: "" } });
+const emptyHotel = (): HotelForm => ({ hotelName: "", rates: { matrimonial: "", double: "", single: "", third_person: "", child: "" } });
 
 export default function AdminGroupQuotes() {
   const { toast } = useToast();
@@ -72,6 +72,7 @@ export default function AdminGroupQuotes() {
           hotelName: h.hotelName ?? "",
           hotelId: h.hotelId,
           rates: {
+            matrimonial: h.nightlyRates.matrimonial ?? "",
             double: h.nightlyRates.double ?? "",
             single: h.nightlyRates.single ?? "",
             third_person: h.nightlyRates.third_person ?? "",

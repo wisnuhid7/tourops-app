@@ -1311,7 +1311,11 @@ function HotelsTab() {
               <TableCell className="font-medium">{item.name}</TableCell>
               <TableCell className="text-muted-foreground">{getCityName(item.cityId)}</TableCell>
               <TableCell>{item.starRating} ⭐</TableCell>
-              <TableCell className="font-mono text-xs">{item.basePrice} {item.currency}</TableCell>
+              <TableCell className="font-mono text-xs">
+                {[item.roomRateMatrimonial, item.roomRateDouble, item.roomRateTriple].some((r: any) => r)
+                  ? `M ${item.roomRateMatrimonial ?? "—"} / D ${item.roomRateDouble ?? "—"} / T ${item.roomRateTriple ?? "—"} ${item.currency}`
+                  : item.basePrice ? `${item.basePrice} ${item.currency}` : "—"}
+              </TableCell>
               <TableCell className="text-muted-foreground text-sm">
                 {(item as any).googleMapsUrl ? (
                   <a href={(item as any).googleMapsUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline" data-testid={`link-hotel-map-${item.id}`}>

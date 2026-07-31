@@ -785,6 +785,12 @@ export async function registerRoutes(
           contactPhone: h.contactPhone,
           contactEmail: h.contactEmail,
           description: h.description,
+          // Customer-facing room rates (Matrimonial/Doble/Triple $/night) —
+          // registered by admin/hotel manager for customers to choose from.
+          roomRateMatrimonial: (h as any).roomRateMatrimonial,
+          roomRateDouble: (h as any).roomRateDouble,
+          roomRateTriple: (h as any).roomRateTriple,
+          currency: (h as any).currency,
           // Only expose translations for public-safe fields (never policies).
           translations: pickPublicTranslations((h as any).translations, ["description"]),
         }));
@@ -1645,11 +1651,27 @@ export async function registerRoutes(
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  // Direct room rates (Matrimonial/Doble/Triple $/night) must be positive
+  // decimals when present. Zero/empty means "room type not offered" and is
+  // normalized to null; negative or non-numeric values are rejected.
+  const ROOM_RATE_FIELDS = ["roomRateMatrimonial", "roomRateDouble", "roomRateTriple"] as const;
+  function normalizeRoomRates(data: Record<string, any>): string | null {
+    for (const f of ROOM_RATE_FIELDS) {
+      if (!(f in data) || data[f] == null || data[f] === "") { if (f in data) data[f] = null; continue; }
+      const n = Number(data[f]);
+      if (!Number.isFinite(n) || n < 0) return `${f} must be a non-negative number`;
+      data[f] = n === 0 ? null : String(data[f]);
+    }
+    return null;
+  }
+
   app.post("/api/hotels", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, HOTEL_REGISTER_ROLES)) return;
       const parsed = insertHotelSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const rateErr = normalizeRoomRates(parsed.data as any);
+      if (rateErr) return res.status(400).json({ message: rateErr });
       // Registration always starts as "draft"; only admin/super_admin can approve.
       // Force the status server-side so a hotel_manager can't self-approve via the payload.
       res.status(201).json(await storage.createHotel({ ...parsed.data, status: "draft", createdBy: getUserId(req)! }));
@@ -1679,6 +1701,8 @@ export async function registerRoutes(
       const parsed = insertHotelSchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       const data: Record<string, any> = { ...parsed.data };
+      const rateErr = normalizeRoomRates(data);
+      if (rateErr) return res.status(400).json({ message: rateErr });
       // Approval status is admin-only: strip it so a hotel_manager can't
       // self-approve by smuggling `status` into an ordinary edit payload.
       if (!ADMIN_ROLES.includes(role)) delete data.status;
@@ -3823,7 +3847,7 @@ export async function registerRoutes(
       hotelId: z.string().optional(),
       hotelName: z.string().optional(),
       // partialRecord: enum-keyed z.record in zod v4 makes every key required
-      nightlyRates: z.partialRecord(z.enum(["double", "single", "third_person", "child"]), z.string()),
+      nightlyRates: z.partialRecord(z.enum(["matrimonial", "double", "single", "third_person", "child"]), z.string()),
     })).min(1).max(3),
   });
 

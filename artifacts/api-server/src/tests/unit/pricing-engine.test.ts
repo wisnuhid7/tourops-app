@@ -54,6 +54,74 @@ describe("margin", () => {
   });
 });
 
+describe("rounding edge cases — selling price is authoritative", () => {
+  it("half-cent boundary rounds up (ROUND_HALF_UP)", () => {
+    // base = 0.01 + 0 + 0 + 0, margin 25% → 0.0125 → rounds to 0.01 margin? Check final:
+    // final = 0.0125 * 1 = 0.0125 → "0.01"? ROUND_HALF_UP on 0.0125 at 2dp → 0.01? No: 0.0125 → 0.01 (third decimal 2 <5 at cut? 0.0125 → look at 0.0125, 2dp: 0.01|25 → 0.0125 rounds to 0.01? half-up: 0.0125 → 0.01 since digit after 2dp is 2)
+    // Use a clean half case: 1.005 → 1.01
+    const result = computeQuote({
+      paxCount: 3, nights: 0,
+      components: { transportationShare: "1.005", guideDriverShare: "0", sightseeingShare: "0", airfarePerPerson: "0" },
+      hotels: [{ hotelChoice: 1, nightlyRates: { double: "0" } }],
+      rule: { marginType: "percentage", marginValue: "0", freePassengerPaying: 3, freePassengerFree: 0 },
+    });
+    expect(result.lineItems[0].sellingPrice).toBe("1.01"); // exactly half a cent → up
+  });
+
+  it("repeating 4/3 factor: components may differ by a cent; selling price is exact ROUND_HALF_UP of the unrounded chain", () => {
+    // base = 100, margin 0, factor 4/3 → 133.333... → 133.33
+    const r1 = computeQuote({
+      paxCount: 3, nights: 0,
+      components: { transportationShare: "100", guideDriverShare: "0", sightseeingShare: "0", airfarePerPerson: "0" },
+      hotels: [{ hotelChoice: 1, nightlyRates: { double: "0" } }],
+      rule: { marginType: "percentage", marginValue: "0", freePassengerPaying: 3, freePassengerFree: 1 },
+    });
+    expect(r1.lineItems[0].sellingPrice).toBe("133.33");
+    expect(r1.lineItems[0].freeAdjustmentAmount).toBe("33.33");
+    // base = 100.24 → 133.65333... → 133.65 (rounded once, at the end)
+    const r2 = computeQuote({
+      paxCount: 3, nights: 0,
+      components: { transportationShare: "100.24", guideDriverShare: "0", sightseeingShare: "0", airfarePerPerson: "0" },
+      hotels: [{ hotelChoice: 1, nightlyRates: { double: "0" } }],
+      rule: { marginType: "percentage", marginValue: "0", freePassengerPaying: 3, freePassengerFree: 1 },
+    });
+    expect(r2.lineItems[0].sellingPrice).toBe("133.65");
+  });
+
+  it("percentage margin on odd cents: rounding happens once at the end of each step delta", () => {
+    // base 99.99, +20% = 119.988 → selling with factor 1 = "119.99"
+    const result = computeQuote({
+      paxCount: 4, nights: 0,
+      components: { transportationShare: "99.99", guideDriverShare: "0", sightseeingShare: "0", airfarePerPerson: "0" },
+      hotels: [{ hotelChoice: 1, nightlyRates: { double: "0" } }],
+      rule: { marginType: "percentage", marginValue: "20", freePassengerPaying: 3, freePassengerFree: 0 },
+    });
+    const li = result.lineItems[0];
+    expect(li.sellingPrice).toBe("119.99"); // 119.988 → half-up
+    // Reconciliation: components are rounded independently; selling price is
+    // authoritative even if base+margin+adjustment != sellingPrice by ±0.01.
+    const sum = (parseFloat(li.baseCost) + parseFloat(li.marginAmount) + parseFloat(li.freeAdjustmentAmount)).toFixed(2);
+    expect(Math.abs(parseFloat(sum) - parseFloat(li.sellingPrice))).toBeLessThanOrEqual(0.01);
+  });
+
+  it("selling price never drifts from the exact decimal chain across many odd inputs", () => {
+    for (let cents = 1; cents <= 50; cents++) {
+      const share = (100 + cents / 100).toFixed(2);
+      const result = computeQuote({
+        paxCount: 3, nights: 3,
+        components: { transportationShare: share, guideDriverShare: "0.33", sightseeingShare: "0.67", airfarePerPerson: "250.55" },
+        hotels: [{ hotelChoice: 1, nightlyRates: { double: "77.77" } }],
+        rule: { marginType: "percentage", marginValue: "17.5", freePassengerPaying: 3, freePassengerFree: 1 },
+      });
+      const li = result.lineItems[0];
+      const exact = new Decimal(share).plus("0.33").plus("0.67").plus("250.55")
+        .plus(new Decimal("77.77").mul(3))
+        .mul("1.175").mul(4).div(3).toFixed(2);
+      expect(li.sellingPrice).toBe(exact);
+    }
+  });
+});
+
 describe("computeQuote — 3-step order", () => {
   it("computes exact decimal result: (400 + 7*100) * 1.2 * 4/3", () => {
     const result = computeQuote({

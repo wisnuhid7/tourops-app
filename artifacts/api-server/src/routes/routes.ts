@@ -410,7 +410,8 @@ export async function registerRoutes(
   // ---- Tours ----
   app.get("/api/tours", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager", "tour_builder", "content_editor"])) return;
+      // operations_manager needs the tour list for the pricing quote builder.
+      if (!await requireRole(req, res, ["super_admin", "admin", "country_manager", "tour_builder", "content_editor", "operations_manager"])) return;
       res.json(await storage.getAllTours());
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -3634,6 +3635,18 @@ export async function registerRoutes(
   // final selling prices per hotel choice & occupancy.
   const PRICING_INTERNAL_ROLES = [...ADMIN_ROLES, "operations_manager"];
 
+  // Integrity guard: active group size bands must not overlap.
+  async function findBandOverlap(minPax: number, maxPax: number, excludeId?: string) {
+    const bands = await db.select().from(groupSizeBands).where(eq(groupSizeBands.isActive, true));
+    return bands.find((b) => b.id !== excludeId && minPax <= b.maxPax && maxPax >= b.minPax) ?? null;
+  }
+  // Integrity guard: keep exactly one active global pricing rule — activating
+  // a new one deactivates the others inside the same transaction.
+  async function deactivateOtherGlobalRules(tx: any, keepId: string) {
+    await tx.update(pricingRules).set({ isActive: false, updatedAt: new Date() })
+      .where(and(isNull(pricingRules.tourId), eq(pricingRules.isActive, true), sql`${pricingRules.id} != ${keepId}`));
+  }
+
   // ---- Group size bands ----
   app.get("/api/pricing/group-size-bands", isAuthenticated, async (req, res) => {
     try {
@@ -3647,6 +3660,10 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const parsed = insertGroupSizeBandSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      if (parsed.data.isActive !== false) {
+        const overlap = await findBandOverlap(parsed.data.minPax, parsed.data.maxPax);
+        if (overlap) return res.status(409).json({ message: `Band overlaps existing active band ${overlap.label}` });
+      }
       const [band] = await db.insert(groupSizeBands).values(parsed.data).returning();
       res.json(band);
     } catch (e: any) {
@@ -3659,6 +3676,16 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const parsed = insertGroupSizeBandSchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const [existing] = await db.select().from(groupSizeBands)
+        .where(eq(groupSizeBands.id, req.params.id as string));
+      if (!existing) return res.status(404).json({ message: "Band not found" });
+      const merged = { ...existing, ...parsed.data };
+      if (merged.maxPax < merged.minPax)
+        return res.status(400).json({ message: "maxPax must be >= minPax" });
+      if (merged.isActive) {
+        const overlap = await findBandOverlap(merged.minPax, merged.maxPax, existing.id);
+        if (overlap) return res.status(409).json({ message: `Band overlaps existing active band ${overlap.label}` });
+      }
       const [band] = await db.update(groupSizeBands).set(parsed.data)
         .where(eq(groupSizeBands.id, req.params.id as string)).returning();
       if (!band) return res.status(404).json({ message: "Band not found" });
@@ -3671,6 +3698,9 @@ export async function registerRoutes(
   app.delete("/api/pricing/group-size-bands/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const [{ count: refs }] = await db.select({ count: sql<number>`count(*)::int` })
+        .from(pricingQuotes).where(eq(pricingQuotes.groupSizeBandId, req.params.id as string));
+      if (refs > 0) return res.status(409).json({ message: `Cannot delete: ${refs} quote(s) reference this band. Deactivate it instead.` });
       const [band] = await db.delete(groupSizeBands)
         .where(eq(groupSizeBands.id, req.params.id as string)).returning();
       if (!band) return res.status(404).json({ message: "Band not found" });
@@ -3691,7 +3721,11 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const parsed = insertPricingRuleSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      const [rule] = await db.insert(pricingRules).values(parsed.data).returning();
+      const rule = await db.transaction(async (tx) => {
+        const [r] = await tx.insert(pricingRules).values(parsed.data).returning();
+        if (!r.tourId && r.isActive) await deactivateOtherGlobalRules(tx, r.id);
+        return r;
+      });
       res.json(rule);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
@@ -3700,8 +3734,12 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const parsed = insertPricingRuleSchema.partial().safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
-      const [rule] = await db.update(pricingRules).set({ ...parsed.data, updatedAt: new Date() })
-        .where(eq(pricingRules.id, req.params.id as string)).returning();
+      const rule = await db.transaction(async (tx) => {
+        const [r] = await tx.update(pricingRules).set({ ...parsed.data, updatedAt: new Date() })
+          .where(eq(pricingRules.id, req.params.id as string)).returning();
+        if (r && !r.tourId && r.isActive) await deactivateOtherGlobalRules(tx, r.id);
+        return r;
+      });
       if (!rule) return res.status(404).json({ message: "Rule not found" });
       res.json(rule);
     } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -3709,6 +3747,9 @@ export async function registerRoutes(
   app.delete("/api/pricing/rules/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const [{ count: refs }] = await db.select({ count: sql<number>`count(*)::int` })
+        .from(pricingQuotes).where(eq(pricingQuotes.pricingRuleId, req.params.id as string));
+      if (refs > 0) return res.status(409).json({ message: `Cannot delete: ${refs} quote(s) reference this rule. Deactivate it instead.` });
       const [rule] = await db.delete(pricingRules)
         .where(eq(pricingRules.id, req.params.id as string)).returning();
       if (!rule) return res.status(404).json({ message: "Rule not found" });
@@ -3736,7 +3777,13 @@ export async function registerRoutes(
   app.patch("/api/pricing/airfare-rates/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
-      const parsed = insertAirfareRateSchema.partial().safeParse(req.body);
+      const [existing] = await db.select().from(airfareRates)
+        .where(eq(airfareRates.id, req.params.id as string));
+      if (!existing) return res.status(404).json({ message: "Airfare rate not found" });
+      // Validate the merged state so a partial patch can't produce an
+      // invalid interval (e.g. validFrom moved past an existing validTo).
+      const { id: _id, createdAt: _ca, ...existingRest } = existing;
+      const parsed = insertAirfareRateSchema.safeParse({ ...existingRest, ...req.body });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       const [rate] = await db.update(airfareRates).set(parsed.data)
         .where(eq(airfareRates.id, req.params.id as string)).returning();

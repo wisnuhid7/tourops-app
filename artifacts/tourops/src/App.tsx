@@ -32,6 +32,8 @@ import AdminDocuments from "@/pages/admin/documents";
 import AdminPayments from "@/pages/admin/payments";
 import AdminMessages from "@/pages/admin/messages";
 import AdminAssignments from "@/pages/admin/assignments";
+import AdminGroupQuotes from "@/pages/admin/group-quotes";
+import CustomerQuoteView from "@/pages/customer/quote-view";
 import BrowseTours from "@/pages/customer/browse-tours";
 import TourDetail from "@/pages/customer/tour-detail";
 import MyBookings from "@/pages/customer/my-bookings";
@@ -106,6 +108,8 @@ function AuthenticatedLayout() {
   if (!isAdmin && location.startsWith("/admin")) {
     if (isCountryManager && location === "/admin/master-data") {
       // Allowed — country_manager can access master data
+    } else if (role === "operations_manager" && location === "/admin/group-quotes") {
+      // Allowed — operations_manager is part of the internal pricing roles
     } else {
       if (SUPPLIER_ROLES.includes(role || "")) {
         return <Redirect to="/supplier" />;
@@ -141,6 +145,7 @@ function AuthenticatedLayout() {
             <Route path="/admin/payments" component={AdminPayments} />
             <Route path="/admin/messages" component={AdminMessages} />
             <Route path="/admin/assignments" component={AdminAssignments} />
+            <Route path="/admin/group-quotes" component={AdminGroupQuotes} />
 
             {/* Account security (all authenticated roles) */}
             <Route path="/account/security" component={AccountSecurityPage} />
@@ -157,6 +162,8 @@ function AuthenticatedLayout() {
             <Route path="/my-bookings" component={MyBookings} />
             <Route path="/my-bookings/:id" component={CustomerBookingDetail} />
             <Route path="/join-groups" component={JoinGroups} />
+            <Route path="/quotes/shared/:token" component={CustomerQuoteView} />
+            <Route path="/quotes/:id" component={CustomerQuoteView} />
 
             {/* Supplier Routes */}
             <Route path="/supplier" component={SupplierDashboard} />

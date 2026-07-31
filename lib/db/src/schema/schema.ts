@@ -1374,7 +1374,14 @@ export type PricingRule = typeof pricingRules.$inferSelect;
 export const insertAirfareRateSchema = createInsertSchema(airfareRates, {
   ratePerPerson: (s: z.ZodString) => nonNegativePriceString(s),
   childRate: (s: z.ZodString) => nonNegativePriceString(s),
-}).omit({ id: true, createdAt: true });
+  validFrom: () => z.coerce.date().nullable().optional(),
+  validTo: () => z.coerce.date().nullable().optional(),
+})
+  .omit({ id: true, createdAt: true })
+  .superRefine((v, ctx) => {
+    if (v.validFrom && v.validTo && v.validFrom > v.validTo)
+      ctx.addIssue({ code: "custom", path: ["validTo"], message: "validTo must be on or after validFrom" });
+  });
 export type InsertAirfareRate = z.infer<typeof insertAirfareRateSchema>;
 export type AirfareRate = typeof airfareRates.$inferSelect;
 

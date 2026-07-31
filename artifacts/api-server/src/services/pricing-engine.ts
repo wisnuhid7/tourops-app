@@ -152,8 +152,12 @@ export function computeQuote(input: QuoteComputationInput): QuoteComputationResu
       // Step 2 — company profit margin
       const withMargin = applyMargin(baseCost, input.rule);
       const marginAmount = withMargin.minus(baseCost);
-      // Step 3 — free-passenger adjustment
-      const finalPrice = withMargin.mul(factor);
+      // Step 3 — free-passenger adjustment. Use the exact ratio
+      // ((paying+free)/paying) rather than the pre-divided factor so
+      // repeating decimals can't flip half-cent rounding boundaries.
+      const finalPrice = withMargin
+        .mul(input.rule.freePassengerPaying + input.rule.freePassengerFree)
+        .div(input.rule.freePassengerPaying);
       const freeAdjustmentAmount = finalPrice.minus(withMargin);
 
       lineItems.push({

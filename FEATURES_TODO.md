@@ -81,14 +81,17 @@
 - [x] Transport module (bus types, transport routes) — accessible at both `/admin/transport` and `/ops/transport` (duplicate route)
 
 ## Ops Dashboards (staff roles)
-- [x] Content editor (`ops/content-editor.tsx`)
-- [x] Transport manager (`ops/transport-dashboard.tsx`)
-- [x] Flight agent (`ops/flight-agent.tsx`)
-- [x] Tour leader (`ops/tour-leader.tsx`)
-- [x] City manager (`ops/city-manager.tsx`)
-- [x] Accounting (`ops/accounting.tsx`)
-- [x] Support agent (`ops/support.tsx`)
-- [~] Generic fallback dashboard (`ops/generic-dashboard.tsx`) for roles without a dedicated view
+✅ QA passed 2026-07-31 — role-based access verified across all staff roles via authenticated API tests (`docs/qa/manu/ops-dashboards-{summary,findings,testing-suite,testing-report}.md`). No auth bypass, privilege escalation, or cross-role data leak; each dashboard's data endpoints are gated to the correct role(s), unauthorized staff/customers get 403, and direct-URL access to another role's dashboard loads only role-gated data.
+- [x] ~~Content editor (`ops/content-editor.tsx`)~~ ✅ `/api/tours` gated to content_editor+admin; cannot change tour price/publish (allowlist enforced)
+- [x] ~~Transport manager (`ops/transport-dashboard.tsx`)~~ ✅ `/api/transport/*` role-enforced in-handler; `/admin/transport` and `/ops/transport` share the same API with identical authz
+- [x] ~~Flight agent (`ops/flight-agent.tsx`)~~ ✅ `/api/flight-agent/workflows` + `/api/rates/airline` + `/api/flights/search` gated to flight roles+admin
+- [x] ~~Tour leader (`ops/tour-leader.tsx`)~~ ✅ `/api/bookings` row-scoped to assigned bookings only
+- [x] ~~City manager (`ops/city-manager.tsx`)~~ ✅ city/country master data gated
+- [x] ~~Accounting (`ops/accounting.tsx`)~~ ✅ `/api/payments` restricted to accounting+admin (support/flight/leader/city/customer 403)
+- [x] ~~Support agent (`ops/support.tsx`)~~ ✅ booking access gated; payments forbidden
+- [x] ~~Generic fallback dashboard (`ops/generic-dashboard.tsx`)~~ ✅ used only for roles without a dedicated view; renders only role-gated data (no privileged leak)
+- [ ] Open (needs product decision): `/api/bookings` returns the full list to accounting/support/flight_agent — confirm intended visibility and add per-role scoping if narrower (`docs/qa/manu/ops-dashboards-findings.md` OD-01)
+- [ ] Tech-debt: role→dashboard is defined across 3 parallel maps (routing/config/sidebar) that can drift — consider consolidating (OD-02)
 
 ## Master Data
 - [x] Countries, cities, airports, sights, hotels management (`admin/master-data.tsx`)

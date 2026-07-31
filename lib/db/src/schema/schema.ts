@@ -10,13 +10,20 @@ export * from "./auth";
 // Without this, "abc" passes zod validation and only fails at the database
 // with a 500 that leaks the SQL statement, and "-5" is stored as a negative
 // price. Use this for optional non-negative money fields on rate cards.
+// Strict decimal grammar: only plain non-negative decimal literals valid as
+// PostgreSQL `numeric` input (no hex/binary/octal/exponent/sign that Number() accepts).
+const MONEY_RE = /^\d+(\.\d+)?$/;
+const isMoney = (v: string) => MONEY_RE.test(v.trim());
+
 const optionalMoneyString = z
   .string()
-  .refine((v) => v.trim() !== "" && Number.isFinite(Number(v)) && Number(v) >= 0, {
-    message: "must be a non-negative number",
-  })
+  .refine((v) => isMoney(v), { message: "must be a non-negative number" })
   .nullable()
   .optional();
+
+const requiredMoneyString = z
+  .string()
+  .refine((v) => isMoney(v), { message: "must be a non-negative number" });
 
 export const userRoleEnum = pgEnum("user_role", [
   "super_admin",
@@ -995,7 +1002,7 @@ export const globalSettings = pgTable("global_settings", {
 
 export type MarkupRule = typeof markupRules.$inferSelect;
 export type InsertMarkupRule = z.infer<typeof insertMarkupRuleSchema>;
-export const insertMarkupRuleSchema = createInsertSchema(markupRules).omit({ id: true, createdAt: true });
+export const insertMarkupRuleSchema = createInsertSchema(markupRules).omit({ id: true, createdAt: true }).extend({ markupPercentage: requiredMoneyString, minProfit: optionalMoneyString });
 
 export type GlobalSetting = typeof globalSettings.$inferSelect;
 export type InsertGlobalSetting = z.infer<typeof insertGlobalSettingSchema>;

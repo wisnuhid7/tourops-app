@@ -98,7 +98,7 @@ import {
   insertTransportBookingSchema, insertTransportInvoiceSchema, insertTransportPaymentSchema,
   insertHotelRateSchema, insertTransportRateSchema, insertGuideRateSchema, insertSightsRateSchema, insertAirlineRateSchema,
   insertBookingWorkflowSchema, insertWorkflowStepSchema, insertInvoiceSchema,
-  insertAffiliateSchema, insertMarkupRuleSchema,
+  insertAffiliateSchema, insertMarkupRuleSchema, userRoleEnum,
   groupSizeBands, pricingRules, airfareRates, pricingQuotes, pricingQuoteLineItems,
   insertGroupSizeBandSchema, insertPricingRuleSchema, insertAirfareRateSchema
 } from "@workspace/db";
@@ -346,7 +346,7 @@ export async function registerRoutes(
   app.patch("/api/user-profiles/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
-      const updateSchema = z.object({ role: z.string().optional(), phone: z.string().optional(), companyName: z.string().optional(), countryCode: z.string().optional(), cityId: z.string().nullable().optional(), isTourLeader: z.boolean().optional(), isActive: z.boolean().optional() });
+      const updateSchema = z.object({ role: z.enum(userRoleEnum.enumValues).optional(), phone: z.string().optional(), companyName: z.string().optional(), countryCode: z.string().optional(), cityId: z.string().nullable().optional(), isTourLeader: z.boolean().optional(), isActive: z.boolean().optional() });
       const parsed = updateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.updateProfile(req.params.id as string, parsed.data as any));
@@ -362,7 +362,7 @@ export async function registerRoutes(
         firstName: z.string().min(1),
         lastName: z.string().optional(),
         email: z.string().email().optional(),
-        role: z.string(),
+        role: z.enum(userRoleEnum.enumValues),
         phone: z.string().optional(),
         companyName: z.string().optional(),
         countryCode: z.string().optional(),
@@ -3746,7 +3746,9 @@ export async function registerRoutes(
   app.patch("/api/admin/pricing/markup-rules/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, [...ADMIN_ROLES, "country_manager"])) return;
-      res.json(await storage.updateMarkupRule(req.params.id as string, req.body));
+      const parsed = insertMarkupRuleSchema.partial().safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      res.json(await storage.updateMarkupRule(req.params.id as string, parsed.data));
     } catch (e: any) { res.status(500).json({ message: e.message }); }
   });
 

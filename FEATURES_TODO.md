@@ -126,11 +126,13 @@
 - [ ] Cloud object storage (currently local filesystem only — files won't persist across deploys)
 
 ## Admin & Back Office
-- [x] User management (`admin/users.tsx`)
-- [x] Affiliates (`admin/affiliates.tsx`)
-- [x] Reports / business intelligence (`admin/reports.tsx`)
-- [x] Global pricing settings + markup rules (`admin/pricing-settings.tsx`)
-- [x] Audit logs for admin/staff actions (manually triggered per route, not middleware-based)
+✅ QA passed 2026-07-31 — RBAC + validation verified via authenticated API tests (`docs/qa/manu/admin-backoffice-{summary,findings,testing-suite,testing-report}.md`). Verdict READY WITH RESERVATIONS. Two input-validation defects found & fixed; audit-coverage gap remains open.
+- [x] ~~User management (`admin/users.tsx`)~~ ✅ admin-only create/edit/deactivate/password; role now validated against enum (was `z.string()` — fixed, previously 500-leaked SQL). No delete/suspend/server-search endpoints (feature gaps).
+- [x] ~~Affiliates (`admin/affiliates.tsx`)~~ ✅ admin-only create/list; Zod allowlist. No update/delete endpoint (feature gap).
+- [x] ~~Reports / business intelligence (`admin/reports.tsx`)~~ ✅ analytics/stats gated to admin/super_admin/country_manager; non-privileged 403; leader reports self-scoped.
+- [x] ~~Global pricing settings + markup rules (`admin/pricing-settings.tsx`)~~ ✅ markup numeric fields now validated (non-negative; was 500-leaking SQL & storing negatives — fixed); markup PATCH now validates body. [ ] Open: global settings accept arbitrary unvalidated key/value (AB-04).
+- [x] ~~Audit logs for admin/staff actions (manually triggered per route, not middleware-based)~~ ✅ read admin-only; append-only (no tamper/delete endpoint). [ ] Open (High/AB-01): user, affiliate, and pricing/markup/settings writes are NOT audited — only payment/booking/hotel/tour actions are.
+- [ ] Open (AB-03): `/api/user-profiles` (profile PII incl. role) readable by flight_agent & operations_manager — confirm intent or narrow to user-administering roles.
 
 ## Platform, Infra & Tooling
 - [x] pnpm monorepo (api-server, tourops web, mockup-sandbox) with Orval OpenAPI codegen

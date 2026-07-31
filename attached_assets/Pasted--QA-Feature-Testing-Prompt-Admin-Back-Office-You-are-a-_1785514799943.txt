@@ -1,0 +1,424 @@
+# QA Feature Testing Prompt – Admin & Back Office
+
+You are a Senior QA Engineer and Application Security Engineer.
+
+Your task is to perform a comprehensive assessment of the **Admin & Back Office** feature, covering functional behavior, business rules, administration workflows, APIs, permissions, UI, security, performance, regression, and edge cases.
+
+## Feature Scope
+
+Test every component related to:
+
+### User Management
+
+* User management (`admin/users.tsx`)
+* User listing
+* User search
+* User filtering
+* User creation
+* User editing
+* User deletion
+* User activation/deactivation
+* User role assignment
+* User profile management
+* Password management
+* Account status management
+
+### Affiliates
+
+* Affiliate management (`admin/affiliates.tsx`)
+* Affiliate CRUD
+* Affiliate status
+* Commission settings
+* Referral tracking
+* Affiliate search
+* Affiliate filtering
+* Affiliate reports
+
+### Reports & Business Intelligence
+
+* Reports (`admin/reports.tsx`)
+* Dashboard statistics
+* Financial reports
+* Sales reports
+* Booking reports
+* Supplier reports
+* Customer reports
+* Export functionality
+* Filtering
+* Date range reports
+* Aggregated metrics
+
+### Global Pricing Settings
+
+* Pricing Settings (`admin/pricing-settings.tsx`)
+* Global pricing configuration
+* Markup rules
+* Currency settings
+* Pricing validation
+* Price calculation rules
+* Default pricing
+* Pricing overrides
+
+### Audit Logs
+
+Verify audit logging for:
+
+* User management
+* Affiliate management
+* Pricing settings
+* Administrative actions
+* Staff actions
+* CRUD operations
+* Permission changes
+* Login/logout events (if implemented)
+
+**Specifically verify that audit logging is manually triggered on each route (not middleware-based), ensuring every sensitive administrative action is properly recorded and that no critical operation is missing an audit entry.**
+
+Test every related API endpoint, middleware, database interaction, validation, permission check, frontend component, backend service, business rule, reporting logic, pricing engine, and audit mechanism.
+
+---
+
+# Testing Requirements
+
+Execute every applicable scenario.
+
+## Functional Testing
+
+Verify:
+
+* Create
+* Read
+* Update
+* Delete
+* Search
+* Filtering
+* Sorting
+* Pagination
+* Validation
+* Required fields
+* Duplicate detection
+* Empty states
+* Loading states
+* Error handling
+* Browser compatibility
+* Responsive layout
+
+---
+
+## User Management Testing
+
+Verify:
+
+* Create user
+* Edit user
+* Delete user
+* Activate account
+* Deactivate account
+* Suspend account
+* Assign roles
+* Change roles
+* View profile
+* Search users
+* Filter users
+* Bulk operations
+* Duplicate users
+* Invalid input validation
+
+---
+
+## Affiliate Testing
+
+Verify:
+
+* Create affiliate
+* Update affiliate
+* Delete affiliate
+* Commission settings
+* Referral validation
+* Status changes
+* Search
+* Filtering
+* Reports
+* Duplicate affiliates
+* Invalid data validation
+
+---
+
+## Reports Testing
+
+Verify:
+
+* Dashboard statistics
+* Financial reports
+* Sales reports
+* Customer reports
+* Supplier reports
+* Booking reports
+* Date filtering
+* Search
+* Export
+* Empty reports
+* Large datasets
+* Report accuracy
+* Data consistency
+
+---
+
+## Global Pricing Testing
+
+Verify:
+
+* Create pricing rules
+* Update pricing rules
+* Delete pricing rules
+* Markup calculations
+* Currency formatting
+* Decimal precision
+* Negative values
+* Zero values
+* Large values
+* Default pricing
+* Override pricing
+* Rule precedence
+* Calculation consistency
+
+---
+
+## Audit Log Testing
+
+Verify every administrative action creates an audit log entry, including:
+
+* Login
+* Logout
+* User creation
+* User updates
+* User deletion
+* Role assignment
+* Affiliate changes
+* Pricing changes
+* Report generation (if applicable)
+* Administrative settings changes
+
+Validate:
+
+* Timestamp accuracy
+* User identity
+* Action type
+* Target resource
+* Before/after values (if supported)
+* IP address (if supported)
+* Missing log entries
+* Duplicate log entries
+
+Specifically identify administrative routes that do **not** generate audit logs because logging is manually implemented instead of middleware-based.
+
+---
+
+## API Testing
+
+Test every endpoint for:
+
+* Successful requests
+* Invalid payloads
+* Missing fields
+* Invalid identifiers
+* Unauthorized requests
+* Forbidden requests
+* Malformed requests
+* Duplicate submissions
+* HTTP method validation
+* Error handling
+* Response consistency
+
+---
+
+## Security Testing
+
+Execute:
+
+* Authentication bypass
+* Authorization bypass
+* Privilege escalation
+* IDOR
+* Mass Assignment
+* SQL Injection
+* XSS
+* CSRF
+* Parameter tampering
+* Hidden endpoint discovery
+* Direct API access
+* Administrative privilege escalation
+* Unauthorized pricing modification
+* Unauthorized report access
+* Unauthorized audit log access
+* Audit log tampering
+* Audit log deletion attempts
+
+---
+
+## Performance Testing
+
+Verify:
+
+* Large user datasets
+* Large affiliate datasets
+* Large reports
+* Search performance
+* Report generation performance
+* Pricing calculation performance
+* Pagination performance
+* Database query efficiency
+* Bulk operations
+
+---
+
+## Regression Testing
+
+Specifically verify:
+
+* User management permissions remain enforced.
+* Only authorized administrators can manage users.
+* Affiliate management behaves correctly after updates.
+* Reports display accurate and consistent data.
+* Pricing rule calculations remain correct after configuration changes.
+* Global markup rules are applied consistently.
+* Every critical administrative action generates an audit log.
+* No sensitive administrative route is missing audit logging.
+* Audit logs cannot be modified by unauthorized users.
+
+---
+
+# Documentation
+
+Save every generated document under:
+
+```text
+docs/qa/manu/
+```
+
+Generate or update the following files.
+
+---
+
+## 1. Feature Summary
+
+```text
+docs/qa/manu/admin-backoffice-summary.md
+```
+
+Include:
+
+* Feature overview
+* Administration architecture
+* User management workflow
+* Affiliate workflow
+* Reporting architecture
+* Pricing engine overview
+* Audit logging architecture
+* Permission model
+* Business rules
+* Dependencies
+* Risks
+* Assumptions
+* Test coverage summary
+
+---
+
+## 2. Findings
+
+```text
+docs/qa/manu/admin-backoffice-findings.md
+```
+
+For every issue include:
+
+* Finding ID
+* Title
+* Severity
+* Priority
+* Component
+* Endpoint/Page
+* Description
+* Steps to Reproduce
+* Expected Result
+* Actual Result
+* Business/Security Impact
+* Root Cause
+* Recommendation
+* Retest Status
+
+---
+
+## 3. Testing Suite
+
+```text
+docs/qa/manu/admin-backoffice-testing-suite.md
+```
+
+Create a comprehensive test suite covering:
+
+* Functional tests
+* User management tests
+* Affiliate tests
+* Reporting tests
+* Pricing tests
+* Audit log tests
+* API tests
+* Authorization tests
+* Security tests
+* Performance tests
+* Integration tests
+* Regression tests
+* Edge cases
+
+Each test case must contain:
+
+* Test ID
+* Category
+* Objective
+* Preconditions
+* Test Steps
+* Expected Result
+* Status
+
+---
+
+## 4. Testing Report
+
+```text
+docs/qa/manu/admin-backoffice-testing-report.md
+```
+
+Include:
+
+* Executive Summary
+* Scope
+* Environment
+* Features Tested
+* APIs Tested
+* Pages Tested
+* Total Test Cases
+* Passed
+* Failed
+* Blocked
+* Not Applicable
+* Functional Findings
+* Security Findings
+* Performance Findings
+* Coverage Analysis
+* Remaining Risks
+* Recommendations
+* Final Feature Assessment
+
+---
+
+# Execution Rules
+
+* Execute every applicable scenario.
+* Test every administrative workflow end-to-end.
+* Verify both frontend and backend behavior.
+* Validate permissions, pricing logic, reporting accuracy, and audit logging.
+* Do not stop after discovering the first issue.
+* Continuously update all documentation as testing progresses.
+* Document any additional defects or vulnerabilities discovered outside the predefined scope.
+* Do not finish until every administration feature, API, workflow, pricing rule, report, audit log, permission rule, and regression scenario has been fully tested and all documentation has been generated under `docs/qa/manu/`.

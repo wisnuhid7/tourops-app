@@ -1,0 +1,1667 @@
+Correct — this should be for **Tourop**, not Royal VIP Tours. Below is the corrected **Replit instruction document** focused on a real client/customer booking a tour inside Tourop, including passenger login, booking, payments, operations, suppliers, tour leader, documents, and final trip completion.
+
+# Tourop — Full Client Tour Booking Scenario
+
+## Replit Developer Testing Instructions
+
+## Objective
+
+Now that Tourop has been populated with proper data, we need to test a complete real-world booking scenario from start to finish.
+
+This test must prove that Tourop can manage the full tour operation lifecycle:
+
+Client/customer selects a tour → client chooses departure date → client creates booking → passengers are added → passengers log in → passenger information is completed → payment is recorded → operations reviews booking → suppliers are assigned → transport/hotel/guide services are confirmed → tour leader is assigned → documents are generated → messages/notifications are tested → trip is operated → booking is completed.
+
+This must be tested like a real tour company workflow, not just page-by-page testing.
+
+---
+
+# 1. Correct Platform Name
+
+All testing must be done under:
+
+**Platform:** Tourop
+**System Type:** Tour operator management platform
+**Purpose:** Manage tours, departures, bookings, passengers, suppliers, transport, assignments, payments, documents, messages, and reports.
+
+Do not use Royal VIP Tours naming in this test.
+Do not use Travel Supplier Hub naming in this test.
+
+---
+
+# 2. Main Roles Needed for This Test
+
+Create or confirm these users exist in Tourop.
+
+## Admin User
+
+Email: [admin@tourop.test](mailto:admin@tourop.test)
+Role: Admin / Super Admin
+Purpose: Full system control.
+
+## Operations Manager
+
+Email: [operationsmanager1@tourop.test](mailto:operationsmanager1@tourop.test)
+Role: Operations Manager
+Purpose: Review confirmed bookings, assign suppliers, assign tour leader, manage operations.
+
+## Accounting User
+
+Email: [accounting1@tourop.test](mailto:accounting1@tourop.test)
+Role: Accounting
+Purpose: Review invoices, payments, balances, refunds, and financial reports.
+
+## Support Agent
+
+Email: [supportagent1@tourop.test](mailto:supportagent1@tourop.test)
+Role: Support Agent
+Purpose: Help client/passengers, answer messages, resolve booking issues.
+
+## Tour Leader
+
+Email: [tourleader1@tourop.test](mailto:tourleader1@tourop.test)
+Role: Tour Leader
+Purpose: See assigned tour, passenger list, documents, itinerary, emergency info, and daily schedule.
+
+## Supplier User
+
+Email: [supplier1@tourop.test](mailto:supplier1@tourop.test)
+Role: Supplier
+Supplier Type: Transport / Hotel / Guide / Attraction
+Purpose: Confirm assigned services and communicate with operations.
+
+## Customer / Client User
+
+Email: [customer1@example.com](mailto:customer1@example.com)
+Role: Customer / Client
+Purpose: Select tour, create booking, manage passengers, pay deposit/balance, view documents.
+
+## Passenger Users
+
+Create at least 5 passenger login accounts for real testing.
+
+Passenger 1:
+Name: Jonathan Miller
+Email: [passenger1@example.com](mailto:passenger1@example.com)
+
+Passenger 2:
+Name: Sarah Miller
+Email: [passenger2@example.com](mailto:passenger2@example.com)
+
+Passenger 3:
+Name: Michael Brown
+Email: [passenger3@example.com](mailto:passenger3@example.com)
+
+Passenger 4:
+Name: Rebecca Johnson
+Email: [passenger4@example.com](mailto:passenger4@example.com)
+
+Passenger 5:
+Name: Thomas Wilson
+Email: [passenger5@example.com](mailto:passenger5@example.com)
+
+Also create passenger records up to 20 total so we can test a real group booking.
+
+---
+
+# 3. Tour Data Needed Before Starting
+
+Confirm that Tourop already has at least one full tour populated with:
+
+* Tour name
+* Tour description
+* Destination
+* Duration
+* Itinerary days
+* Departure dates
+* Passenger price
+* Child price if supported
+* Single supplement if supported
+* Deposit rule
+* Cancellation rule
+* Hotel information
+* Transport information
+* Guide information
+* Attractions/sights
+* Included services
+* Excluded services
+* Tour images
+* Terms and conditions
+
+---
+
+# 4. Test Tour Example
+
+Use this test tour.
+
+## Tour Name
+
+Dominican Republic Faith & Leisure Tour
+
+## Duration
+
+5 Days / 4 Nights
+
+## Destination
+
+Dominican Republic
+
+## Cities
+
+Punta Cana
+Santo Domingo
+Bayahibe
+
+## Tour Type
+
+Group Tour
+
+## Tour Category
+
+Religious / Cultural / Leisure
+
+## Minimum Passengers
+
+10
+
+## Maximum Passengers
+
+35
+
+## Test Booking Passenger Count
+
+20 passengers
+
+## Currency
+
+USD
+
+## Public Price
+
+$950 per person
+
+## Deposit
+
+30%
+
+## Balance Due
+
+30 days before departure
+
+## Included
+
+* Airport arrival transfer
+* 4 nights hotel
+* Daily breakfast
+* Full-day Santo Domingo tour
+* English-speaking guide
+* Colonial Zone visit
+* Saona Island excursion
+* Departure transfer
+* Tour leader support
+
+## Excluded
+
+* International flights
+* Travel insurance
+* Personal expenses
+* Tips
+* Optional meals
+* Passport or visa fees
+
+---
+
+# 5. Departure Setup
+
+Create at least 3 active departures for this tour.
+
+## Departure 1
+
+Departure Code: DR-FL-2026-001
+Arrival Date: October 20, 2026
+Departure Date: October 24, 2026
+Status: Open
+Capacity: 35 passengers
+Booked Seats: 0
+Available Seats: 35
+
+## Departure 2
+
+Departure Code: DR-FL-2026-002
+Arrival Date: November 10, 2026
+Departure Date: November 14, 2026
+Status: Open
+Capacity: 35 passengers
+Booked Seats: 0
+Available Seats: 35
+
+## Departure 3
+
+Departure Code: DR-FL-2026-003
+Arrival Date: December 15, 2026
+Departure Date: December 19, 2026
+Status: Open
+Capacity: 35 passengers
+Booked Seats: 0
+Available Seats: 35
+
+Required tests:
+
+* Admin can create departure.
+* Admin can edit departure.
+* Departure appears on tour page.
+* Closed departure cannot be booked.
+* Sold-out departure cannot be booked.
+* Booking reduces available seats.
+* Cancelled booking restores seats if system supports it.
+
+---
+
+# 6. Client Tour Selection Flow
+
+Login or open the public/client side as:
+
+[customer1@example.com](mailto:customer1@example.com)
+
+## Step 1: Client Opens Tour List
+
+Client should be able to view available tours.
+
+Expected result:
+
+The tour list should show:
+
+* Tour name
+* Destination
+* Duration
+* Main image
+* Price
+* Available departure dates
+* Short description
+* View Details button
+* Book Now button
+
+## Step 2: Client Opens Tour Detail Page
+
+Client opens:
+
+Dominican Republic Faith & Leisure Tour
+
+Expected result:
+
+Client should see:
+
+* Full tour description
+* Day-by-day itinerary
+* Included services
+* Excluded services
+* Hotel information
+* Transport information
+* Sight/attraction information
+* Departure dates
+* Price per person
+* Deposit amount
+* Cancellation terms
+* Booking button
+
+## Step 3: Client Selects Departure
+
+Client selects:
+
+Departure Code: DR-FL-2026-001
+Travel Dates: October 20–24, 2026
+Passengers: 20
+
+Expected result:
+
+System should show:
+
+* Available seats before booking: 35
+* Requested passengers: 20
+* Available seats after booking preview: 15
+* Total price calculation
+* Deposit calculation
+* Continue Booking button
+
+---
+
+# 7. Booking Creation Flow
+
+## Step 1: Client Starts Booking
+
+Client clicks:
+
+Book Now
+
+Booking details:
+
+Client Name: Jonathan Miller
+Email: [customer1@example.com](mailto:customer1@example.com)
+Phone: +1 412 555 9000
+Country: United States
+Group Name: St. Mary Church Group
+Passenger Count: 20
+Special Request: Some senior passengers, English-speaking support required.
+
+Expected result:
+
+System creates a draft booking.
+
+Booking status should be:
+
+Draft / Pending Passenger Details
+
+## Step 2: Price Calculation
+
+System should calculate:
+
+Price per person: $950
+Passengers: 20
+Gross booking total: $19,000
+
+Deposit percentage: 30%
+Deposit amount: $5,700
+Balance amount: $13,300
+
+Expected result:
+
+* Total is calculated correctly.
+* Deposit is calculated correctly.
+* Balance is calculated correctly.
+* Currency is shown correctly.
+* Booking total does not change unexpectedly.
+
+## Step 3: Booking Reference
+
+System should create a unique booking reference.
+
+Example:
+
+Booking Reference: TROP-DR-2026-0001
+
+Expected result:
+
+Booking reference appears in:
+
+* Client dashboard
+* Admin booking list
+* Operations dashboard
+* Accounting dashboard
+* Passenger portal if applicable
+* Confirmation email
+
+---
+
+# 8. Passenger Creation Flow
+
+The client should now add passenger details.
+
+## Required Passenger Fields
+
+Each passenger should have:
+
+* First name
+* Last name
+* Email
+* Phone
+* Date of birth
+* Gender if required
+* Nationality
+* Passport number if required
+* Passport expiration date if required
+* Emergency contact name
+* Emergency contact phone
+* Dietary restrictions
+* Mobility notes
+* Rooming preference
+* Special medical notes if applicable
+* Travel insurance status if supported
+
+## Test Passenger List
+
+Create 20 passengers.
+
+Passenger 1:
+
+First Name: Jonathan
+Last Name: Miller
+Email: [passenger1@example.com](mailto:passenger1@example.com)
+Phone: +1 412 555 1001
+Nationality: USA
+Rooming Preference: Double room
+Dietary Notes: None
+Mobility Notes: None
+Emergency Contact: Rachel Miller, +1 412 555 7001
+
+Passenger 2:
+
+First Name: Sarah
+Last Name: Miller
+Email: [passenger2@example.com](mailto:passenger2@example.com)
+Phone: +1 412 555 1002
+Nationality: USA
+Rooming Preference: Double room with Jonathan Miller
+Dietary Notes: Vegetarian
+Mobility Notes: None
+Emergency Contact: Rachel Miller, +1 412 555 7001
+
+Passenger 3:
+
+First Name: Michael
+Last Name: Brown
+Email: [passenger3@example.com](mailto:passenger3@example.com)
+Phone: +1 412 555 1003
+Nationality: USA
+Rooming Preference: Single room
+Dietary Notes: No pork
+Mobility Notes: Senior traveler, prefers room near elevator
+Emergency Contact: Linda Brown, +1 412 555 7003
+
+Passenger 4:
+
+First Name: Rebecca
+Last Name: Johnson
+Email: [passenger4@example.com](mailto:passenger4@example.com)
+Phone: +1 412 555 1004
+Nationality: USA
+Rooming Preference: Double room
+Dietary Notes: Gluten-free
+Mobility Notes: None
+Emergency Contact: Mark Johnson, +1 412 555 7004
+
+Passenger 5:
+
+First Name: Thomas
+Last Name: Wilson
+Email: [passenger5@example.com](mailto:passenger5@example.com)
+Phone: +1 412 555 1005
+Nationality: USA
+Rooming Preference: Double room
+Dietary Notes: None
+Mobility Notes: Uses cane, avoid long walking where possible
+Emergency Contact: Mary Wilson, +1 412 555 7005
+
+For passengers 6–20, create realistic passenger records using emails:
+
+[passenger6@example.com](mailto:passenger6@example.com)
+[passenger7@example.com](mailto:passenger7@example.com)
+Continue until [passenger20@example.com](mailto:passenger20@example.com).
+
+Expected result:
+
+* Client can add passengers manually.
+* Client can edit passenger details.
+* Client can remove passenger before payment if allowed.
+* Client can save progress and continue later.
+* Passenger count must match booking count.
+* Booking cannot be submitted as complete if required passenger details are missing.
+
+---
+
+# 9. Passenger Login Flow
+
+This is required for a real full process.
+
+## If Passenger Login Already Exists
+
+Test it fully.
+
+## If Passenger Login Does Not Exist
+
+Replit must create or add a Passenger Portal module.
+
+The passenger portal should allow each passenger to:
+
+* Accept invitation
+* Create password
+* Log in
+* View assigned booking
+* View itinerary
+* Complete personal profile
+* Add emergency contact
+* Add dietary and mobility notes
+* Upload passport if required
+* Accept terms and conditions
+* View payment status
+* Download trip documents
+* Message support if allowed
+
+---
+
+# 10. Passenger Invitation Test
+
+## Step 1: Client Sends Passenger Invitations
+
+Client sends invitation to the first 5 passengers:
+
+[passenger1@example.com](mailto:passenger1@example.com)
+[passenger2@example.com](mailto:passenger2@example.com)
+[passenger3@example.com](mailto:passenger3@example.com)
+[passenger4@example.com](mailto:passenger4@example.com)
+[passenger5@example.com](mailto:passenger5@example.com)
+
+Expected result:
+
+* Invitation emails are sent.
+* Each invitation has a secure token/link.
+* Invitation link can be used only by the correct passenger.
+* Expired invitation link should not work.
+* Used invitation link should not be reusable for account takeover.
+
+## Step 2: Passenger Accepts Invitation
+
+Login as:
+
+[passenger2@example.com](mailto:passenger2@example.com)
+
+Passenger clicks invitation link and creates password.
+
+Expected result:
+
+* Passenger account is activated.
+* Passenger is connected only to the correct booking.
+* Passenger lands on passenger dashboard.
+* Passenger cannot access admin dashboard.
+* Passenger cannot access operations dashboard.
+* Passenger cannot access supplier dashboard.
+* Passenger cannot view other passengers’ private information unless group leader permission allows it.
+
+---
+
+# 11. Passenger Dashboard Test
+
+Passenger dashboard should show:
+
+## Trip Summary
+
+* Tour name
+* Departure date
+* Return date
+* Destination
+* Booking reference
+* Group name
+* Booking status
+* Payment status
+
+## My Itinerary
+
+* Day 1 arrival and hotel check-in
+* Day 2 Punta Cana leisure day
+* Day 3 Santo Domingo cultural tour
+* Day 4 Saona Island excursion
+* Day 5 departure
+
+## My Profile
+
+Passenger can view and update:
+
+* Name
+* Phone
+* Date of birth
+* Nationality
+* Passport information if required
+* Emergency contact
+* Dietary restrictions
+* Mobility notes
+* Rooming preference
+
+## Documents
+
+Passenger can download:
+
+* Booking confirmation
+* Final itinerary
+* Payment receipt if allowed
+* Travel instructions
+* Voucher if available
+
+Expected result:
+
+Passenger only sees data related to their own booking.
+
+---
+
+# 12. Group Leader Login Test
+
+Login as:
+
+[customer1@example.com](mailto:customer1@example.com)
+
+The group leader should be able to:
+
+* View full group booking
+* View all passengers
+* See passenger completion status
+* Add missing passengers
+* Invite passengers
+* Edit passenger details if permission allows
+* See payment status
+* Make deposit payment
+* Make balance payment
+* Download invoice/receipt
+* Message support
+* View final documents
+
+Expected result:
+
+Group leader has more access than a normal passenger, but cannot access internal admin, operations, supplier, or accounting functions.
+
+---
+
+# 13. Payment Flow Test
+
+## Step 1: Deposit Payment
+
+Client pays or records deposit.
+
+Booking Total: $19,000
+Deposit: $5,700
+Balance: $13,300
+
+Payment method for test:
+
+Manual Bank Transfer or Credit Card Test Mode
+
+Expected result:
+
+* Deposit payment is recorded.
+* Booking status changes to Deposit Paid / Pending Operations.
+* Accounting can see payment.
+* Client can see receipt.
+* Passenger dashboard shows payment status.
+* Operations receives notification.
+
+## Step 2: Balance Payment
+
+Record second payment:
+
+Balance Payment: $13,300
+
+Expected result:
+
+* Booking status changes to Fully Paid.
+* Balance becomes $0.
+* Receipt is generated.
+* Accounting report updates.
+* Client dashboard shows fully paid.
+* Admin can see payment history.
+
+## Negative Payment Tests
+
+Test:
+
+* Payment less than required deposit
+* Payment more than booking total
+* Duplicate payment
+* Failed payment
+* Cancelled payment
+* Refund request
+* Payment recorded by unauthorized role
+
+Expected result:
+
+System should block or warn correctly.
+
+---
+
+# 14. Booking Status Workflow
+
+Tourop should support or be tested against these statuses:
+
+1. Draft
+2. Pending Passenger Details
+3. Pending Deposit
+4. Deposit Paid
+5. Pending Operations Review
+6. Supplier Confirmation Pending
+7. Confirmed
+8. Final Documents Ready
+9. Fully Paid
+10. In Operation
+11. Completed
+12. Cancelled
+13. Refunded
+
+Required tests:
+
+* Status changes automatically where expected.
+* Admin can manually override only with permission.
+* Status history is recorded.
+* Client sees only client-friendly statuses.
+* Operations sees internal statuses.
+* Accounting sees payment-related statuses.
+* Supplier sees only assigned service status.
+
+---
+
+# 15. Operations Review Test
+
+Login as:
+
+[operationsmanager1@tourop.test](mailto:operationsmanager1@tourop.test)
+
+Operations manager should review the booking.
+
+Expected booking data visible:
+
+* Booking reference
+* Tour name
+* Departure date
+* Passenger count
+* Passenger list
+* Special requests
+* Dietary notes
+* Mobility notes
+* Rooming preferences
+* Payment/deposit status
+* Supplier assignments
+* Tour leader assignment
+* Missing documents
+* Internal notes
+
+Operations manager should confirm:
+
+* Booking has enough paid amount to proceed.
+* Passenger count is correct.
+* Departure has enough seats.
+* Hotel rooming list is complete.
+* Transport capacity is correct.
+* Guide language matches requirement.
+* Sights are confirmed.
+* Tour leader is assigned.
+
+---
+
+# 16. Supplier Assignment Test
+
+Operations manager assigns suppliers.
+
+## Transport Assignment
+
+Supplier: [supplier1@tourop.test](mailto:supplier1@tourop.test)
+Service: Airport transfer, daily bus service, departure transfer
+Vehicle: Coach Bus
+Capacity: 35
+Required for: 20 passengers
+Pickup Date: October 20, 2026
+Pickup Location: PUJ Airport
+Dropoff: Punta Cana hotel
+
+Expected result:
+
+* Supplier receives assignment.
+* Supplier can confirm or reject.
+* Operations receives response.
+* Client does not see supplier internal price unless allowed.
+
+## Hotel Assignment
+
+Hotel: Punta Cana Grand Beach Resort
+Rooms Required:
+
+* 9 double rooms
+* 2 single rooms
+
+Check-in: October 20, 2026
+Check-out: October 24, 2026
+Meal Plan: Breakfast included
+
+Expected result:
+
+* Hotel assignment appears in operations.
+* Rooming list is created.
+* Hotel can receive rooming list if supplier portal supports it.
+* Rooming list can be exported.
+
+## Guide Assignment
+
+Guide: English-speaking cultural guide
+Date: October 22, 2026
+City: Santo Domingo
+Language: English
+Group Size: 20
+
+Expected result:
+
+* Guide service is assigned.
+* Guide receives details.
+* Tour leader sees guide assignment.
+
+## Sight Assignment
+
+Sight 1: Colonial Zone Walking Tour
+Date: October 22, 2026
+Group Size: 20
+
+Sight 2: Saona Island Excursion
+Date: October 23, 2026
+Group Size: 20
+
+Expected result:
+
+* Sight services are assigned.
+* Supplier confirmations are tracked.
+* Operations can see confirmed/pending/rejected status.
+
+---
+
+# 17. Supplier Confirmation Flow
+
+Login as:
+
+[supplier1@tourop.test](mailto:supplier1@tourop.test)
+
+Supplier should see assigned services only.
+
+Supplier actions to test:
+
+* View assigned booking/service.
+* Confirm service.
+* Reject service with reason.
+* Propose alternative time or vehicle.
+* Add supplier note.
+* Upload confirmation document.
+* Send message to operations.
+* View only services assigned to supplier.
+
+Expected result:
+
+* Supplier confirmation updates operations dashboard.
+* Rejection triggers alert.
+* Alternative proposal can be accepted or rejected by operations.
+* Supplier cannot see client payment details.
+* Supplier cannot see accounting data.
+* Supplier cannot see unrelated bookings.
+
+---
+
+# 18. Tour Leader Assignment Test
+
+Login as:
+
+[operationsmanager1@tourop.test](mailto:operationsmanager1@tourop.test)
+
+Assign:
+
+Tour Leader: [tourleader1@tourop.test](mailto:tourleader1@tourop.test)
+Tour: Dominican Republic Faith & Leisure Tour
+Departure: DR-FL-2026-001
+Booking: TROP-DR-2026-0001
+
+Expected result:
+
+Tour leader receives assignment notification.
+
+Login as:
+
+[tourleader1@tourop.test](mailto:tourleader1@tourop.test)
+
+Tour leader should see:
+
+* Assigned tour
+* Departure date
+* Itinerary
+* Passenger list
+* Passenger emergency contacts
+* Dietary restrictions
+* Mobility notes
+* Hotel information
+* Transport schedule
+* Guide/sight schedule
+* Documents
+* Internal operation notes if allowed
+* Messaging with operations/support
+
+Tour leader should not see:
+
+* Supplier net cost unless allowed
+* Agency margin
+* Accounting reports
+* Other departures not assigned
+* Admin settings
+
+---
+
+# 19. Documents Test
+
+Generate and test the following documents.
+
+## Client Documents
+
+* Booking confirmation
+* Invoice
+* Payment receipt
+* Final itinerary
+* Travel instructions
+* Terms and conditions
+
+## Operations Documents
+
+* Rooming list
+* Passenger manifest
+* Transport manifest
+* Supplier service order
+* Tour leader packet
+* Emergency contact list
+* Daily operations schedule
+
+## Supplier Documents
+
+* Transport service order
+* Hotel rooming list
+* Guide service order
+* Attraction group confirmation
+
+Expected result:
+
+* Documents generate correctly.
+* Documents have correct booking reference.
+* Client documents hide internal costs.
+* Supplier documents show only relevant service info.
+* Tour leader documents show operational details.
+* Documents can be downloaded.
+* Documents are saved to booking record.
+
+---
+
+# 20. Messaging Test
+
+Test messages between:
+
+## Client and Support
+
+Client asks:
+
+“Can we confirm if senior passengers can have rooms near the elevator?”
+
+Support replies:
+
+“Yes, we added this request to the booking notes and rooming list.”
+
+Expected result:
+
+* Message is saved.
+* Client receives notification.
+* Support sees message thread.
+* Operations can see note if connected to booking.
+
+## Operations and Supplier
+
+Operations asks:
+
+“Please confirm coach bus with microphone for October 22.”
+
+Supplier replies:
+
+“Confirmed. Coach bus with microphone assigned.”
+
+Expected result:
+
+* Supplier confirmation is saved.
+* Operations dashboard updates.
+* Tour leader can see confirmed transport note if allowed.
+
+## Operations and Tour Leader
+
+Operations sends:
+
+“Please review passenger mobility notes before Day 3 Santo Domingo tour.”
+
+Tour leader replies:
+
+“Reviewed. I will coordinate walking pace with guide.”
+
+Expected result:
+
+* Message is saved.
+* Tour leader receives notification.
+* Operations can review thread.
+
+---
+
+# 21. Notifications Test
+
+Test notifications for:
+
+* Booking created
+* Passenger invitation sent
+* Passenger accepted invitation
+* Passenger details completed
+* Deposit paid
+* Balance paid
+* Booking confirmed
+* Supplier assigned
+* Supplier confirmed
+* Supplier rejected
+* Tour leader assigned
+* Documents ready
+* Client message received
+* Final travel reminder
+
+Expected result:
+
+* Correct users receive correct notifications.
+* Users do not receive unrelated notifications.
+* Notifications are visible inside app.
+* Email notifications send if enabled.
+* Notification count updates.
+* Read/unread status works.
+
+---
+
+# 22. Passenger Completion Tracking
+
+Tourop should show passenger completion status.
+
+For each passenger, track:
+
+* Invitation sent
+* Account activated
+* Profile completed
+* Passport completed if required
+* Emergency contact completed
+* Dietary/mobility notes completed
+* Terms accepted
+* Payment status if individual payment is supported
+
+Expected result:
+
+Operations and client can see which passengers are incomplete.
+
+Example dashboard:
+
+Passenger 1: Complete
+Passenger 2: Complete
+Passenger 3: Missing passport expiration date
+Passenger 4: Missing emergency contact
+Passenger 5: Terms not accepted
+
+If this feature does not exist, Replit should add it.
+
+---
+
+# 23. Rooming List Test
+
+Create rooming list for 20 passengers.
+
+Room setup:
+
+* 9 double rooms
+* 2 single rooms
+
+Test room assignments:
+
+Room 101: Jonathan Miller + Sarah Miller
+Room 102: Rebecca Johnson + Passenger 6
+Room 103: Passenger 7 + Passenger 8
+Room 104: Passenger 9 + Passenger 10
+Room 105: Passenger 11 + Passenger 12
+Room 106: Passenger 13 + Passenger 14
+Room 107: Passenger 15 + Passenger 16
+Room 108: Passenger 17 + Passenger 18
+Room 109: Passenger 19 + Passenger 20
+Room 110: Michael Brown
+Room 111: Thomas Wilson
+
+Expected result:
+
+* Rooming list saves correctly.
+* Single supplement applies if enabled.
+* Hotel document includes rooming list.
+* Passenger portal shows passenger’s own room if allowed.
+* Passenger should not see other rooms unless group leader permission allows it.
+
+---
+
+# 24. Capacity Test
+
+Departure capacity:
+
+35 passengers
+
+Booking 1:
+
+20 passengers
+
+Expected remaining seats:
+
+15
+
+Create another test booking for same departure:
+
+Passenger count: 16
+
+Expected result:
+
+System should block or warn because only 15 seats remain.
+
+Create another test booking:
+
+Passenger count: 15
+
+Expected result:
+
+System allows booking and departure becomes sold out.
+
+After sold out:
+
+* Departure should show sold out.
+* Client cannot book more seats.
+* Admin can override only if permission allows.
+* Waitlist feature should activate if available.
+
+If waitlist does not exist, recommend adding it.
+
+---
+
+# 25. Cancellation Test
+
+Test cancellation before final payment.
+
+Booking:
+
+TROP-DR-2026-0001
+
+Action:
+
+Client requests cancellation.
+
+Expected result:
+
+* Cancellation request is created.
+* Support/operations receive alert.
+* Accounting sees refund requirement if deposit was paid.
+* Seats are released if cancellation is approved.
+* Booking status changes to Cancelled.
+* Payment status changes according to refund rule.
+* Cancellation reason is saved.
+* Supplier assignments are cancelled or notified.
+
+Required cancellation statuses:
+
+* Cancellation requested
+* Cancellation approved
+* Cancellation rejected
+* Refund pending
+* Refunded
+* Cancelled
+
+If cancellation workflow does not exist, Replit should add it.
+
+---
+
+# 26. Change Request Test
+
+Client requests change:
+
+“Can we add 2 more passengers to the group?”
+
+Current booking:
+
+20 passengers
+
+Departure available seats:
+
+15
+
+Expected result:
+
+System allows adding 2 passengers if seats available.
+
+New passenger count:
+
+22
+
+New total:
+
+22 × $950 = $20,900
+
+New deposit at 30%:
+
+$6,270
+
+If original deposit paid:
+
+$5,700
+
+Additional deposit needed:
+
+$570
+
+Expected result:
+
+* Booking total updates.
+* Passenger count updates.
+* Available seats decrease.
+* Invoice/payment balance updates.
+* Operations sees updated passenger count.
+* Supplier assignments update if needed.
+* Rooming list must be updated.
+
+Test another change:
+
+“Can we add 20 more passengers?”
+
+Expected result:
+
+System blocks or warns because not enough seats.
+
+---
+
+# 27. Final Confirmation Test
+
+After:
+
+* Passenger details are complete
+* Deposit is paid
+* Suppliers are confirmed
+* Tour leader is assigned
+* Required documents are ready
+
+Operations changes booking status to:
+
+Confirmed
+
+Expected result:
+
+Client receives confirmation.
+
+Client dashboard should show:
+
+* Booking confirmed
+* Deposit paid
+* Balance due date
+* Passenger completion status
+* Final itinerary
+* Travel document section
+
+Tour leader dashboard should show:
+
+* Assigned tour
+* Passenger list
+* Itinerary
+* Supplier confirmations
+
+Supplier dashboard should show:
+
+* Confirmed assigned services
+
+Accounting dashboard should show:
+
+* Deposit paid
+* Balance pending
+
+---
+
+# 28. Pre-Departure Test
+
+Set test date close to departure or simulate pre-departure stage.
+
+System should check:
+
+* Balance paid
+* Passenger profiles complete
+* Rooming list complete
+* Supplier confirmations complete
+* Tour leader assigned
+* Documents generated
+* Emergency contacts complete
+
+Expected result:
+
+If anything is missing, system should show warning.
+
+Examples:
+
+* Passenger 4 missing emergency contact
+* Hotel supplier not confirmed
+* Balance unpaid
+* Tour leader not assigned
+
+System should not mark booking ready for operation until required items are complete.
+
+---
+
+# 29. In-Operation Test
+
+Change booking status to:
+
+In Operation
+
+Tour leader should be able to:
+
+* View today’s itinerary
+* View passenger list
+* View emergency contacts
+* View supplier contact details if allowed
+* Report issue
+* Message operations
+* Mark day/service as completed if feature exists
+
+Operations should be able to:
+
+* Monitor active tour
+* Message tour leader
+* Message supplier
+* Add internal note
+* Handle incident report
+* Update service status
+
+Test incident:
+
+Tour leader reports:
+
+“Passenger Thomas Wilson needs slower walking pace for Santo Domingo tour.”
+
+Expected result:
+
+* Incident/note is saved.
+* Operations receives notification.
+* Support can view if allowed.
+* It remains attached to booking.
+
+If incident reporting does not exist, Replit should add it.
+
+---
+
+# 30. Trip Completion Test
+
+After final day, operations marks booking:
+
+Completed
+
+Expected result:
+
+* Booking status changes to Completed.
+* Tour leader assignment closes.
+* Supplier services marked completed.
+* Accounting can confirm final payment status.
+* Client can receive thank-you message.
+* Review request can be sent if feature exists.
+* Reports update with completed booking revenue.
+
+---
+
+# 31. Reports Test
+
+Admin/accounting should verify reports updated.
+
+Reports should show:
+
+* New booking
+* Passenger count
+* Tour revenue
+* Deposit received
+* Balance received
+* Outstanding balance
+* Supplier assignment status
+* Completed tour
+* Cancelled booking if cancellation test was done
+* Available seats by departure
+* Booking source if tracked
+
+Expected result:
+
+Reports match booking and payment data.
+
+---
+
+# 32. Permission and Security Tests
+
+This is very important.
+
+## Customer / Client
+
+Customer should not access:
+
+* Admin panel
+* Accounting panel
+* Supplier panel
+* Operations panel
+* Other customers’ bookings
+* Internal costs
+* Supplier private pricing
+
+## Passenger
+
+Passenger should not access:
+
+* Other passenger private details
+* Admin dashboard
+* Booking financials unless allowed
+* Supplier details unless allowed
+* Other bookings
+
+## Supplier
+
+Supplier should not access:
+
+* Client payment data
+* Full customer list
+* Other suppliers’ assignments
+* Accounting reports
+* Admin settings
+
+## Tour Leader
+
+Tour leader should not access:
+
+* Admin settings
+* Accounting reports
+* Supplier net rates unless allowed
+* Tours not assigned to them
+
+## Support Agent
+
+Support should not access:
+
+* Financial settings unless allowed
+* Admin system settings
+* Supplier cost editing
+* User role editing
+
+## Accounting
+
+Accounting should not edit:
+
+* Tour itinerary
+* Supplier operations assignments
+* Passenger personal details unless allowed
+
+Expected result:
+
+Unauthorized access should return 401, 403, or redirect to allowed dashboard.
+
+---
+
+# 33. Direct URL / API Security Test
+
+Tester must try to change IDs in the URL.
+
+Examples:
+
+* Customer tries to open another customer booking ID.
+* Passenger tries to open another passenger profile.
+* Supplier tries to open unassigned service order.
+* Tour leader tries to open a tour not assigned to them.
+* Support agent tries to open admin settings.
+
+Expected result:
+
+Access denied.
+
+No private data should be leaked.
+
+---
+
+# 34. Mobile Testing
+
+Test the full process on mobile.
+
+Required mobile tests:
+
+* Customer selects tour
+* Customer creates booking
+* Customer adds passengers
+* Passenger accepts invite
+* Passenger logs in
+* Passenger completes profile
+* Client pays deposit or sees payment instructions
+* Support message works
+* Tour leader views passenger list
+* Tour leader views itinerary
+* Supplier confirms service
+
+Expected result:
+
+All major flows are usable on mobile.
+
+---
+
+# 35. Email and Notification Testing
+
+Email templates should be tested for:
+
+* Booking created
+* Passenger invitation
+* Passenger account activated
+* Deposit received
+* Balance reminder
+* Booking confirmed
+* Supplier confirmation
+* Tour leader assignment
+* Final documents ready
+* Cancellation confirmation
+* Thank-you after trip
+
+Each email should include:
+
+* Correct customer name
+* Correct booking reference
+* Correct tour name
+* Correct departure date
+* Correct link
+* No broken variables
+* No internal supplier cost
+* No admin-only information
+
+---
+
+# 36. Required Final Deliverables From Replit Developer
+
+After completing this test, provide:
+
+1. List of all test users created
+2. Tour used for testing
+3. Departure used for testing
+4. Booking reference created
+5. Screenshots of client booking flow
+6. Screenshots of passenger login flow
+7. Screenshots of payment/deposit flow
+8. Screenshots of operations assignment
+9. Screenshots of supplier confirmation
+10. Screenshots of tour leader dashboard
+11. Generated documents
+12. Payment calculation proof
+13. Capacity calculation proof
+14. Permission/security test results
+15. Bug list with severity
+16. Missing feature list
+17. Final answer: ready or not ready for real customer booking
+
+---
+
+# 37. Critical Bugs That Must Block Launch
+
+Do not launch if any of these happen:
+
+* Customer can see another customer’s booking.
+* Passenger can see another passenger’s private data without permission.
+* Supplier can see client payment data.
+* Client sees supplier/internal cost.
+* Booking total calculates incorrectly.
+* Deposit/balance calculates incorrectly.
+* Available seats do not update.
+* Sold-out departure can still be booked.
+* Payment can be duplicated without warning.
+* Passenger invitation link can be reused incorrectly.
+* Cancelled booking does not release seats correctly.
+* Unauthorized role can access admin/operations/accounting.
+* Final documents show wrong data.
+* Tour leader can see tours not assigned to them.
+* Supplier can see assignments not belonging to them.
+
+---
+
+# 38. Features to Add If Missing
+
+If any of these are missing, Replit should add them or mark them as required before launch.
+
+## Must Have
+
+1. Passenger login portal
+2. Passenger invitation links
+3. Passenger profile completion
+4. Group leader dashboard
+5. Passenger completion tracking
+6. Booking status workflow
+7. Deposit and balance tracking
+8. Departure capacity control
+9. Rooming list
+10. Tour leader assignment
+11. Supplier service confirmation
+12. Client-facing documents
+13. Operations documents
+14. Role-based permissions
+15. Booking audit history
+
+## Strongly Recommended
+
+1. Waitlist for sold-out departures
+2. Cancellation workflow
+3. Change request workflow
+4. Refund tracking
+5. Incident report form
+6. Pre-departure checklist
+7. Automated balance reminders
+8. Passenger document upload
+9. Travel insurance tracking
+10. Post-tour review request
+
+---
+
+# 39. Final Full Process That Must Work
+
+The complete Tourop process must work like this:
+
+1. Admin creates tour.
+2. Admin creates departure.
+3. Client selects tour.
+4. Client selects departure.
+5. Client enters passenger count.
+6. System calculates price.
+7. Client creates booking.
+8. Booking reference is generated.
+9. Client adds passengers.
+10. Passengers receive invitation.
+11. Passengers log in.
+12. Passengers complete profiles.
+13. Client pays deposit.
+14. Accounting verifies payment.
+15. Operations reviews booking.
+16. Operations assigns suppliers.
+17. Suppliers confirm services.
+18. Operations assigns tour leader.
+19. Tour leader reviews trip.
+20. Documents are generated.
+21. Client receives confirmation.
+22. Balance payment is recorded.
+23. Trip moves to in-operation.
+24. Tour leader manages active trip.
+25. Operations handles issues.
+26. Trip is completed.
+27. Reports update correctly.
+
+This is the real full-process scenario Replit must test for Tourop before the platform can be considered ready for real customers.
+
+This version is now corrected for **Tourop** and removes the Royal VIP Tours / supplier-hub framing.

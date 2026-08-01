@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { Link } from "wouter";
-import { Hotel, Bus, UserCheck, Ticket, Clock, CheckCircle, AlertTriangle, ClipboardList, ArrowRight, Calendar } from "lucide-react";
+import { Hotel, Bus, UserCheck, Ticket, Clock, CheckCircle, AlertTriangle, ClipboardList, ArrowRight, Calendar, Settings } from "lucide-react";
 import { SERVICE_TYPES, WORKFLOW_STATUSES } from "@/lib/constants";
 import type { BookingWorkflow } from "@workspace/db";
 
@@ -110,6 +110,11 @@ export default function OpsDashboard() {
                             ))}
                           </SelectContent>
                         </Select>
+                        {wf.bookingId && (
+                          <Link href={`/ops/booking-operations/${wf.bookingId}`}>
+                            <Button variant="ghost" size="icon" title={t("lc_operations")} data-testid={`link-ops-booking-${wf.id}`}><Settings className="h-4 w-4" /></Button>
+                          </Link>
+                        )}
                         <Link href={`/ops/workflows/${wf.id}`}>
                           <Button variant="ghost" size="icon"><ArrowRight className="h-4 w-4" /></Button>
                         </Link>

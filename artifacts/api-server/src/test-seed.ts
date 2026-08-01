@@ -23,6 +23,8 @@ import {
   transportRates, guideRates, sightsRates, airfareRates,
   groupSizeBands, pricingRules, pricingQuotes, pricingQuoteLineItems,
   bookings, bookingServiceRequests, bookingPaymentSchedules, seedRuns,
+  travelers, travelerInvitations, bookingStatusHistory, bookingRooms,
+  bookingChangeRequests, incidentReports, payments, messages,
 } from "@workspace/db";
 import { and, eq, inArray, like, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -66,6 +68,15 @@ const SUPPLIER_USERS = [
   { id: "user-test-supplier-5", username: "testsupplierguides1", company: "TEST Israel Guides Co-op", role: "supplier" },
 ] as const;
 
+// Dominican Republic "Faith & Leisure" client-lifecycle scenario
+const DR_TOUR_SLUG = "test-dr-faith-leisure";
+const DR_PRICE_PER_PERSON = 950;
+const DR_DEPARTURES = [
+  { code: "DR-FL-2026-001", start: "2026-10-20", end: "2026-10-24" },
+  { code: "DR-FL-2026-002", start: "2026-11-10", end: "2026-11-14" },
+  { code: "DR-FL-2026-003", start: "2026-12-15", end: "2026-12-19" },
+] as const;
+
 const CLIENT_USERS = [
   { id: "user-test-client-1", username: "michael.leader", firstName: "Michael", lastName: "Ben-David", accountType: "tour_leader" as const },
   { id: "user-test-client-2", username: "rachel.family", firstName: "Rachel", lastName: "Cohen", accountType: "family_organizer" as const },
@@ -102,17 +113,34 @@ export async function resetTestData(): Promise<Record<string, number>> {
   const deleted: Record<string, number> = {};
   const count = async (name: string, rows: unknown[]) => { deleted[name] = rows.length; };
 
-  // Booking-scoped children
-  const bkgs = await db.select({ id: bookings.id }).from(bookings).where(eq(bookings.bookingCode, BOOKING_CODE));
+  // Booking-scoped children (fixed test booking + any bookings on the DR test tour)
+  const drTours = await db.select({ id: tours.id }).from(tours).where(eq(tours.slug, DR_TOUR_SLUG));
+  const drTourIds = drTours.map(t => t.id);
+  const bkgs = await db.select({ id: bookings.id }).from(bookings).where(
+    drTourIds.length
+      ? sql`${bookings.bookingCode} = ${BOOKING_CODE} OR ${bookings.tourId} IN (${sql.join(drTourIds.map(id => sql`${id}`), sql`, `)})`
+      : eq(bookings.bookingCode, BOOKING_CODE),
+  );
   const bkgIds = bkgs.map(b => b.id);
   if (bkgIds.length) {
+    const trav = await db.select({ id: travelers.id }).from(travelers).where(inArray(travelers.bookingId, bkgIds));
+    const travIds = trav.map(t => t.id);
+    if (travIds.length) await db.delete(travelerInvitations).where(inArray(travelerInvitations.travelerId, travIds));
+    await count("travelers", trav);
+    await db.delete(travelers).where(inArray(travelers.bookingId, bkgIds));
+    await db.delete(bookingStatusHistory).where(inArray(bookingStatusHistory.bookingId, bkgIds));
+    await db.delete(bookingRooms).where(inArray(bookingRooms.bookingId, bkgIds));
+    await db.delete(bookingChangeRequests).where(inArray(bookingChangeRequests.bookingId, bkgIds));
+    await db.delete(incidentReports).where(inArray(incidentReports.bookingId, bkgIds));
+    await db.delete(payments).where(inArray(payments.bookingId, bkgIds));
+    await db.delete(messages).where(inArray(messages.bookingId, bkgIds));
     await count("service_requests", await db.delete(bookingServiceRequests).where(inArray(bookingServiceRequests.bookingId, bkgIds)).returning({ id: bookingServiceRequests.id }));
     await count("payment_schedules", await db.delete(bookingPaymentSchedules).where(inArray(bookingPaymentSchedules.bookingId, bkgIds)).returning({ id: bookingPaymentSchedules.id }));
     await count("bookings", await db.delete(bookings).where(inArray(bookings.id, bkgIds)).returning({ id: bookings.id }));
   }
 
   // Tour-scoped: quotes, line items, rules, departures, days/items
-  const testTours = await db.select({ id: tours.id }).from(tours).where(eq(tours.slug, TOUR_SLUG));
+  const testTours = await db.select({ id: tours.id }).from(tours).where(inArray(tours.slug, [TOUR_SLUG, DR_TOUR_SLUG]));
   const tourIds = testTours.map(t => t.id);
   if (tourIds.length) {
     const quotes = await db.select({ id: pricingQuotes.id }).from(pricingQuotes).where(inArray(pricingQuotes.tourId, tourIds));
@@ -298,6 +326,42 @@ async function phaseTour(hotelIds: string[]): Promise<{ report: PhaseReport; tou
   return { report: r, tourId: tour.id, departureId: dep.id, ruleId: rule.id };
 }
 
+async function phaseDrScenario(): Promise<PhaseReport> {
+  const r: PhaseReport = { phase: "dr_faith_leisure_tour", created: 0, updated: 0, skipped: 0, notes: [] };
+  // Country (reused if present — real master data)
+  let [dr] = await db.select().from(countries).where(eq(countries.code, "DO"));
+  if (!dr) {
+    [dr] = await db.insert(countries).values({ code: "DO", iso3: "DOM", name: "Dominican Republic", capitalCity: "Santo Domingo", continent: "North America", currencyCode: "DOP", isActive: true }).returning();
+    r.created++;
+  } else r.skipped++;
+  const [tour] = await db.insert(tours).values({
+    title: "Dominican Republic Faith & Leisure Tour (TEST)", slug: DR_TOUR_SLUG,
+    description: "5-day faith & leisure client-lifecycle test tour seeded by the TOUROPS TEST ENVIRONMENT. $950 per person.",
+    duration: 5, basePrice: String(DR_PRICE_PER_PERSON), markupAmount: "0", totalPrice: String(DR_PRICE_PER_PERSON),
+    countries: ["Dominican Republic"], category: "religious", isPublished: true,
+  }).returning();
+  r.created++;
+  const drDays = [
+    "Arrival in Santo Domingo & Colonial Zone", "Basílica de Higüey & Catholic Heritage",
+    "Punta Cana Beach & Leisure Day", "Los Haitises National Park & Samaná",
+    "Farewell Mass & Departure",
+  ];
+  for (let i = 0; i < drDays.length; i++) {
+    await db.insert(tourDays).values({ tourId: tour.id, dayNumber: i + 1, title: `Day ${i + 1}: ${drDays[i]}`, countryCode: "DO" });
+    r.created++;
+  }
+  for (const dep of DR_DEPARTURES) {
+    await db.insert(tourDepartures).values({
+      tourId: tour.id, startDate: dep.start, endDate: dep.end,
+      capacityTotal: 35, status: "open", publicJoinEnabled: false,
+      pricePerPerson: DR_PRICE_PER_PERSON, notes: dep.code,
+    });
+    r.created++;
+  }
+  r.notes!.push(`Departures: ${DR_DEPARTURES.map(d => `${d.code} (${d.start})`).join(", ")}. Bookings are created via the live client flow, not seeded.`);
+  return r;
+}
+
 async function phaseQuote(tourId: string, departureId: string, ruleId: string): Promise<{ report: PhaseReport; quoteId: string; sellingDoubleCh1: string | null }> {
   const r: PhaseReport = { phase: "quote_and_approval", created: 0, updated: 0, skipped: 0, notes: [] };
   const resolved = await resolveTourComponents(db, {
@@ -399,6 +463,12 @@ async function validate(quoteSellingDouble: string | null): Promise<ValidationCh
   countRows("exchange rates (TEST)", 2, (await db.select({ id: exchangeRates.id }).from(exchangeRates).where(eq(exchangeRates.enteredBy, RATE_NOTE_TAG))).length);
   const testTour = await db.select({ id: tours.id }).from(tours).where(eq(tours.slug, TOUR_SLUG));
   countRows("test tour", 1, testTour.length);
+  const drTour = await db.select({ id: tours.id }).from(tours).where(eq(tours.slug, DR_TOUR_SLUG));
+  countRows("DR test tour", 1, drTour.length);
+  if (drTour.length) {
+    countRows("DR departures", 3, (await db.select({ id: tourDepartures.id }).from(tourDepartures).where(eq(tourDepartures.tourId, drTour[0].id))).length);
+    countRows("DR tour days", 5, (await db.select({ id: tourDays.id }).from(tourDays).where(eq(tourDays.tourId, drTour[0].id))).length);
+  }
   if (testTour.length) {
     countRows("tour days", 8, (await db.select({ id: tourDays.id }).from(tourDays).where(eq(tourDays.tourId, testTour[0].id))).length);
     countRows("quotes on test tour", 1, (await db.select({ id: pricingQuotes.id }).from(pricingQuotes).where(eq(pricingQuotes.tourId, testTour[0].id))).length);
@@ -432,6 +502,7 @@ export async function runTestSeed(startedBy: string | null): Promise<SeedReport>
     const cityIds = (phaseMasterData as any).cityIds as Record<string, string>;
     const cat = await phaseCatalog(cityIds); phases.push(cat.report);
     const t = await phaseTour(cat.hotelIds); phases.push(t.report);
+    phases.push(await phaseDrScenario());
     const q = await phaseQuote(t.tourId, t.departureId, t.ruleId); phases.push(q.report);
     const b = await phaseBooking(t.tourId, t.departureId, q.sellingDoubleCh1); phases.push(b.report);
     const validation = await validate(q.sellingDoubleCh1);

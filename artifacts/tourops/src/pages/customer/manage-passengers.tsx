@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Users, Trash2, Edit, ChevronDown, ChevronUp } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { UserPlus, Users, Trash2, Edit, ChevronDown, ChevronUp, Mail, Copy, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import type { Booking, Traveler } from "@workspace/db";
 import { useLanguage } from "@/hooks/use-language";
@@ -34,10 +35,21 @@ export default function ManagePassengers() {
   const [nationality, setNationality] = useState("");
   const [passportNumber, setPassportNumber] = useState("");
   const [passportExpiry, setPassportExpiry] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [dietaryNotes, setDietaryNotes] = useState("");
+  const [mobilityNotes, setMobilityNotes] = useState("");
+  const [emergencyContactName, setEmergencyContactName] = useState("");
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
+  const [roomingPreference, setRoomingPreference] = useState("");
+
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
 
   const clearForm = () => {
     setFirstName(""); setLastName(""); setDob(""); setGender("");
     setNationality(""); setPassportNumber(""); setPassportExpiry("");
+    setEmail(""); setPhone(""); setDietaryNotes(""); setMobilityNotes("");
+    setEmergencyContactName(""); setEmergencyContactPhone(""); setRoomingPreference("");
   };
 
   const openAddDialog = (bookingId: string) => {
@@ -55,6 +67,13 @@ export default function ManagePassengers() {
     setNationality(traveler.nationality || "");
     setPassportNumber(traveler.passportNumber || "");
     setPassportExpiry(traveler.passportExpiry || "");
+    setEmail(traveler.email || "");
+    setPhone(traveler.phone || "");
+    setDietaryNotes(traveler.dietaryNotes || "");
+    setMobilityNotes(traveler.mobilityNotes || "");
+    setEmergencyContactName(traveler.emergencyContactName || "");
+    setEmergencyContactPhone(traveler.emergencyContactPhone || "");
+    setRoomingPreference(traveler.roomingPreference || "");
     setEditDialogOpen(true);
   };
 
@@ -105,6 +124,28 @@ export default function ManagePassengers() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
+  const invite = useMutation({
+    mutationFn: (data: { bookingId: string; travelerId: string; email?: string }) =>
+      apiRequest("POST", `/api/bookings/${data.bookingId}/travelers/${data.travelerId}/invite`, data.email ? { email: data.email } : {})
+        .then((r) => r.json()),
+    onSuccess: (data: { inviteUrl: string }, variables) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/bookings/${variables.bookingId}/passenger-completion`] });
+      setInviteUrl(data.inviteUrl);
+      toast({ title: t("lc_invite_sent") });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const handleInvite = (bookingId: string, trav: Traveler) => {
+    let emailToUse = trav.email || undefined;
+    if (!emailToUse) {
+      const entered = window.prompt(t("lc_invite_email_prompt"));
+      if (!entered) return;
+      emailToUse = entered.trim();
+    }
+    invite.mutate({ bookingId, travelerId: trav.id, email: emailToUse });
+  };
+
   const handleAddSubmit = () => {
     if (!addForBookingId || !firstName.trim() || !lastName.trim()) {
       toast({ title: t("first_last_name_required"), variant: "destructive" });
@@ -121,6 +162,13 @@ export default function ManagePassengers() {
         nationality: nationality || undefined,
         passportNumber: passportNumber || undefined,
         passportExpiry: passportExpiry || undefined,
+        email: email || undefined,
+        phone: phone || undefined,
+        dietaryNotes: dietaryNotes || undefined,
+        mobilityNotes: mobilityNotes || undefined,
+        emergencyContactName: emergencyContactName || undefined,
+        emergencyContactPhone: emergencyContactPhone || undefined,
+        roomingPreference: roomingPreference || undefined,
       },
     });
   };
@@ -140,6 +188,13 @@ export default function ManagePassengers() {
         nationality: nationality || undefined,
         passportNumber: passportNumber || undefined,
         passportExpiry: passportExpiry || undefined,
+        email: email || undefined,
+        phone: phone || undefined,
+        dietaryNotes: dietaryNotes || undefined,
+        mobilityNotes: mobilityNotes || undefined,
+        emergencyContactName: emergencyContactName || undefined,
+        emergencyContactPhone: emergencyContactPhone || undefined,
+        roomingPreference: roomingPreference || undefined,
       },
     });
   };
@@ -149,6 +204,17 @@ export default function ManagePassengers() {
   }
 
   const activeBookings = bookings?.filter(b => b.status !== "cancelled") || [];
+
+  const formProps = {
+    firstName, setFirstName, lastName, setLastName,
+    dob, setDob, gender, setGender, nationality, setNationality,
+    passportNumber, setPassportNumber, passportExpiry, setPassportExpiry,
+    email, setEmail, phone, setPhone,
+    dietaryNotes, setDietaryNotes, mobilityNotes, setMobilityNotes,
+    emergencyContactName, setEmergencyContactName,
+    emergencyContactPhone, setEmergencyContactPhone,
+    roomingPreference, setRoomingPreference,
+  };
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
@@ -175,6 +241,8 @@ export default function ManagePassengers() {
             onAddPassenger={() => openAddDialog(booking.id)}
             onEditPassenger={openEditDialog}
             onDeletePassenger={(id) => deleteTraveler.mutate(id)}
+            onInvitePassenger={(trav) => handleInvite(booking.id, trav)}
+            inviting={invite.isPending}
           />
         ))
       )}
@@ -182,15 +250,7 @@ export default function ManagePassengers() {
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>{t("add_new_passenger")}</DialogTitle></DialogHeader>
-          <PassengerForm
-            firstName={firstName} setFirstName={setFirstName}
-            lastName={lastName} setLastName={setLastName}
-            dob={dob} setDob={setDob}
-            gender={gender} setGender={setGender}
-            nationality={nationality} setNationality={setNationality}
-            passportNumber={passportNumber} setPassportNumber={setPassportNumber}
-            passportExpiry={passportExpiry} setPassportExpiry={setPassportExpiry}
-          />
+          <PassengerForm {...formProps} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddDialogOpen(false)} data-testid="button-cancel-add">{t("cancel")}</Button>
             <Button onClick={handleAddSubmit} disabled={addTraveler.isPending} data-testid="button-submit-add-passenger">
@@ -203,21 +263,30 @@ export default function ManagePassengers() {
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>{t("edit_passenger")}</DialogTitle></DialogHeader>
-          <PassengerForm
-            firstName={firstName} setFirstName={setFirstName}
-            lastName={lastName} setLastName={setLastName}
-            dob={dob} setDob={setDob}
-            gender={gender} setGender={setGender}
-            nationality={nationality} setNationality={setNationality}
-            passportNumber={passportNumber} setPassportNumber={setPassportNumber}
-            passportExpiry={passportExpiry} setPassportExpiry={setPassportExpiry}
-          />
+          <PassengerForm {...formProps} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)} data-testid="button-cancel-edit">{t("cancel")}</Button>
             <Button onClick={handleEditSubmit} disabled={updateTraveler.isPending} data-testid="button-submit-edit-passenger">
               {updateTraveler.isPending ? t("saving") : t("save_changes")}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!inviteUrl} onOpenChange={(o) => !o && setInviteUrl(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{t("lc_invite_link")}</DialogTitle></DialogHeader>
+          <div className="flex items-center gap-2">
+            <Input readOnly value={inviteUrl ?? ""} data-testid="input-invite-url" />
+            <Button
+              size="icon"
+              variant="outline"
+              onClick={() => { if (inviteUrl) { navigator.clipboard?.writeText(inviteUrl); toast({ title: t("lc_copied") }); } }}
+              data-testid="button-copy-invite-url"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
@@ -230,6 +299,11 @@ function PassengerForm({
   nationality, setNationality,
   passportNumber, setPassportNumber,
   passportExpiry, setPassportExpiry,
+  email, setEmail, phone, setPhone,
+  dietaryNotes, setDietaryNotes, mobilityNotes, setMobilityNotes,
+  emergencyContactName, setEmergencyContactName,
+  emergencyContactPhone, setEmergencyContactPhone,
+  roomingPreference, setRoomingPreference,
 }: {
   firstName: string; setFirstName: (v: string) => void;
   lastName: string; setLastName: (v: string) => void;
@@ -238,13 +312,24 @@ function PassengerForm({
   nationality: string; setNationality: (v: string) => void;
   passportNumber: string; setPassportNumber: (v: string) => void;
   passportExpiry: string; setPassportExpiry: (v: string) => void;
+  email: string; setEmail: (v: string) => void;
+  phone: string; setPhone: (v: string) => void;
+  dietaryNotes: string; setDietaryNotes: (v: string) => void;
+  mobilityNotes: string; setMobilityNotes: (v: string) => void;
+  emergencyContactName: string; setEmergencyContactName: (v: string) => void;
+  emergencyContactPhone: string; setEmergencyContactPhone: (v: string) => void;
+  roomingPreference: string; setRoomingPreference: (v: string) => void;
 }) {
   const { t } = useLanguage();
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
       <div className="grid grid-cols-2 gap-3">
         <div><Label>{t("first_name")} *</Label><Input value={firstName} onChange={(e) => setFirstName(e.target.value)} data-testid="input-passenger-first-name" /></div>
         <div><Label>{t("last_name")} *</Label><Input value={lastName} onChange={(e) => setLastName(e.target.value)} data-testid="input-passenger-last-name" /></div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><Label>{t("lc_email")}</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} data-testid="input-passenger-email" /></div>
+        <div><Label>{t("lc_phone")}</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} data-testid="input-passenger-phone" /></div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div><Label>{t("date_of_birth")}</Label><Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} data-testid="input-passenger-dob" /></div>
@@ -265,12 +350,23 @@ function PassengerForm({
         <div><Label>{t("passport_number_label")}</Label><Input value={passportNumber} onChange={(e) => setPassportNumber(e.target.value)} data-testid="input-passenger-passport" /></div>
         <div><Label>{t("passport_expiry_label")}</Label><Input type="date" value={passportExpiry} onChange={(e) => setPassportExpiry(e.target.value)} data-testid="input-passenger-passport-expiry" /></div>
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><Label>{t("lc_emergency_contact_name")}</Label><Input value={emergencyContactName} onChange={(e) => setEmergencyContactName(e.target.value)} data-testid="input-passenger-ec-name" /></div>
+        <div><Label>{t("lc_emergency_contact_phone")}</Label><Input value={emergencyContactPhone} onChange={(e) => setEmergencyContactPhone(e.target.value)} data-testid="input-passenger-ec-phone" /></div>
+      </div>
+      <div><Label>{t("lc_rooming_preference")}</Label><Input value={roomingPreference} onChange={(e) => setRoomingPreference(e.target.value)} data-testid="input-passenger-rooming" /></div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><Label>{t("lc_dietary_notes")}</Label><Textarea rows={2} value={dietaryNotes} onChange={(e) => setDietaryNotes(e.target.value)} data-testid="input-passenger-dietary" /></div>
+        <div><Label>{t("lc_mobility_notes")}</Label><Textarea rows={2} value={mobilityNotes} onChange={(e) => setMobilityNotes(e.target.value)} data-testid="input-passenger-mobility" /></div>
+      </div>
     </div>
   );
 }
 
+interface CompletionRow { id: string; complete: boolean; missing: string[] }
+
 function BookingPassengerCard({
-  booking, expanded, onToggle, onAddPassenger, onEditPassenger, onDeletePassenger,
+  booking, expanded, onToggle, onAddPassenger, onEditPassenger, onDeletePassenger, onInvitePassenger, inviting,
 }: {
   booking: Booking;
   expanded: boolean;
@@ -278,12 +374,20 @@ function BookingPassengerCard({
   onAddPassenger: () => void;
   onEditPassenger: (t: Traveler) => void;
   onDeletePassenger: (id: string) => void;
+  onInvitePassenger: (t: Traveler) => void;
+  inviting: boolean;
 }) {
   const { t } = useLanguage();
   const { data: travelers, isLoading } = useQuery<Traveler[]>({
     queryKey: [`/api/my-bookings/${booking.id}/travelers`],
     enabled: expanded,
   });
+  const { data: completion } = useQuery<{ passengers: CompletionRow[] }>({
+    queryKey: [`/api/bookings/${booking.id}/passenger-completion`],
+    enabled: expanded,
+    retry: false,
+  });
+  const completionOf = (id: string) => completion?.passengers?.find((p) => p.id === id);
 
   return (
     <Card data-testid={`card-booking-passengers-${booking.id}`}>
@@ -335,9 +439,25 @@ function BookingPassengerCard({
                       {trav.nationality && <span className="text-xs text-muted-foreground">{trav.nationality}</span>}
                       {trav.passportNumber && <Badge variant="secondary" className="text-xs">{t("passport_prefix")} {trav.passportNumber}</Badge>}
                       {trav.dob && <span className="text-xs text-muted-foreground">{t("dob_prefix")} {trav.dob}</span>}
+                      {(() => {
+                        const c = completionOf(trav.id);
+                        if (!c) return null;
+                        return c.complete
+                          ? <Badge variant="default" className="text-xs"><CheckCircle2 className="h-3 w-3 mr-1" />{t("lc_complete_badge")}</Badge>
+                          : <Badge variant="outline" className="text-xs text-amber-700">{t("lc_missing")}: {c.missing.join(", ")}</Badge>;
+                      })()}
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onInvitePassenger(trav)}
+                      disabled={inviting || !!trav.userId}
+                      data-testid={`button-invite-passenger-${trav.id}`}
+                    >
+                      <Mail className="h-4 w-4 mr-1" />{t("lc_invite")}
+                    </Button>
                     <Button
                       size="icon"
                       variant="ghost"

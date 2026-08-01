@@ -228,7 +228,8 @@ export const bookingTypeEnum = pgEnum("booking_type", [
   "custom_family",
 ]);
 
-export const bookingStatusEnum = pgEnum("booking_status", ["draft", "submitted", "confirmed", "cancelled", "completed"]);
+// "in_operation" = trip is actively running (between departure and completion).
+export const bookingStatusEnum = pgEnum("booking_status", ["draft", "submitted", "confirmed", "in_operation", "cancelled", "completed"]);
 export const fulfillmentStatusEnum = pgEnum("fulfillment_status", ["pending", "in_progress", "blocked", "completed"]);
 
 export const bookings = pgTable("bookings", {
@@ -240,6 +241,9 @@ export const bookings = pgTable("bookings", {
   bookingType: bookingTypeEnum("booking_type").notNull(),
   groupName: text("group_name"),
   leaderUserId: varchar("leader_user_id"),
+  // Professional tour leader (role=tour_leader) assigned by operations; distinct
+  // from leaderUserId, which is the customer-side group leader.
+  tourLeaderUserId: varchar("tour_leader_user_id"),
   joinCode: text("join_code").unique(),
   partySizeExpected: integer("party_size_expected").default(1),
   status: bookingStatusEnum("status").default("submitted"),
@@ -278,9 +282,23 @@ export const travelers = pgTable("travelers", {
   passportExpiry: text("passport_expiry"),
   gender: text("gender"),
   specialNeeds: text("special_needs"),
+  // Passenger portal / profile-completion fields
+  email: text("email"),
+  phone: text("phone"),
+  dietaryNotes: text("dietary_notes"),
+  mobilityNotes: text("mobility_notes"),
+  emergencyContactName: text("emergency_contact_name"),
+  emergencyContactPhone: text("emergency_contact_phone"),
+  roomingPreference: text("rooming_preference"),
+  termsAcceptedAt: timestamp("terms_accepted_at"),
+  // Linked passenger login account (users.id) once an invitation is accepted.
+  userId: varchar("user_id"),
+  // Assigned room (booking_rooms.id) on the rooming list.
+  roomId: varchar("room_id"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   bookingIdIdx: index("travelers_booking_id_idx").on(table.bookingId),
+  userIdIdx: index("travelers_user_id_idx").on(table.userId),
 }));
 
 export const insertTravelerSchema = createInsertSchema(travelers).omit({ id: true, createdAt: true });
@@ -1696,6 +1714,114 @@ export const seedRuns = pgTable("seed_runs", {
   finishedAt: timestamp("finished_at"),
 });
 export type SeedRun = typeof seedRuns.$inferSelect;
+
+// --- Passenger portal: invitations linking traveler records to login accounts ---
+
+export const travelerInvitationStatusEnum = pgEnum("traveler_invitation_status", [
+  "pending",
+  "accepted",
+  "expired",
+  "revoked",
+]);
+
+// One invitation per send; token is stored ONLY as a sha256 hash (raw token is
+// e-mailed / shown once). Accepting creates or links a users row and sets
+// travelers.userId. Single-use: usedAt set atomically on accept.
+export const travelerInvitations = pgTable("traveler_invitations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  travelerId: varchar("traveler_id").notNull(),
+  bookingId: varchar("booking_id").notNull(),
+  email: text("email").notNull(),
+  tokenHash: text("token_hash").notNull().unique(),
+  status: travelerInvitationStatusEnum("status").notNull().default("pending"),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  invitedBy: varchar("invited_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  travelerIdx: index("traveler_invitations_traveler_idx").on(table.travelerId),
+  bookingIdx: index("traveler_invitations_booking_idx").on(table.bookingId),
+}));
+export type TravelerInvitation = typeof travelerInvitations.$inferSelect;
+
+// --- Booking status history (audit of workflow transitions) ---
+
+export const bookingStatusHistory = pgTable("booking_status_history", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id").notNull(),
+  fromStatus: text("from_status"),
+  toStatus: text("to_status").notNull(),
+  changedBy: varchar("changed_by"),
+  reason: text("reason"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  bookingIdx: index("booking_status_history_booking_idx").on(table.bookingId),
+}));
+export type BookingStatusHistoryEntry = typeof bookingStatusHistory.$inferSelect;
+
+// --- Rooming list (rooms per booking; travelers.roomId points here) ---
+
+export const bookingRooms = pgTable("booking_rooms", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id").notNull(),
+  label: text("label").notNull(),          // e.g. "Room 101"
+  roomType: text("room_type").notNull(),   // single | double | triple
+  capacity: integer("capacity").notNull().default(2),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  bookingIdx: index("booking_rooms_booking_idx").on(table.bookingId),
+  uniqueLabel: uniqueIndex("booking_rooms_unique_label").on(table.bookingId, table.label),
+}));
+export type BookingRoom = typeof bookingRooms.$inferSelect;
+
+// --- Change requests (client asks to modify a booking; ops approves/rejects) ---
+
+export const changeRequestStatusEnum = pgEnum("change_request_status", [
+  "pending",
+  "approved",
+  "rejected",
+  "cancelled",
+]);
+
+export const bookingChangeRequests = pgTable("booking_change_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id").notNull(),
+  requestedBy: varchar("requested_by").notNull(),
+  requestType: text("request_type").notNull(), // add_passengers | remove_passengers | date_change | other
+  details: text("details").notNull(),
+  paxDelta: integer("pax_delta"),              // +N / -N passengers for passenger-count changes
+  status: changeRequestStatusEnum("status").notNull().default("pending"),
+  resolutionNotes: text("resolution_notes"),
+  resolvedBy: varchar("resolved_by"),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  bookingIdx: index("booking_change_requests_booking_idx").on(table.bookingId),
+}));
+export type BookingChangeRequest = typeof bookingChangeRequests.$inferSelect;
+
+// --- Incident reports (tour leader / ops during operation) ---
+
+export const incidentStatusEnum = pgEnum("incident_status", ["open", "acknowledged", "resolved"]);
+export const incidentSeverityEnum = pgEnum("incident_severity", ["low", "medium", "high", "critical"]);
+
+export const incidentReports = pgTable("incident_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id").notNull(),
+  reportedBy: varchar("reported_by").notNull(),
+  severity: incidentSeverityEnum("severity").notNull().default("low"),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  status: incidentStatusEnum("status").notNull().default("open"),
+  resolutionNotes: text("resolution_notes"),
+  resolvedBy: varchar("resolved_by"),
+  resolvedAt: timestamp("resolved_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  bookingIdx: index("incident_reports_booking_idx").on(table.bookingId),
+}));
+export type IncidentReport = typeof incidentReports.$inferSelect;
 
 // --- New Table for Generic Dashboard Master Records ---
 

@@ -11,11 +11,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { useAuth } from "@/hooks/use-auth";
 import { BOOKING_STATUSES } from "@/lib/constants";
-import { Users, Globe, Calendar, MapPin, Plus, BookOpen } from "lucide-react";
+import { Users, Globe, Calendar, MapPin, Plus, BookOpen, AlertTriangle } from "lucide-react";
 import type { Tour, Booking } from "@workspace/db";
 
 export default function TravelAgentDashboard() {
@@ -26,11 +27,13 @@ export default function TravelAgentDashboard() {
         <h1 className="text-2xl font-bold font-serif flex items-center gap-2"><Users className="h-6 w-6 text-primary" />{t("agent_dashboard")}</h1>
         <p className="text-muted-foreground text-sm">{t("tour_leader_subtitle")}</p>
       </div>
-      <Tabs defaultValue="tours">
+      <Tabs defaultValue="assignments">
         <TabsList>
+          <TabsTrigger value="assignments">{t("lc_my_assigned_tours")}</TabsTrigger>
           <TabsTrigger value="tours">{t("browse_tours_tab")}</TabsTrigger>
           <TabsTrigger value="bookings">{t("my_client_bookings_tab")}</TabsTrigger>
         </TabsList>
+        <TabsContent value="assignments"><AssignedTours /></TabsContent>
         <TabsContent value="tours"><TourCatalog /></TabsContent>
         <TabsContent value="bookings"><ClientBookings /></TabsContent>
       </Tabs>
@@ -115,6 +118,112 @@ function NewClientBookingForm({ tour, onClose }: { tour: Tour; onClose: () => vo
         </Button>
         <Button variant="outline" onClick={onClose}>{t("cancel")}</Button>
       </div>
+    </div>
+  );
+}
+
+interface Assignment {
+  booking: { id: string; bookingCode: string; status: string; groupName: string | null; partySizeExpected: number | null; notes: string | null };
+  tour: { id: string; title: string } | null;
+  departure: { startDate: string; endDate: string } | null;
+  passengers: { id: string; firstName: string; lastName: string; dietaryNotes: string | null; mobilityNotes: string | null; emergencyContactName: string | null; emergencyContactPhone: string | null }[];
+}
+
+function AssignedTours() {
+  const { t } = useLanguage();
+  const { data: assignments, isLoading } = useQuery<Assignment[]>({ queryKey: ["/api/tour-leader/assignments"] });
+
+  if (isLoading) return <div className="pt-4"><Skeleton className="h-40 w-full" /></div>;
+  if (!assignments?.length) {
+    return <Card className="mt-4"><CardContent className="py-16 text-center text-muted-foreground">{t("lc_no_assignments")}</CardContent></Card>;
+  }
+
+  return (
+    <div className="space-y-4 mt-4">
+      {assignments.map((a) => (
+        <Card key={a.booking.id} data-testid={`assignment-${a.booking.id}`}>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="font-semibold">{a.tour?.title ?? a.booking.bookingCode}</p>
+                <p className="text-xs text-muted-foreground">{a.booking.bookingCode}{a.booking.groupName ? ` · ${a.booking.groupName}` : ""}</p>
+                {a.departure && <p className="text-xs text-muted-foreground flex items-center gap-1"><Calendar className="h-3 w-3" />{a.departure.startDate} – {a.departure.endDate}</p>}
+              </div>
+              <Badge variant="outline" className="capitalize">{a.booking.status?.replace("_", " ")}</Badge>
+            </div>
+
+            <div>
+              <h4 className="font-semibold text-sm mb-1">{t("lc_passenger_list")}</h4>
+              <div className="space-y-1">
+                {a.passengers.map((p) => (
+                  <div key={p.id} className="rounded-md border p-2 text-sm">
+                    <p className="font-medium">{p.firstName} {p.lastName}</p>
+                    <div className="text-xs text-muted-foreground space-x-3">
+                      {p.dietaryNotes && <span>{t("lc_dietary")}: {p.dietaryNotes}</span>}
+                      {p.mobilityNotes && <span>{t("lc_mobility")}: {p.mobilityNotes}</span>}
+                      {p.emergencyContactName && <span>{t("lc_emergency")}: {p.emergencyContactName} {p.emergencyContactPhone ?? ""}</span>}
+                    </div>
+                  </div>
+                ))}
+                {a.passengers.length === 0 && <p className="text-xs text-muted-foreground">{t("lc_no_passengers")}</p>}
+              </div>
+            </div>
+
+            <IncidentSection bookingId={a.booking.id} />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function IncidentSection({ bookingId }: { bookingId: string }) {
+  const { t } = useLanguage();
+  const { toast } = useToast();
+  const { data: incidents } = useQuery<any[]>({ queryKey: [`/api/bookings/${bookingId}/incidents`] });
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [severity, setSeverity] = useState("low");
+
+  const report = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/bookings/${bookingId}/incidents`, { title, description, severity }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/bookings/${bookingId}/incidents`] });
+      setTitle(""); setDescription(""); setSeverity("low");
+      toast({ title: t("lc_incident_reported") });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <div>
+      <h4 className="font-semibold text-sm mb-1 flex items-center gap-1"><AlertTriangle className="h-4 w-4" />{t("lc_report_incident")}</h4>
+      <div className="space-y-2">
+        <Input placeholder={t("lc_title")} value={title} onChange={(e) => setTitle(e.target.value)} data-testid={`incident-title-${bookingId}`} />
+        <Textarea rows={2} placeholder={t("lc_description")} value={description} onChange={(e) => setDescription(e.target.value)} />
+        <div className="flex items-center gap-2">
+          <Select value={severity} onValueChange={setSeverity}>
+            <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="low">{t("lc_severity_low")}</SelectItem>
+              <SelectItem value="medium">{t("lc_severity_medium")}</SelectItem>
+              <SelectItem value="high">{t("lc_severity_high")}</SelectItem>
+              <SelectItem value="critical">{t("lc_severity_critical")}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button size="sm" onClick={() => report.mutate()} disabled={!title.trim() || !description.trim() || report.isPending} data-testid={`incident-submit-${bookingId}`}>{t("lc_report_incident")}</Button>
+        </div>
+      </div>
+      {incidents && incidents.length > 0 && (
+        <div className="mt-2 space-y-1">
+          {incidents.map((i) => (
+            <div key={i.id} className="rounded-md border p-2 text-xs flex items-center justify-between">
+              <span>{i.title} <span className="text-muted-foreground">({i.severity})</span></span>
+              <Badge variant={i.status === "resolved" ? "default" : "secondary"} className="capitalize">{i.status}</Badge>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

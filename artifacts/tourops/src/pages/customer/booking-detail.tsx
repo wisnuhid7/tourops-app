@@ -449,6 +449,7 @@ export default function CustomerBookingDetail() {
           <TabsTrigger value="documents" data-testid="tab-documents"><FileText className="h-3.5 w-3.5 mr-1" />{t("tab_documents")}</TabsTrigger>
           <TabsTrigger value="messages" data-testid="tab-customer-messages"><MessageSquare className="h-3.5 w-3.5 mr-1" />{t("tab_messages")}</TabsTrigger>
           <TabsTrigger value="payments" data-testid="tab-payments"><CreditCard className="h-3.5 w-3.5 mr-1" />{t("tab_payments")}</TabsTrigger>
+          <TabsTrigger value="changes" data-testid="tab-changes"><AlertTriangle className="h-3.5 w-3.5 mr-1" />{t("lc_tab_change_requests")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4 space-y-4">
@@ -1177,7 +1178,101 @@ export default function CustomerBookingDetail() {
             </Card>
           )}
         </TabsContent>
+
+        <TabsContent value="changes" className="mt-4 space-y-4">
+          {bookingId && <ChangeRequestsSection bookingId={bookingId} />}
+        </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function ChangeRequestsSection({ bookingId }: { bookingId: string }) {
+  const { t } = useLanguage();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [requestType, setRequestType] = useState("other");
+  const [details, setDetails] = useState("");
+  const [paxDelta, setPaxDelta] = useState("");
+
+  const { data: requests } = useQuery<any[]>({ queryKey: [`/api/bookings/${bookingId}/change-requests`] });
+
+  const submit = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/my-bookings/${bookingId}/change-requests`, {
+      requestType,
+      details,
+      paxDelta: (requestType === "add_passengers" || requestType === "remove_passengers") && paxDelta ? parseInt(paxDelta) : undefined,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/bookings/${bookingId}/change-requests`] });
+      setOpen(false); setDetails(""); setPaxDelta(""); setRequestType("other");
+      toast({ title: t("lc_request_submitted") });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const needsPax = requestType === "add_passengers" || requestType === "remove_passengers";
+
+  return (
+    <Card>
+      <CardContent className="pt-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold">{t("lc_my_change_requests")}</h3>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" data-testid="button-request-change"><Plus className="h-4 w-4 mr-1" />{t("lc_request_change")}</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>{t("lc_request_change")}</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div>
+                  <Label>{t("lc_request_type")}</Label>
+                  <Select value={requestType} onValueChange={setRequestType}>
+                    <SelectTrigger data-testid="select-request-type"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="add_passengers">{t("lc_req_add_passengers")}</SelectItem>
+                      <SelectItem value="remove_passengers">{t("lc_req_remove_passengers")}</SelectItem>
+                      <SelectItem value="date_change">{t("lc_req_date_change")}</SelectItem>
+                      <SelectItem value="other">{t("lc_req_other")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {needsPax && (
+                  <div>
+                    <Label>{t("lc_pax_delta")}</Label>
+                    <Input type="number" value={paxDelta} onChange={(e) => setPaxDelta(e.target.value)} data-testid="input-pax-delta" />
+                  </div>
+                )}
+                <div>
+                  <Label>{t("lc_details")}</Label>
+                  <Textarea rows={3} value={details} onChange={(e) => setDetails(e.target.value)} data-testid="input-change-details" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setOpen(false)}>{t("cancel")}</Button>
+                <Button onClick={() => submit.mutate()} disabled={!details.trim() || submit.isPending} data-testid="button-submit-change">{t("lc_submit_request")}</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {!requests?.length ? (
+          <p className="text-sm text-muted-foreground">{t("lc_no_change_requests")}</p>
+        ) : (
+          <div className="space-y-2">
+            {requests.map((r) => (
+              <div key={r.id} className="rounded-md border p-3 space-y-1" data-testid={`my-change-request-${r.id}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <Badge variant="outline" className="capitalize">{r.requestType?.replace("_", " ")}</Badge>
+                  <Badge variant={r.status === "approved" ? "default" : r.status === "rejected" ? "destructive" : "secondary"} className="capitalize">{r.status}</Badge>
+                </div>
+                <p className="text-sm">{r.details}</p>
+                {r.resolutionNotes && <p className="text-xs text-muted-foreground">{r.resolutionNotes}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

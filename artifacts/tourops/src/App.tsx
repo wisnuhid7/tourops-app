@@ -61,6 +61,9 @@ import ResetPasswordPage from "@/pages/reset-password";
 import VerifyEmailPage from "@/pages/verify-email";
 import AccountSecurityPage from "@/pages/account-security";
 import AdminTestData from "@/pages/admin/test-data";
+import AcceptInvitePage from "@/pages/passenger/accept-invite";
+import PassengerPortal from "@/pages/passenger/portal";
+import BookingOperations from "@/pages/ops/booking-operations";
 import { TestEnvironmentBanner } from "@/components/test-environment-banner";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -171,6 +174,8 @@ function AuthenticatedLayout() {
             <Route path="/my-bookings/:id" component={CustomerBookingDetail} />
             <Route path="/checkout/:bookingId" component={Checkout} />
             <Route path="/join-groups" component={JoinGroups} />
+            <Route path="/passenger" component={PassengerPortal} />
+            <Route path="/passenger/accept-invite" component={AcceptInvitePage} />
             <Route path="/quotes/shared/:token" component={CustomerQuoteView} />
             <Route path="/quotes/:id" component={CustomerQuoteView} />
 
@@ -190,6 +195,7 @@ function AuthenticatedLayout() {
             <Route path="/ops/assignments" component={AdminAssignments} />
             <Route path="/ops/support" component={SupportDashboard} />
             <Route path="/ops/workflows/:id" component={AdminWorkflowDetail} />
+            <Route path="/ops/booking-operations/:bookingId" component={BookingOperations} />
 
             {/* Redirects */}
             <Route path="/admin/airline-search">
@@ -248,6 +254,7 @@ function AppRouter() {
           <Route path="/forgot-password" component={ForgotPasswordPage} />
           <Route path="/reset-password" component={ResetPasswordPage} />
           <Route path="/verify-email" component={VerifyEmailPage} />
+          <Route path="/passenger/accept-invite" component={AcceptInvitePage} />
           <Route path="/tours/:id/brochure" component={TourBrochure} />
           <Route path="/tours/:id" component={TourDetail} />
           <Route path="/tours" component={BrowseTours} />

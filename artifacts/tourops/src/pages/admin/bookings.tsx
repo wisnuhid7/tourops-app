@@ -9,8 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
-import { Link } from "wouter";
-import { Search, BookOpen, Filter, ArrowRight, Users, Calendar, MapPin, CheckSquare, Square, Plus, Trash2 } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { Search, BookOpen, Filter, ArrowRight, Users, Calendar, MapPin, CheckSquare, Square, Plus, Trash2, Settings } from "lucide-react";
 import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES } from "@/lib/constants";
 import type { Booking, UserProfile } from "@workspace/db";
 import * as XLSX from "xlsx";
@@ -26,6 +26,7 @@ export default function AdminBookings() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -417,6 +418,16 @@ export default function AdminBookings() {
                         <Badge variant={booking.fulfillmentStatus === "completed" ? "default" : booking.fulfillmentStatus === "blocked" ? "destructive" : "outline"}>
                           {FULFILLMENT_STATUSES[booking.fulfillmentStatus || "pending"]}
                         </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title={t("lc_operations")}
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setLocation(`/ops/booking-operations/${booking.id}`); }}
+                          data-testid={`button-operations-${booking.id}`}
+                        >
+                          <Settings className="h-4 w-4" />
+                        </Button>
                         {isAdmin && (
                           <Button
                             variant="ghost"

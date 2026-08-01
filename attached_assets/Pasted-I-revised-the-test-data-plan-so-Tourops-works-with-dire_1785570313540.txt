@@ -1,0 +1,2124 @@
+I revised the test-data plan so Tourops works with **direct clients, family/group organizers, and tour leaders—not travel agencies**. The supplier, itinerary, quotation, acceptance, booking, and confirmation workflows remain intact. 
+
+# Tourops Test Data Population and End-to-End Testing Instructions
+
+## Direct Client, Tour Leader, Supplier, Quotation, and Booking Workflow
+
+---
+
+# 1. Purpose
+
+Create a complete non-production test environment for Tourops.
+
+The Replit developer must populate the database in the correct sequence so the entire application can be tested from the beginning of the business process.
+
+Tourops does **not** use a travel agency as the client in this scenario.
+
+The client may be:
+
+1. An individual booking for themselves
+2. A family organizer booking for a family
+3. A group organizer arranging travel for a private group
+4. A tour leader organizing a group tour
+5. A company or organization arranging travel for its members
+
+The first complete test scenario must cover:
+
+1. Super Admin creates an Admin user.
+2. Admin creates internal company users.
+3. Admin creates supplier companies.
+4. Admin creates supplier user accounts.
+5. Supplier users complete their company profiles.
+6. Admin reviews and approves suppliers.
+7. Suppliers create services and rates.
+8. Admin creates a tour itinerary using supplier services.
+9. Admin configures pricing rules.
+10. A direct client or tour leader creates an account.
+11. The client selects a tour itinerary.
+12. The client selects the departure date, departure city, group size, hotel choice, and room requirements.
+13. The client requests a quotation.
+14. Tourops calculates the complete tour price.
+15. Admin reviews and approves the quotation.
+16. The client receives and accepts the quotation.
+17. The quotation is converted into a booking.
+18. Suppliers receive requests for the services assigned to them.
+19. Suppliers confirm or reject their assigned services.
+20. Tourops Operations completes the booking confirmation process.
+
+The test data must be:
+
+* Realistic
+* Connected
+* Reusable
+* Repeatable
+* Safe for the staging environment
+* Clearly identified as test data
+
+---
+
+# 2. Client Account Types
+
+Tourops must support direct clients instead of travel agencies.
+
+Create the following client account types:
+
+## 2.1 Individual Customer
+
+A person booking a tour for themselves or a small number of travelers.
+
+## 2.2 Family Organizer
+
+A person booking a tour package for their family.
+
+## 2.3 Group Organizer
+
+A person responsible for arranging a private group.
+
+## 2.4 Tour Leader
+
+A person organizing, promoting, or managing a group tour.
+
+## 2.5 Organization Representative
+
+A person booking for a church, school, company, association, nonprofit organization, or other group.
+
+The client account type must be stored on the client profile.
+
+---
+
+# 3. Important Environment Rules
+
+All test data must be created only in a test or staging environment.
+
+Do not populate test records in the production database.
+
+The test environment must display a visible label:
+
+```text
+TOUROPS TEST ENVIRONMENT
+```
+
+Use only fictional:
+
+* People
+* Companies
+* Suppliers
+* Client accounts
+* Passenger information
+* Contact information
+* Payment information
+* Documents
+
+Use test email addresses such as:
+
+```text
+@example.com
+@test.tourops.local
+```
+
+Do not use:
+
+* Real payment cards
+* Real bank accounts
+* Real passports
+* Real government identification
+* Real supplier agreements
+* Real insurance documents
+
+Do not send real:
+
+* Emails
+* SMS messages
+* WhatsApp messages
+* Payment requests
+* Supplier requests
+* Booking confirmations
+
+All communications must be captured by a safe test service.
+
+---
+
+# 4. Required Replit Deliverables
+
+Replit must create:
+
+1. Database reset script
+2. Master-data seed script
+3. Internal-user seed script
+4. Supplier-company seed script
+5. Supplier-user seed script
+6. Supplier-service seed script
+7. Transportation-rate seed script
+8. Guide-rate seed script
+9. Sightseeing-rate seed script
+10. Hotel and hotel-rate seed script
+11. Airfare-rate seed script
+12. Pricing-rule seed script
+13. Itinerary seed script
+14. Direct-client seed script
+15. Tour-leader seed script
+16. Passenger seed script
+17. Quotation-request seed script
+18. Pricing-calculation seed script
+19. Booking seed script
+20. Supplier-confirmation seed script
+21. Automated validation script
+22. Test-login document
+23. End-to-end testing checklist
+24. Seed execution report
+25. Data-cleanup instructions
+26. Rollback instructions
+
+Suggested commands:
+
+```bash
+npm run db:test:reset
+npm run db:test:seed
+npm run db:test:validate
+npm run test:e2e
+```
+
+The exact command names may follow the current Tourops project structure.
+
+---
+
+# 5. Seed Script Requirements
+
+The seed process must be:
+
+* Repeatable
+* Idempotent
+* Transactional
+* Logged
+* Safe for staging
+* Blocked in production
+
+## 5.1 Idempotent Requirement
+
+Running the seed more than once must not create duplicate records.
+
+Use permanent test codes such as:
+
+```text
+TEST-ADMIN-001
+TEST-CLIENT-001
+TEST-TOURLEADER-001
+TEST-SUPPLIER-TRANSPORT-001
+TEST-SUPPLIER-HOTEL-001
+TEST-ITINERARY-001
+TEST-QUOTE-001
+TEST-BOOKING-001
+```
+
+Use database upsert operations where appropriate.
+
+## 5.2 Production Protection
+
+The test-data process must stop immediately when:
+
+```text
+NODE_ENV=production
+```
+
+It must also stop when the connected database is identified as a production database.
+
+## 5.3 Transaction Requirement
+
+Each seed phase must run inside a database transaction.
+
+If a phase fails:
+
+1. Roll back the failed phase.
+2. Preserve successfully completed previous phases when appropriate.
+3. Record the error.
+4. Display the failed record.
+5. Display the failed seed phase.
+6. Do not leave incomplete dependent records.
+
+---
+
+# 6. Correct Data Population Sequence
+
+Populate test data in this exact dependency order:
+
+1. Main Tourops company
+2. Countries
+3. Currencies
+4. Exchange rates
+5. Destinations
+6. Cities
+7. Airports
+8. Travel seasons
+9. Group-size bands
+10. Supplier categories
+11. Internal roles
+12. External roles
+13. Client account types
+14. Guide types
+15. Guide assignment rules
+16. Occupancy types
+17. Transportation service types
+18. Sightseeing charge types
+19. Rate-basis types
+20. Initial Super Admin
+21. Internal test users
+22. Supplier companies
+23. Supplier users
+24. Supplier profiles
+25. Supplier compliance records
+26. Transportation services and rates
+27. Guide services and rates
+28. Sightseeing services and rates
+29. Hotels and hotel rates
+30. Airfare rates
+31. Profit rules
+32. Free-passenger rules
+33. Rounding rules
+34. Test itinerary
+35. Itinerary days
+36. Itinerary transportation assignments
+37. Itinerary guide assignments
+38. Itinerary sightseeing assignments
+39. Itinerary hotel options
+40. Itinerary hotel-night assignments
+41. Direct-client account
+42. Tour-leader account
+43. Passenger records
+44. Quotation request
+45. Pricing calculation
+46. Quote approval snapshot
+47. Client acceptance
+48. Booking
+49. Supplier service requests
+50. Supplier confirmations
+51. Payment schedule
+52. Final validation report
+
+Do not change this sequence unless the existing database dependencies require a documented adjustment.
+
+---
+
+# 7. Phase 1: System and Master Data
+
+## 7.1 Main Company Profile
+
+Create:
+
+| Field            | Test Value              |
+| ---------------- | ----------------------- |
+| Company Name     | Tourops Test Operations |
+| Company Code     | TOUROPS-TEST            |
+| Default Currency | USD                     |
+| Time Zone        | America/New_York        |
+| Country          | United States           |
+| Status           | Active                  |
+
+---
+
+## 7.2 Countries
+
+Create at least:
+
+* United States
+* Israel
+* Jordan
+* Dominican Republic
+
+Required fields:
+
+* Country name
+* ISO country code
+* Default currency
+* Default time zone
+* Active status
+
+---
+
+## 7.3 Currencies
+
+Create:
+
+* USD
+* EUR
+* ILS
+* JOD
+* DOP
+
+USD will be the default selling and quotation currency for the main test scenario.
+
+---
+
+## 7.4 Test Exchange Rates
+
+Create test exchange rates into USD:
+
+| Source Currency | Target Currency | Test Rate |
+| --------------- | --------------- | --------: |
+| EUR             | USD             |      1.10 |
+| ILS             | USD             |      0.28 |
+| JOD             | USD             |      1.41 |
+| DOP             | USD             |     0.017 |
+
+These rates must be labeled:
+
+```text
+TEST EXCHANGE RATE — NOT FOR PRODUCTION
+```
+
+---
+
+## 7.5 Destinations and Cities
+
+### Israel
+
+Create:
+
+* Tel Aviv
+* Jerusalem
+* Tiberias
+* Nazareth
+* Bethlehem
+
+Bethlehem must be connected to the appropriate country, region, and operational destination structure used by Tourops.
+
+### Jordan
+
+Create:
+
+* Amman
+* Petra
+* Madaba
+* Aqaba
+
+### United States Departure Cities
+
+Create:
+
+* New York
+* Miami
+* Chicago
+* Dallas
+* Los Angeles
+
+### Airports
+
+Create:
+
+* JFK
+* MIA
+* ORD
+* DFW
+* LAX
+* TLV
+* AMM
+
+---
+
+## 7.6 Travel Seasons
+
+Create:
+
+| Season           | Dates                   | Priority |
+| ---------------- | ----------------------- | -------: |
+| Low Season       | January 10–March 15     |       10 |
+| Regular Season   | March 16–June 14        |       20 |
+| Summer Season    | June 15–August 31       |       30 |
+| High Season      | September 1–November 30 |       40 |
+| Christmas Season | December 1–January 9    |       50 |
+
+The developer must correctly support seasons that cross the end of the calendar year.
+
+---
+
+## 7.7 Group-Size Categories
+
+Create:
+
+| Code        | Minimum | Maximum |
+| ----------- | ------: | ------: |
+| GROUP_2_5   |       2 |       5 |
+| GROUP_6_9   |       6 |       9 |
+| GROUP_10_15 |      10 |      15 |
+| GROUP_16_25 |      16 |      25 |
+| GROUP_26_40 |      26 |      40 |
+| GROUP_41_55 |      41 |      55 |
+
+Validation requirements:
+
+* Categories must not overlap.
+* Only one category may match a passenger count.
+* Minimum must not exceed maximum.
+* Passenger counts outside the configured ranges must generate an error.
+
+---
+
+## 7.8 Supplier Categories
+
+Create:
+
+1. Transportation company
+2. Hotel
+3. Tour guide company
+4. Independent tour guide
+5. Sightseeing attraction
+6. Restaurant
+7. Airfare provider
+8. Local operations company
+9. Activity provider
+10. Other service provider
+
+---
+
+## 7.9 Internal User Roles
+
+Create or confirm:
+
+* Super Admin
+* Admin
+* Operations Manager
+* Accounting
+* Support Agent
+* Pricing Manager
+* Sales Manager
+
+---
+
+## 7.10 External User Roles
+
+Create or confirm:
+
+* Supplier Administrator
+* Supplier Staff
+* Tour Leader
+* Group Organizer
+* Family Organizer
+* Individual Customer
+* Organization Representative
+
+Remove or deactivate these roles when they are not used by Tourops:
+
+* Travel Agency Administrator
+* Travel Agency Agent
+
+No part of this test scenario may depend on a travel agency account.
+
+---
+
+## 7.11 Client Account Types
+
+Create:
+
+| Code             | Account Type                |
+| ---------------- | --------------------------- |
+| INDIVIDUAL       | Individual Customer         |
+| FAMILY_ORGANIZER | Family Organizer            |
+| GROUP_ORGANIZER  | Group Organizer             |
+| TOUR_LEADER      | Tour Leader                 |
+| ORGANIZATION     | Organization Representative |
+
+---
+
+## 7.12 Guide Types
+
+Create:
+
+| Code               | Guide Type              |
+| ------------------ | ----------------------- |
+| DRIVER_CHAPERONE   | Driver-Chaperone        |
+| PROFESSIONAL_GUIDE | Professional Tour Guide |
+
+Default guide rules:
+
+* 1–15 passengers: Driver-Chaperone
+* 16 or more passengers: Professional Tour Guide
+
+---
+
+## 7.13 Occupancy Types
+
+Create:
+
+* Double occupancy
+* Single occupancy
+* Third person
+* Child
+* Infant
+
+---
+
+## 7.14 Transportation Service Types
+
+Create:
+
+* Airport arrival transfer
+* Airport departure transfer
+* Hotel transfer
+* Intercity transportation
+* Full-day sightseeing transportation
+* Half-day sightseeing transportation
+* Evening transportation
+* Border transfer
+* Luggage transfer
+* Special-event transportation
+
+---
+
+## 7.15 Sightseeing Charge Types
+
+Create:
+
+* Per person
+* Per group
+
+---
+
+## 7.16 Rate Basis Types
+
+Create or confirm:
+
+* Per passenger
+* Per group
+* Per vehicle
+* Per room per night
+* Per person per night
+* Per day
+* Half day
+* Per service
+
+---
+
+# 8. Phase 2: Create the Initial Super Admin
+
+Create one initial Super Admin through the seed process.
+
+| Field                     | Test Value                                                            |
+| ------------------------- | --------------------------------------------------------------------- |
+| First Name                | Sarah                                                                 |
+| Last Name                 | Master                                                                |
+| Email                     | [superadmin@test.tourops.local](mailto:superadmin@test.tourops.local) |
+| Role                      | Super Admin                                                           |
+| Status                    | Active                                                                |
+| Email Verified            | Yes                                                                   |
+| Two-Factor Authentication | Optional for test environment                                         |
+
+Use an environment variable:
+
+```text
+TEST_SUPER_ADMIN_PASSWORD
+```
+
+Do not hard-code the password in the repository.
+
+---
+
+# 9. Phase 3: Super Admin Creates an Admin
+
+## Test Scenario 3.1
+
+The Super Admin must:
+
+1. Sign in.
+2. Open User Management.
+3. Select “Create User.”
+4. Select “Internal User.”
+5. Enter the user’s details.
+6. Assign the Admin role.
+7. Assign Tourops Test Operations.
+8. Activate the user.
+9. Save.
+10. Verify the user appears in the list.
+11. Verify the audit log.
+12. Sign out.
+13. Sign in as the new Admin.
+
+## Test Admin
+
+| Field      | Test Value                                                  |
+| ---------- | ----------------------------------------------------------- |
+| First Name | Daniel                                                      |
+| Last Name  | Test Admin                                                  |
+| Email      | [admin@test.tourops.local](mailto:admin@test.tourops.local) |
+| Role       | Admin                                                       |
+| Status     | Active                                                      |
+
+## Expected Results
+
+* A unique user ID is generated.
+* The Admin receives the correct permissions.
+* The Admin cannot access Super Admin-only functions.
+* The creation event appears in the audit log.
+* The Admin can sign in successfully.
+* The Admin sees the correct dashboard.
+
+---
+
+# 10. Phase 4: Admin Creates Internal Users
+
+Create:
+
+## Operations Manager
+
+| Field | Value                                                                 |
+| ----- | --------------------------------------------------------------------- |
+| Name  | Olivia Operations                                                     |
+| Email | [operations@test.tourops.local](mailto:operations@test.tourops.local) |
+| Role  | Operations Manager                                                    |
+
+## Accounting User
+
+| Field | Value                                                                 |
+| ----- | --------------------------------------------------------------------- |
+| Name  | Adam Accounting                                                       |
+| Email | [accounting@test.tourops.local](mailto:accounting@test.tourops.local) |
+| Role  | Accounting                                                            |
+
+## Support Agent
+
+| Field | Value                                                           |
+| ----- | --------------------------------------------------------------- |
+| Name  | Sofia Support                                                   |
+| Email | [support@test.tourops.local](mailto:support@test.tourops.local) |
+| Role  | Support Agent                                                   |
+
+## Pricing Manager
+
+| Field | Value                                                           |
+| ----- | --------------------------------------------------------------- |
+| Name  | Peter Pricing                                                   |
+| Email | [pricing@test.tourops.local](mailto:pricing@test.tourops.local) |
+| Role  | Pricing Manager                                                 |
+
+## Sales Manager
+
+| Field | Value                                                       |
+| ----- | ----------------------------------------------------------- |
+| Name  | Susan Sales                                                 |
+| Email | [sales@test.tourops.local](mailto:sales@test.tourops.local) |
+| Role  | Sales Manager                                               |
+
+## Expected Results
+
+* Every user receives only the correct permissions.
+* Support cannot see supplier costs or profit margins.
+* Accounting can see financial information but cannot change itinerary operations unless authorized.
+* Operations can build itineraries and service assignments.
+* Pricing Manager can manage rates and pricing rules.
+* Sales Manager can work with client quotations but cannot change supplier costs without permission.
+
+---
+
+# 11. Phase 5: Admin Creates Supplier Companies
+
+Suppliers must be created before supplier users are invited.
+
+## Supplier 1: Transportation Company
+
+| Field           | Test Value                         |
+| --------------- | ---------------------------------- |
+| Supplier Code   | TEST-TRANSPORT-001                 |
+| Legal Name      | Holy Land Test Transportation Ltd. |
+| Display Name    | Holy Land Transport                |
+| Supplier Type   | Transportation Company             |
+| Country         | Israel                             |
+| City            | Jerusalem                          |
+| Currency        | USD                                |
+| Status          | Pending Profile Completion         |
+| Approval Status | Pending                            |
+| Tax ID          | TEST-TAX-TRANSPORT-001             |
+
+Add test placeholders for:
+
+* Address
+* Operations phone
+* Emergency phone
+* Accounting email
+* Operations email
+* Insurance expiration
+* License expiration
+* Service regions
+* Supported currencies
+* Banking status
+* Contract status
+
+---
+
+## Supplier 2: Hotel Company
+
+| Field           | Test Value                      |
+| --------------- | ------------------------------- |
+| Supplier Code   | TEST-HOTEL-001                  |
+| Legal Name      | Jerusalem Test Hospitality Ltd. |
+| Display Name    | Jerusalem Test Hotel Group      |
+| Supplier Type   | Hotel                           |
+| Country         | Israel                          |
+| City            | Jerusalem                       |
+| Currency        | USD                             |
+| Status          | Pending Profile Completion      |
+| Approval Status | Pending                         |
+
+---
+
+## Supplier 3: Guide Company
+
+| Field           | Test Value                      |
+| --------------- | ------------------------------- |
+| Supplier Code   | TEST-GUIDE-001                  |
+| Legal Name      | Biblical Lands Test Guides Ltd. |
+| Display Name    | Biblical Lands Guides           |
+| Supplier Type   | Tour Guide Company              |
+| Country         | Israel                          |
+| City            | Jerusalem                       |
+| Currency        | USD                             |
+| Status          | Pending Profile Completion      |
+| Approval Status | Pending                         |
+
+---
+
+## Supplier 4: Sightseeing Supplier
+
+| Field           | Test Value                    |
+| --------------- | ----------------------------- |
+| Supplier Code   | TEST-SIGHT-001                |
+| Legal Name      | Jerusalem Heritage Test Sites |
+| Display Name    | Jerusalem Heritage Sites      |
+| Supplier Type   | Sightseeing Attraction        |
+| Country         | Israel                        |
+| City            | Jerusalem                     |
+| Currency        | USD                           |
+| Status          | Pending Profile Completion    |
+| Approval Status | Pending                       |
+
+---
+
+## Supplier 5: Jordan Operations Supplier
+
+| Field           | Test Value                      |
+| --------------- | ------------------------------- |
+| Supplier Code   | TEST-JORDAN-OPS-001             |
+| Legal Name      | Jordan Test Ground Services LLC |
+| Display Name    | Jordan Ground Services          |
+| Supplier Type   | Local Operations Company        |
+| Country         | Jordan                          |
+| City            | Amman                           |
+| Currency        | JOD                             |
+| Status          | Pending Profile Completion      |
+| Approval Status | Pending                         |
+
+---
+
+# 12. Supplier Company Creation Workflow
+
+For each supplier, the Admin must:
+
+1. Open Supplier Management.
+2. Select “Create Supplier.”
+3. Choose the supplier category.
+4. Enter the legal name.
+5. Enter the display name.
+6. Enter the country and city.
+7. Enter contact information.
+8. Select the currency.
+9. Select service regions.
+10. Add test compliance documents.
+11. Assign the initial status.
+12. Save.
+13. Verify a unique supplier ID.
+14. Verify the supplier appears in the supplier list.
+15. Verify the supplier has no login access yet.
+16. Verify the audit log.
+
+---
+
+# 13. Phase 6: Admin Creates Supplier Users
+
+## Transportation Supplier Administrator
+
+| Field    | Value                                                                           |
+| -------- | ------------------------------------------------------------------------------- |
+| Name     | Thomas Transport                                                                |
+| Email    | [transport.admin@test.tourops.local](mailto:transport.admin@test.tourops.local) |
+| Role     | Supplier Administrator                                                          |
+| Supplier | Holy Land Transport                                                             |
+| Status   | Invited                                                                         |
+
+## Hotel Supplier Administrator
+
+| Field    | Value                                                                   |
+| -------- | ----------------------------------------------------------------------- |
+| Name     | Hannah Hotel                                                            |
+| Email    | [hotel.admin@test.tourops.local](mailto:hotel.admin@test.tourops.local) |
+| Role     | Supplier Administrator                                                  |
+| Supplier | Jerusalem Test Hotel Group                                              |
+| Status   | Invited                                                                 |
+
+## Guide Supplier Administrator
+
+| Field    | Value                                                                   |
+| -------- | ----------------------------------------------------------------------- |
+| Name     | Gabriel Guide                                                           |
+| Email    | [guide.admin@test.tourops.local](mailto:guide.admin@test.tourops.local) |
+| Role     | Supplier Administrator                                                  |
+| Supplier | Biblical Lands Guides                                                   |
+| Status   | Invited                                                                 |
+
+## Sightseeing Supplier Administrator
+
+| Field    | Value                                                                   |
+| -------- | ----------------------------------------------------------------------- |
+| Name     | Samuel Sight                                                            |
+| Email    | [sight.admin@test.tourops.local](mailto:sight.admin@test.tourops.local) |
+| Role     | Supplier Administrator                                                  |
+| Supplier | Jerusalem Heritage Sites                                                |
+| Status   | Invited                                                                 |
+
+## Jordan Supplier Administrator
+
+| Field    | Value                                                                     |
+| -------- | ------------------------------------------------------------------------- |
+| Name     | Jamal Jordan                                                              |
+| Email    | [jordan.admin@test.tourops.local](mailto:jordan.admin@test.tourops.local) |
+| Role     | Supplier Administrator                                                    |
+| Supplier | Jordan Ground Services                                                    |
+| Status   | Invited                                                                   |
+
+---
+
+# 14. Supplier Invitation and Approval Test
+
+For every supplier:
+
+1. Admin opens the supplier.
+2. Admin selects “Invite Supplier User.”
+3. Admin enters the user details.
+4. Admin assigns Supplier Administrator.
+5. System connects the user to the correct supplier.
+6. System creates the invitation.
+7. Test-email service captures the invitation.
+8. Supplier opens the invitation.
+9. Supplier creates a password.
+10. Supplier accepts the terms.
+11. Supplier signs in.
+12. Supplier sees only their company.
+13. Supplier completes the profile.
+14. Supplier uploads test compliance documents.
+15. Supplier submits the profile for approval.
+16. Admin reviews the profile.
+17. Admin approves or rejects the supplier.
+18. Approved supplier status changes to Active.
+
+## Supplier Isolation Test
+
+A supplier must not be able to see:
+
+* Another supplier’s company
+* Another supplier’s users
+* Another supplier’s services
+* Another supplier’s rates
+* Tourops profit margins
+* Tourops final selling prices
+* Complete client records
+* Complete itinerary financial calculations
+* Other supplier confirmations
+
+---
+
+# 15. Supplier Profile Completion
+
+Each supplier must complete:
+
+* Company description
+* Main contact
+* Operations contact
+* Emergency contact
+* Accounting contact
+* Service area
+* Supported languages
+* Operating hours
+* Cancellation policy
+* Payment terms
+* Insurance information
+* License information
+* Contract placeholder
+* Tax-information placeholder
+* Supported currencies
+
+The Admin must not activate a supplier when required information is missing.
+
+---
+
+# 16. Phase 7: Transportation Services and Rates
+
+Create:
+
+## Airport Arrival Transfer
+
+| Field        | Value                    |
+| ------------ | ------------------------ |
+| Service Code | TEST-TR-ARRIVAL-TLV-JER  |
+| Service      | TLV Airport to Jerusalem |
+| Type         | Airport Arrival Transfer |
+| Origin       | TLV Airport              |
+| Destination  | Jerusalem                |
+| Rate Basis   | Per Vehicle              |
+| Currency     | USD                      |
+
+| Group Size | Vehicle     | Capacity |   Cost |
+| ---------- | ----------- | -------: | -----: |
+| 2–5        | Van         |        5 |   $250 |
+| 6–9        | Minibus     |        9 |   $380 |
+| 10–15      | Minibus     |       15 |   $500 |
+| 16–25      | Coach       |       25 |   $700 |
+| 26–40      | Coach       |       40 |   $900 |
+| 41–55      | Large Coach |       55 | $1,150 |
+
+## Airport Departure Transfer
+
+Route:
+
+```text
+Jerusalem to TLV Airport
+```
+
+Use the same test rates.
+
+## Jerusalem Full-Day Transportation
+
+| Group Size | Test Cost |
+| ---------- | --------: |
+| 2–5        |      $450 |
+| 6–9        |      $550 |
+| 10–15      |      $700 |
+| 16–25      |      $900 |
+| 26–40      |    $1,100 |
+| 41–55      |    $1,300 |
+
+Rate basis:
+
+```text
+PER_GROUP
+```
+
+## Jerusalem to Tiberias
+
+| Group Size | Test Cost |
+| ---------- | --------: |
+| 2–5        |      $500 |
+| 6–9        |      $650 |
+| 10–15      |      $800 |
+| 16–25      |    $1,000 |
+| 26–40      |    $1,250 |
+| 41–55      |    $1,500 |
+
+---
+
+# 17. Phase 8: Guide Services and Rates
+
+## Driver-Chaperone
+
+| Field      | Value            |
+| ---------- | ---------------- |
+| Guide Type | Driver-Chaperone |
+| Rate Basis | Per Day          |
+| Cost       | $275             |
+| Currency   | USD              |
+| Group Rule | 1–15 passengers  |
+
+## Professional Tour Guide
+
+| Field      | Value                   |
+| ---------- | ----------------------- |
+| Guide Type | Professional Tour Guide |
+| Rate Basis | Per Day                 |
+| Cost       | $400                    |
+| Currency   | USD                     |
+| Group Rule | 16 or more passengers   |
+
+Also create:
+
+* Full-day guide
+* Half-day guide
+* Airport assistance
+* Border assistance
+
+---
+
+# 18. Phase 9: Sightseeing Services and Rates
+
+## Jerusalem Museum
+
+| Field        | Value      |
+| ------------ | ---------- |
+| Charge Basis | Per Person |
+| Adult        | $25        |
+| Child        | $15        |
+| Infant       | $0         |
+
+## Historical Site Entrance
+
+| Field        | Value      |
+| ------------ | ---------- |
+| Charge Basis | Per Person |
+| Adult        | $15        |
+| Child        | $10        |
+| Infant       | $0         |
+
+## Private Group Experience
+
+| Field        | Value     |
+| ------------ | --------- |
+| Charge Basis | Per Group |
+| Group Cost   | $1,000    |
+
+## Galilee Boat Ride
+
+| Field        | Value      |
+| ------------ | ---------- |
+| Charge Basis | Per Person |
+| Adult        | $40        |
+| Child        | $25        |
+| Infant       | $0         |
+
+---
+
+# 19. Phase 10: Hotel Data and Rates
+
+Create three hotel choices.
+
+## Hotel Choice 1: Standard
+
+```text
+Jerusalem Test Standard Hotel
+```
+
+| Occupancy    | Rate Per Person Per Night |
+| ------------ | ------------------------: |
+| Double       |                      $150 |
+| Single       |                      $230 |
+| Third Person |                      $100 |
+| Child        |                       $75 |
+| Infant       |                        $0 |
+
+## Hotel Choice 2: Superior
+
+```text
+Jerusalem Test Superior Hotel
+```
+
+| Occupancy    | Rate Per Person Per Night |
+| ------------ | ------------------------: |
+| Double       |                      $190 |
+| Single       |                      $285 |
+| Third Person |                      $125 |
+| Child        |                       $95 |
+| Infant       |                        $0 |
+
+## Hotel Choice 3: Premium
+
+```text
+Jerusalem Test Premium Hotel
+```
+
+| Occupancy    | Rate Per Person Per Night |
+| ------------ | ------------------------: |
+| Double       |                      $250 |
+| Single       |                      $375 |
+| Third Person |                      $165 |
+| Child        |                      $125 |
+| Infant       |                        $0 |
+
+Configure:
+
+* Standard room category
+* Breakfast included
+* Per-person-per-night pricing
+* USD
+* Rate dates covering the test departure
+
+---
+
+# 20. Phase 11: Airfare Data
+
+Create airfare records from:
+
+* New York
+* Miami
+* Chicago
+* Dallas
+* Los Angeles
+
+Destination:
+
+```text
+Tel Aviv
+```
+
+## New York Test Fare
+
+| Passenger Type | Fare |
+| -------------- | ---: |
+| Adult          | $700 |
+| Child          | $550 |
+| Infant         | $100 |
+
+Other fields:
+
+* Departure airport: JFK
+* Arrival airport: TLV
+* Taxes included: Yes
+* Baggage: One checked bag
+* Status: Estimated
+* Confirmation required: Yes
+* Currency: USD
+
+---
+
+# 21. Phase 12: Pricing Rules
+
+## Profit Rule
+
+| Field      | Value                |
+| ---------- | -------------------- |
+| Rule       | Standard Test Profit |
+| Type       | Percentage           |
+| Margin     | 20%                  |
+| Applies To | Complete tour cost   |
+| Status     | Active               |
+
+## Free-Passenger Rule
+
+| Field             | Value                     |
+| ----------------- | ------------------------- |
+| Rule              | One Free for Three Paying |
+| Paying Passengers | 3                         |
+| Free Passengers   | 1                         |
+| Pricing Factor    | 4 ÷ 3                     |
+| Applies To        | Complete tour package     |
+| Status            | Active                    |
+
+## Rounding Rule
+
+```text
+Round the final selling price up to the nearest whole dollar.
+```
+
+---
+
+# 22. Phase 13: Create Test Itinerary
+
+| Field          | Value                           |
+| -------------- | ------------------------------- |
+| Itinerary Code | TEST-ITINERARY-001              |
+| Name           | 8-Day Biblical Israel Test Tour |
+| Destination    | Israel                          |
+| Duration       | 8 days                          |
+| Hotel Nights   | 7 nights                        |
+| Currency       | USD                             |
+| Status         | Draft                           |
+
+## Day 1
+
+* Arrival at TLV Airport
+* Transfer to Jerusalem
+* Hotel check-in
+
+## Day 2
+
+* Full-day Jerusalem tour
+* Jerusalem Museum
+* Historical Site Entrance
+* Jerusalem hotel
+
+## Day 3
+
+* Full-day Jerusalem tour
+* Private Group Experience
+* Jerusalem hotel
+
+## Day 4
+
+* Jerusalem to Tiberias transfer
+* Sightseeing
+* Tiberias hotel
+
+## Day 5
+
+* Galilee sightseeing
+* Galilee Boat Ride
+* Tiberias hotel
+
+## Day 6
+
+* Nazareth sightseeing
+* Tiberias hotel
+
+## Day 7
+
+* Return to Jerusalem
+* Jerusalem hotel
+
+## Day 8
+
+* Transfer to TLV Airport
+* Departure
+
+---
+
+# 23. Itinerary Assignment Sequence
+
+Admin must:
+
+1. Create the itinerary header.
+2. Create itinerary days.
+3. Assign cities.
+4. Assign overnight locations.
+5. Assign transportation.
+6. Assign guide days.
+7. Assign sightseeing.
+8. Create Hotel Choice 1.
+9. Assign hotel nights to Hotel Choice 1.
+10. Create Hotel Choice 2.
+11. Assign hotel nights to Hotel Choice 2.
+12. Create Hotel Choice 3.
+13. Assign hotel nights to Hotel Choice 3.
+14. Select the season.
+15. Select the profit rule.
+16. Select the free-passenger rule.
+17. Validate all rates.
+18. Preview pricing.
+19. Submit the itinerary for approval.
+20. Approve the itinerary.
+21. Change the itinerary to Active.
+
+An itinerary cannot become Active while required rates are missing.
+
+---
+
+# 24. Phase 14: Create Direct Client Accounts
+
+Create two client accounts.
+
+## Client 1: Tour Leader
+
+| Field              | Test Value                                                            |
+| ------------------ | --------------------------------------------------------------------- |
+| Client Code        | TEST-TOURLEADER-001                                                   |
+| First Name         | Michael                                                               |
+| Last Name          | Group Leader                                                          |
+| Email              | [tourleader@test.tourops.local](mailto:tourleader@test.tourops.local) |
+| Account Type       | Tour Leader                                                           |
+| Country            | United States                                                         |
+| City               | New York                                                              |
+| Preferred Currency | USD                                                                   |
+| Status             | Active                                                                |
+
+## Client 2: Family Organizer
+
+| Field              | Test Value                                                                  |
+| ------------------ | --------------------------------------------------------------------------- |
+| Client Code        | TEST-CLIENT-001                                                             |
+| First Name         | Rachel                                                                      |
+| Last Name          | Family Organizer                                                            |
+| Email              | [family.client@test.tourops.local](mailto:family.client@test.tourops.local) |
+| Account Type       | Family Organizer                                                            |
+| Country            | United States                                                               |
+| City               | Miami                                                                       |
+| Preferred Currency | USD                                                                         |
+| Status             | Active                                                                      |
+
+---
+
+# 25. Client Registration Tests
+
+Test both registration methods.
+
+## 25.1 Client Self-Registration
+
+1. Client opens the registration page.
+2. Selects the account type.
+3. Enters contact information.
+4. Creates a password.
+5. Accepts terms and privacy policy.
+6. Verifies the test email.
+7. Completes the client profile.
+8. Signs in.
+
+## 25.2 Admin-Created Client
+
+1. Admin opens Client Management.
+2. Selects “Create Client.”
+3. Selects Tour Leader or Family Organizer.
+4. Enters the client’s information.
+5. Sends an invitation.
+6. Client activates the account.
+7. Client creates a password.
+8. Client signs in.
+
+## Expected Results
+
+* Client receives a unique account ID.
+* Client sees only their own records.
+* Client cannot access supplier costs.
+* Client cannot access profit margins.
+* Client cannot view other clients.
+* Client can create a quotation request.
+* Client can manage their group and passenger information.
+
+---
+
+# 26. Passenger Test Data
+
+Create a group with:
+
+* 20 total passengers
+* 18 adults
+* 2 children
+* 0 infants
+
+The system must also support:
+
+* Passenger name
+* Passenger type
+* Date of birth
+* Gender when required
+* Room assignment
+* Occupancy type
+* Passport details at a later booking stage
+* Dietary requirements
+* Accessibility requirements
+* Emergency contact
+* Travel-document status
+
+Use fictional test values only.
+
+Sensitive passenger information should not be required during the initial quotation stage unless needed by the business process.
+
+---
+
+# 27. Full End-to-End Client Quotation Scenario
+
+## Scenario Number
+
+```text
+E2E-DIRECT-CLIENT-QUOTE-001
+```
+
+## Scenario
+
+Michael Group Leader requests a quotation for the 8-Day Biblical Israel Test Tour for a group of 20 passengers.
+
+## Selected Information
+
+| Field            | Value                           |
+| ---------------- | ------------------------------- |
+| Client           | Michael Group Leader            |
+| Account Type     | Tour Leader                     |
+| Itinerary        | 8-Day Biblical Israel Test Tour |
+| Departure City   | New York                        |
+| Departure Date   | Date covered by test rates      |
+| Total Passengers | 20                              |
+| Adults           | 18                              |
+| Children         | 2                               |
+| Infants          | 0                               |
+| Hotel Choices    | 1, 2, and 3                     |
+| Airfare          | Included                        |
+| Quote Currency   | USD                             |
+| Profit Margin    | 20%                             |
+| Free Policy      | One free for every three paying |
+
+---
+
+# 28. Client Quotation Request Steps
+
+The tour leader must:
+
+1. Sign in.
+2. Open available tours.
+3. Select the itinerary.
+4. Review the itinerary.
+5. Select a departure date.
+6. Select New York as the departure city.
+7. Enter 20 passengers.
+8. Enter 18 adults.
+9. Enter 2 children.
+10. Enter 0 infants.
+11. Select airfare included.
+12. Request all three hotel options.
+13. Enter estimated room requirements.
+14. Enter the group name.
+15. Add quotation notes.
+16. Submit the quotation request.
+
+Example group name:
+
+```text
+New York Biblical Tour Test Group
+```
+
+## Expected Results
+
+* A unique request number is created.
+* Request status becomes `SUBMITTED`.
+* Operations receives an internal notification.
+* Pricing Manager receives an internal notification.
+* Client sees the request in their account.
+* Client cannot see internal costs.
+* Client cannot see profit.
+* Client cannot see supplier identities unless Tourops chooses to display them.
+* Request appears on the Admin and Operations dashboards.
+
+---
+
+# 29. Internal Pricing Process
+
+The authorized Tourops user must:
+
+1. Open the request.
+2. Confirm the itinerary.
+3. Confirm the travel date.
+4. Confirm the group-size band is 16–25.
+5. Confirm a professional guide is selected.
+6. Confirm transportation rates.
+7. Confirm guide rates.
+8. Confirm sightseeing rates.
+9. Confirm hotel rates.
+10. Confirm New York airfare.
+11. Confirm the 20% margin.
+12. Confirm the 4 ÷ 3 free-passenger factor.
+13. Run the calculation.
+14. Review warnings.
+15. Resolve critical errors.
+16. Save the calculation.
+17. Submit for approval.
+
+---
+
+# 30. Expected Calculation Test
+
+For Hotel Choice 1, configure the test data to produce:
+
+| Component                    | Double Occupancy |
+| ---------------------------- | ---------------: |
+| Transportation per passenger |             $300 |
+| Guide per passenger          |             $100 |
+| Sightseeing per passenger    |             $130 |
+| Hotel per passenger          |             $900 |
+| Airfare per passenger        |             $700 |
+| Base cost                    |           $2,130 |
+| Profit at 20%                |             $426 |
+| Price after profit           |           $2,556 |
+| Free-passenger adjustment    |             $852 |
+| Final price                  |           $3,408 |
+
+Expected result:
+
+```text
+$3,408 per paying passenger
+```
+
+Replit must create an automated calculation test for this exact result.
+
+---
+
+# 31. Quote Approval Scenario
+
+The Pricing Manager must:
+
+1. Review the component breakdown.
+2. Confirm supplier rates.
+3. Confirm hotel options.
+4. Confirm occupancy prices.
+5. Confirm airfare.
+6. Confirm profit.
+7. Confirm free-passenger pricing.
+8. Submit for approval.
+
+The approver must:
+
+1. Open the quote.
+2. Review the internal pricing.
+3. Review warnings.
+4. Approve the quote.
+5. Confirm a pricing snapshot is created.
+6. Confirm the quote is locked.
+7. Send the quote directly to the client.
+
+## Expected Results
+
+* Status becomes `APPROVED`.
+* Pricing snapshot is created.
+* Quote becomes locked.
+* Supplier-rate changes do not alter the approved quote.
+* Client receives only the customer-facing price.
+* Client does not see internal costs or margins.
+
+---
+
+# 32. Direct Client Quote Presentation
+
+The client must see:
+
+* Tour name
+* Destination
+* Departure city
+* Departure date
+* Return date
+* Number of days
+* Number of nights
+* Group size
+* Airfare inclusion
+* Hotel Choice 1 prices
+* Hotel Choice 2 prices
+* Hotel Choice 3 prices
+* Double-occupancy price
+* Single-occupancy price
+* Third-person price
+* Child price
+* Deposit requirement
+* Payment schedule
+* Quote expiration
+* Included services
+* Excluded services
+* Terms and conditions
+* Free-passenger policy
+
+The client must not see:
+
+* Transportation supplier cost
+* Hotel supplier cost
+* Guide supplier cost
+* Sightseeing supplier cost
+* Internal airfare markup
+* Exchange-rate markup
+* Profit margin
+* Internal calculation notes
+
+---
+
+# 33. Client Acceptance Scenario
+
+The tour leader must:
+
+1. Sign in.
+2. Open the received quote.
+3. Review all three hotel choices.
+4. Select Hotel Choice 1.
+5. Enter or confirm the occupancy breakdown.
+6. Review inclusions.
+7. Review exclusions.
+8. Review payment conditions.
+9. Accept the quotation.
+10. Agree to the terms.
+11. Submit acceptance.
+
+## Expected Results
+
+* Status becomes `ACCEPTED`.
+* The client user is recorded.
+* Acceptance date and time are recorded.
+* Selected hotel option is stored.
+* Selected occupancy pricing is stored.
+* Accepted selling price is locked.
+* Tourops receives a notification.
+* Client receives an acceptance confirmation.
+
+---
+
+# 34. Rooming Configuration Test
+
+The client or Operations user should be able to define:
+
+* Number of double rooms
+* Number of single rooms
+* Number of triple rooms
+* Number of children sharing
+* Number of infants
+* Tour leader room
+* Free-passenger room
+* Special room requests
+
+Validate that the total room assignments match the passenger count.
+
+Example:
+
+| Room Type               | Quantity | Passengers |
+| ----------------------- | -------: | ---------: |
+| Double                  |        8 |         16 |
+| Single                  |        2 |          2 |
+| Third person placements |        2 |          2 |
+| Total                   |        — |         20 |
+
+The system must prevent impossible rooming configurations.
+
+---
+
+# 35. Convert Accepted Quote to Booking
+
+An authorized Tourops user must:
+
+1. Open the accepted quote.
+2. Select “Convert to Booking.”
+3. Confirm the client.
+4. Confirm passenger counts.
+5. Confirm the selected hotel option.
+6. Confirm occupancy requirements.
+7. Confirm the final selling price.
+8. Create the booking.
+9. Assign a booking number.
+10. Copy the approved pricing snapshot.
+11. Create supplier-service requirements.
+12. Create the payment schedule.
+13. Set the booking status.
+
+## Expected Results
+
+* Quote is linked to the booking.
+* Quote becomes `CONVERTED_TO_BOOKING`.
+* Booking becomes `PENDING_CONFIRMATION`.
+* Client is linked directly to the booking.
+* No travel-agency record is required.
+* Supplier assignments are created.
+* Approved selling price remains locked.
+
+---
+
+# 36. Supplier Confirmation Scenario
+
+After booking creation:
+
+1. Operations reviews the required services.
+2. Operations sends transportation requests.
+3. Operations sends hotel requests.
+4. Operations sends guide requests.
+5. Operations sends sightseeing requests.
+6. Suppliers open their assigned requests.
+7. Suppliers confirm, reject, or propose changes.
+8. Operations reviews supplier responses.
+9. Booking services update individually.
+10. Booking status updates based on confirmations.
+
+Each supplier may see only:
+
+* Their assigned service
+* Service date
+* Service location
+* Quantity
+* Passenger count when operationally required
+* Room count when operationally required
+* Client or group reference when authorized
+* Their agreed rate
+* Notes intended for them
+
+Suppliers may not see:
+
+* Final selling price
+* Tourops profit
+* Other supplier rates
+* Complete pricing breakdown
+* Unnecessary client personal information
+
+---
+
+# 37. Client Payment Schedule
+
+Create a test payment schedule:
+
+| Payment        | Percentage | Due                       |
+| -------------- | ---------: | ------------------------- |
+| Deposit        |        20% | At acceptance             |
+| Second Payment |        30% | 120 days before departure |
+| Third Payment  |        30% | 60 days before departure  |
+| Final Payment  |        20% | 30 days before departure  |
+
+The system must calculate:
+
+* Payment amount
+* Due date
+* Paid amount
+* Remaining amount
+* Payment status
+* Late status
+
+Use test payment processing only.
+
+---
+
+# 38. Negative Test Scenarios
+
+## Missing Transportation Rate
+
+Remove the 16–25 transportation rate.
+
+Expected:
+
+* Critical error
+* Quote cannot be approved
+
+## Missing Hotel Single Rate
+
+Expected:
+
+* Double price remains available
+* Single price becomes unavailable
+* Reason is displayed
+
+## Missing Airfare
+
+Expected:
+
+* Warning or critical error
+* Approval blocked when airfare is mandatory
+
+## Pending Supplier
+
+Expected:
+
+* Pending supplier services cannot be used in an approved itinerary unless explicitly permitted
+
+## Expired Supplier Rate
+
+Expected:
+
+* Warning or error
+* User must select a current rate or use an authorized override
+
+## Unauthorized Support User
+
+Support attempts to see profit.
+
+Expected:
+
+* Access denied
+* Attempt logged
+
+## Client Accesses Another Client’s Quote
+
+Expected:
+
+* Access denied
+* No quote information returned
+* Security event logged
+
+## Supplier Accesses Client Selling Price
+
+Expected:
+
+* Access denied
+* Security event logged
+
+## Passenger Boundaries
+
+Test:
+
+* 15 passengers
+* 16 passengers
+* 40 passengers
+* 41 passengers
+* 55 passengers
+* 56 passengers
+
+Expected:
+
+* Correct group-size band
+* Correct guide type
+* Group of 56 generates a configuration error unless another band exists
+
+## Invalid Passenger Total
+
+Example:
+
+* Total passengers: 20
+* Adults: 17
+* Children: 2
+* Infants: 0
+
+Expected:
+
+* Validation error because passenger categories total 19
+
+## Invalid Rooming
+
+Example:
+
+* 20 passengers
+* Rooms assigned for only 18 passengers
+
+Expected:
+
+* Validation error
+* Booking cannot be finalized
+
+---
+
+# 39. Seed Validation Report
+
+After the seed completes, Replit must report:
+
+| Data Category            | Expected Minimum |
+| ------------------------ | ---------------: |
+| Countries                |                4 |
+| Currencies               |                5 |
+| Group-size bands         |                6 |
+| Internal roles           |                7 |
+| External roles           |                7 |
+| Client account types     |                5 |
+| Super Admin users        |                1 |
+| Internal users           |                5 |
+| Supplier companies       |                5 |
+| Supplier users           |                5 |
+| Direct clients           |                2 |
+| Tour leaders             |                1 |
+| Transportation services  |                4 |
+| Guide rates              |        2 or more |
+| Sightseeing services     |                4 |
+| Hotel choices            |                3 |
+| Airfare departure cities |                5 |
+| Itineraries              |                1 |
+| Pricing rules            |        3 or more |
+| Quote requests           |        1 or more |
+| Approved quotes          |        1 or more |
+| Bookings                 |        1 or more |
+
+The report must confirm:
+
+* No duplicate test codes
+* No overlapping group bands
+* No orphan supplier users
+* No orphan client users
+* No orphan passengers
+* No orphan rates
+* No itinerary day without an itinerary
+* No hotel night without a hotel option
+* No active rate without valid dates
+* No approved supplier without a supplier administrator
+* No invalid user role
+* No approved quote without a snapshot
+* No accepted quote without a client
+* No booking without an accepted quote
+* No supplier request without a booking service
+* No client linked to a travel-agency entity
+
+---
+
+# 40. Test Data Control Panel
+
+Create a Super Admin-only test-data interface.
+
+Required actions:
+
+* Reset all test data
+* Populate master data
+* Populate internal users
+* Populate suppliers
+* Populate supplier users
+* Populate supplier services
+* Populate rates
+* Populate itinerary
+* Populate direct clients
+* Populate tour leaders
+* Populate passengers
+* Populate quotation
+* Populate booking
+* Run full seed
+* Validate test data
+* View seed history
+* Download the seed report
+
+The interface must not be available in production.
+
+---
+
+# 41. Audit Requirements
+
+Record whether data was created by:
+
+* Manual user
+* Seed script
+* Import
+* API integration
+* Replit automated test
+
+Seed records must include:
+
+```text
+created_source = TEST_SEED
+```
+
+Audit:
+
+* User creation
+* Supplier creation
+* Supplier invitation
+* Supplier approval
+* Rate creation
+* Itinerary creation
+* Client registration
+* Quote request
+* Quote calculation
+* Quote approval
+* Client acceptance
+* Booking conversion
+* Supplier confirmation
+* Price override
+* Payment schedule creation
+
+---
+
+# 42. Complete Instruction for Replit Agent
+
+```text
+Create a complete staging test-data population and end-to-end testing system for the Tourops application.
+
+Tourops does not use a travel agency as the client in this workflow.
+
+The client is a direct customer, family organizer, group organizer, tour leader, or organization representative.
+
+First inspect the existing database schema, authentication system, user roles, client model, supplier model, itinerary model, rate tables, quotation workflow, booking workflow, passenger model, and supplier-confirmation workflow.
+
+Reuse existing tables and services whenever possible. Do not create duplicate models when equivalent structures already exist.
+
+Remove all travel-agency dependencies from this test scenario. Do not create a travel agency, agency administrator, or agency agent.
+
+Create a production-protected, repeatable, transactional, and idempotent test seed system.
+
+Populate data in this dependency order:
+
+1. Main company
+2. Countries
+3. Currencies
+4. Exchange rates
+5. Destinations and cities
+6. Airports
+7. Travel seasons
+8. Group-size bands
+9. Supplier categories
+10. Internal roles
+11. External roles
+12. Direct-client account types
+13. Guide types and rules
+14. Occupancy types
+15. Service and rate-basis types
+16. Initial Super Admin
+17. Internal users
+18. Supplier companies
+19. Supplier users
+20. Supplier profiles
+21. Transportation services and rates
+22. Guide services and rates
+23. Sightseeing services and rates
+24. Hotels and hotel rates
+25. Airfare rates
+26. Profit, free-passenger, and rounding rules
+27. Test itinerary
+28. Itinerary days and service assignments
+29. Direct-client account
+30. Tour-leader account
+31. Passenger data
+32. Quotation request
+33. Pricing calculation
+34. Quote approval snapshot
+35. Client acceptance
+36. Booking
+37. Supplier service requests
+38. Supplier confirmations
+39. Payment schedule
+40. Validation report
+
+Use stable test codes and upsert logic so running the seed more than once does not create duplicates.
+
+Create a complete manual scenario in which:
+
+- Super Admin creates an Admin.
+- Admin creates internal users.
+- Admin creates supplier companies.
+- Admin invites supplier administrators.
+- Supplier users complete their profiles.
+- Admin approves suppliers.
+- Suppliers enter services and rates.
+- Admin creates an itinerary.
+- A tour leader or direct customer creates an account.
+- The client selects an itinerary.
+- The client enters the departure date, departure city, passenger count, passenger types, airfare choice, hotel options, and room requirements.
+- The client submits a quotation request.
+- Tourops calculates the package price.
+- An authorized user reviews and approves the quote.
+- The client receives and accepts the quote.
+- Tourops converts the accepted quote into a booking.
+- Operations sends service requests to suppliers.
+- Suppliers confirm or reject their services.
+- Tourops updates the booking status.
+
+Implement strict isolation:
+
+- One supplier cannot access another supplier.
+- One client cannot access another client.
+- Clients cannot access supplier costs.
+- Suppliers cannot access client selling prices.
+- Clients and suppliers cannot access Tourops profit margins.
+- All permission checks must be enforced by the backend.
+
+Create automated tests for:
+
+- Role permissions
+- Supplier isolation
+- Client isolation
+- Group-size boundaries
+- Guide selection
+- Missing and expired rates
+- Hotel occupancy pricing
+- Airfare matching
+- Profit calculation
+- Free-passenger calculation
+- Passenger-count validation
+- Rooming validation
+- Quote locking
+- Pricing snapshots
+- Client acceptance
+- Quote-to-booking conversion
+- Supplier confirmation
+- Payment-schedule creation
+
+Generate a seed report after every run. Report created, updated, skipped, failed, and validated records.
+
+Before implementation, provide a database dependency map and identify any existing travel-agency dependencies that must be removed, disabled, or bypassed for the direct-client workflow.
+```
+
+---
+
+# 43. Final Acceptance Criteria
+
+The setup is complete only when:
+
+1. The test database can be reset safely.
+2. The full seed runs with one command.
+3. Running the seed twice creates no duplicates.
+4. Super Admin can create an Admin.
+5. Admin can create internal users.
+6. Admin can create suppliers.
+7. Supplier users can be invited.
+8. Suppliers can complete their profiles.
+9. Admin can approve suppliers.
+10. Suppliers can create services and rates.
+11. Admin can create an itinerary.
+12. A direct client or tour leader can register.
+13. A client can submit a quotation request.
+14. No travel-agency account is required.
+15. The system calculates three hotel options.
+16. A group of 20 selects the 16–25 group band.
+17. A group of 20 selects a professional guide.
+18. Profit is calculated correctly.
+19. The free-passenger rule is calculated correctly.
+20. Internal costs are hidden from clients.
+21. Selling prices are hidden from suppliers.
+22. An approved quote creates a locked snapshot.
+23. The client can accept the quote.
+24. Room occupancy can be selected and validated.
+25. The quote converts into a direct-client booking.
+26. Suppliers receive only assigned services.
+27. Suppliers can confirm or reject services.
+28. The payment schedule is generated.
+29. Audit logs capture all important actions.
+30. Validation finds no broken relationships.
+31. No test record depends on a travel-agency entity.
+32. Replit provides a completed test execution report.
+
+The most important correction is that the workflow now moves directly from **Tour Leader/Client → Tourops → Suppliers**, without any travel-agency account or agency user between them.

@@ -38,13 +38,15 @@ function fmt(v: string | number, currency = "USD") {
 const OCC_KEYS = ["matrimonial", "double", "single", "third_person", "child"] as const;
 
 const OCCUPANCY_LABELS: Record<string, string> = {
+  matrimonial: "Matrimonial",
   double: "Double",
   single: "Single",
   third_person: "Triple",
   child: "Child",
+  infant: "Infant",
 };
 
-const OCCUPANCY_ORDER = ["double", "single", "third_person", "child"];
+const OCCUPANCY_ORDER = ["matrimonial", "double", "single", "third_person", "child", "infant"];
 
 // ── Loading state ─────────────────────────────────────────────────────────────
 

@@ -24,7 +24,7 @@ import Decimal from "decimal.js";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import {
   tours, tourDays, tourDayItems, sights, hotels as hotelsTable,
-  hotelRates, guideRates, airfareRates,
+  hotelRates, guideRates, airfareRates, exchangeRates,
 } from "@workspace/db";
 
 Decimal.set({ precision: 28, rounding: Decimal.ROUND_HALF_UP });
@@ -45,7 +45,7 @@ export interface ResolvedHotel {
   hotelId?: string;
   hotelName?: string;
   nights: number;
-  nightlyRates: Partial<Record<"matrimonial" | "double" | "single" | "third_person" | "child", string>>;
+  nightlyRates: Partial<Record<"matrimonial" | "double" | "single" | "third_person" | "child" | "infant", string>>;
   source: string; // "hotel_rates:<id>" | "hotels.basePrice" | "unavailable"
 }
 
@@ -55,6 +55,8 @@ export interface ResolveResult {
     guideDriverShare: string;
     sightseeingShare: string;
     airfarePerPerson: string;
+    /** Occupancy-specific airfare (child/infant fares) when on file. */
+    airfareByOccupancy?: Partial<Record<"child" | "infant", string>>;
   };
   nights: number;
   hotels: ResolvedHotel[];
@@ -89,15 +91,45 @@ export async function resolveTourComponents(db: Db, input: ResolveInput): Promis
   const warnings: string[] = [];
   const meta: Record<string, unknown> = { resolvedAt: new Date().toISOString(), input };
   const pax = new Decimal(input.paxCount);
-  // No currency conversion in this phase (locked exchange rates come later):
-  // a rate/cost in a different currency than the quote must be skipped, not
-  // summed as if it were the quote currency.
   const quoteCurrency = (input.currency ?? "USD").toUpperCase();
   const sameCurrency = (c: string | null | undefined) => (c ?? "USD").toUpperCase() === quoteCurrency;
   // Without a departure date, expired-but-still-active rate cards would be
   // treated as valid. Default validity checks to today.
   const onDate = input.departureDate ?? new Date().toISOString().slice(0, 10);
   if (!input.departureDate) meta.validityDate = onDate;
+
+  // ---- Currency conversion (manual exchange_rates table) ----
+  // Costs in another currency convert into the quote currency using the
+  // newest active, date-valid rate; without a rate they are skipped with a
+  // warning (never summed cross-currency). Every conversion used is frozen
+  // into meta.fx so approved quotes never silently re-convert.
+  const fxRows: any[] = await db.select().from(exchangeRates)
+    .where(eq(exchangeRates.isActive, true))
+    .orderBy(desc(exchangeRates.createdAt));
+  const dep = new Date(onDate);
+  const fxValid = (r: any) => (!r.validFrom || r.validFrom <= dep) && (!r.validTo || r.validTo >= dep);
+  const fxRate = (from: string): { rate: Decimal; id: string; inverse: boolean } | null => {
+    const direct = fxRows.find((r) => fxValid(r) && r.sourceCurrency === from && r.targetCurrency === quoteCurrency);
+    if (direct) return { rate: D(direct.rate), id: direct.id, inverse: false };
+    const inverse = fxRows.find((r) => fxValid(r) && r.sourceCurrency === quoteCurrency && r.targetCurrency === from && !D(r.rate).isZero());
+    if (inverse) return { rate: new Decimal(1).div(D(inverse.rate)), id: inverse.id, inverse: true };
+    return null;
+  };
+  const fxUsed: Record<string, { rate: string; exchangeRateId: string; inverse: boolean }> = {};
+  /**
+   * Convert an amount to the quote currency. Returns null (caller skips +
+   * warns) when the currency differs and no exchange rate is on file.
+   */
+  const toQuote = (amount: Decimal, currency: string | null | undefined): Decimal | null => {
+    const from = (currency ?? "USD").toUpperCase();
+    if (from === quoteCurrency) return amount;
+    const fx = fxRate(from);
+    if (!fx) return null;
+    fxUsed[from] = { rate: fx.rate.toFixed(8), exchangeRateId: fx.id, inverse: fx.inverse };
+    return amount.mul(fx.rate);
+  };
+  const fxAvailable = (currency: string | null | undefined) =>
+    sameCurrency(currency) || fxRate((currency ?? "USD").toUpperCase()) !== null;
 
   const [tour] = await db.select().from(tours).where(eq(tours.id, input.tourId));
   if (!tour) throw Object.assign(new Error("Tour not found"), { statusCode: 404 });
@@ -116,11 +148,12 @@ export async function resolveTourComponents(db: Db, input: ResolveInput): Promis
   let transportTotal = new Decimal(0);
   for (const item of transportItems) {
     if (D(item.cost).isZero()) continue;
-    if (!sameCurrency(item.currency)) {
-      warnings.push(`Transport item "${item.title}" is in ${item.currency}, not ${quoteCurrency}; skipped.`);
+    const converted = toQuote(D(item.cost), item.currency);
+    if (converted === null) {
+      warnings.push(`Transport item "${item.title}" is in ${item.currency}, not ${quoteCurrency}, and no exchange rate is on file; skipped.`);
       continue;
     }
-    transportTotal = transportTotal.plus(D(item.cost));
+    transportTotal = transportTotal.plus(converted);
   }
   if (!transportItems.length) warnings.push("No transport items on this tour; transportation share is 0.");
   const transportationShare = money(transportTotal.div(pax));
@@ -138,19 +171,21 @@ export async function resolveTourComponents(db: Db, input: ResolveInput): Promis
   for (const item of guideItems) {
     const own = D(item.cost);
     if (!own.isZero()) {
-      if (!sameCurrency(item.currency)) {
-        warnings.push(`Guide item "${item.title}" is in ${item.currency}, not ${quoteCurrency}; skipped.`);
+      const converted = toQuote(own, item.currency);
+      if (converted === null) {
+        warnings.push(`Guide item "${item.title}" is in ${item.currency}, not ${quoteCurrency}, and no exchange rate is on file; skipped.`);
         continue;
       }
-      guideTotal = guideTotal.plus(own); guideSources.push(`item:${item.id}`); continue;
+      guideTotal = guideTotal.plus(converted); guideSources.push(`item:${item.id}`); continue;
     }
     const rate = item.guideId ? rateById.get(item.guideId) : undefined;
     if (rate && rate.status === "active" && dateValid(rate.validFrom, rate.validTo, onDate)) {
-      if (!sameCurrency(rate.currency)) {
-        warnings.push(`Guide rate for "${item.title}" is in ${rate.currency}, not ${quoteCurrency}; skipped.`);
+      const converted = toQuote(D(rate.price), rate.currency);
+      if (converted === null) {
+        warnings.push(`Guide rate for "${item.title}" is in ${rate.currency}, not ${quoteCurrency}, and no exchange rate is on file; skipped.`);
         continue;
       }
-      guideTotal = guideTotal.plus(D(rate.price)); // rateUnit is per-day by convention; 1 unit per item day
+      guideTotal = guideTotal.plus(converted); // rateUnit is per-day by convention; 1 unit per item day
       guideSources.push(`guide_rates:${rate.id}`);
     } else {
       warnings.push(`Guide item "${item.title}" has no cost and no active date-valid guide rate.`);
@@ -171,24 +206,27 @@ export async function resolveTourComponents(db: Db, input: ResolveInput): Promis
   const sightSources: string[] = [];
   for (const item of sightItems) {
     const sight = item.sightId ? sightById.get(item.sightId) : undefined;
-    if (sight && sight.ticketRequired && !sight.isFree && !sameCurrency(sight.ticketCurrency)) {
-      warnings.push(`Sight "${item.title}" tickets are in ${sight.ticketCurrency}, not ${quoteCurrency}; skipped.`);
+    if (sight && sight.ticketRequired && !sight.isFree && !fxAvailable(sight.ticketCurrency)) {
+      warnings.push(`Sight "${item.title}" tickets are in ${sight.ticketCurrency}, not ${quoteCurrency}, and no exchange rate is on file; skipped.`);
       continue;
     }
     if (sight && sight.ticketRequired && !sight.isFree) {
-      sightPerPerson = sightPerPerson
-        .plus(D(sight.individualTicketCost))
-        .plus(D(sight.groupTicketCost).div(pax));
+      const perPerson = toQuote(
+        D(sight.individualTicketCost).plus(D(sight.groupTicketCost).div(pax)),
+        sight.ticketCurrency,
+      )!;
+      sightPerPerson = sightPerPerson.plus(perPerson);
       sightSources.push(`sights:${sight.id}`);
       if (D(sight.individualTicketCost).isZero() && D(sight.groupTicketCost).isZero())
         warnings.push(`Sight "${item.title}" requires tickets but has no ticket costs configured.`);
     } else if (!sight || !sight.isFree) {
       // Unlinked sight items: legacy semantics — item cost is a group cost.
-      if (!D(item.cost).isZero() && !sameCurrency(item.currency)) {
-        warnings.push(`Sight item "${item.title}" is in ${item.currency}, not ${quoteCurrency}; skipped.`);
+      const converted = D(item.cost).isZero() ? new Decimal(0) : toQuote(D(item.cost), item.currency);
+      if (converted === null) {
+        warnings.push(`Sight item "${item.title}" is in ${item.currency}, not ${quoteCurrency}, and no exchange rate is on file; skipped.`);
         continue;
       }
-      sightPerPerson = sightPerPerson.plus(D(item.cost).div(pax));
+      sightPerPerson = sightPerPerson.plus(converted.div(pax));
       if (!sight) sightSources.push(`item:${item.id}`);
     }
   }
@@ -230,17 +268,22 @@ export async function resolveTourComponents(db: Db, input: ResolveInput): Promis
     // 3. The legacy hotels.basePrice.
     const hasDirect = [hotel.roomRateMatrimonial, hotel.roomRateDouble, hotel.roomRateTriple]
       .some((r: any) => r != null && !D(r).isZero());
-    if (hasDirect && sameCurrency(hotel.currency)) {
+    if (hasDirect && !fxAvailable(hotel.currency)) {
+      warnings.push(`Hotel "${hotel.name}" room rates are in ${hotel.currency}, not ${quoteCurrency}, and no exchange rate is on file; choice unavailable.`);
+      continue;
+    }
+    if (hasDirect) {
       // Per-person raw rates: matrimonial & doble sleep 2, triple sleeps 3.
       // Zero/absent rates mean "room type not offered" — omit, never price 0.
       const pos = (v: any) => v != null && D(v).greaterThan(0);
+      const cv = (v: any) => toQuote(D(v), hotel.currency)!;
       const raw: Record<string, Decimal> = {};
-      if (pos(hotel.roomRateMatrimonial)) raw.matrimonial = D(hotel.roomRateMatrimonial).div(2);
+      if (pos(hotel.roomRateMatrimonial)) raw.matrimonial = cv(hotel.roomRateMatrimonial).div(2);
       if (pos(hotel.roomRateDouble)) {
-        raw.double = D(hotel.roomRateDouble).div(2);
-        raw.single = D(hotel.roomRateDouble); // sole occupant pays the room
+        raw.double = cv(hotel.roomRateDouble).div(2);
+        raw.single = cv(hotel.roomRateDouble); // sole occupant pays the room
       }
-      if (pos(hotel.roomRateTriple)) raw.third_person = D(hotel.roomRateTriple).div(3);
+      if (pos(hotel.roomRateTriple)) raw.third_person = cv(hotel.roomRateTriple).div(3);
       resolvedHotels.push({
         hotelChoice: idx + 1, hotelId, hotelName: hotel.name, nights,
         nightlyRates: {}, rawRates: raw,
@@ -254,9 +297,9 @@ export async function resolveTourComponents(db: Db, input: ResolveInput): Promis
       .orderBy(desc(hotelRates.createdAt));
     const rate = candidates.find((r) =>
       dateValid(r.validFrom, r.validTo, onDate) &&
-      r.pricePerRoomPerNight != null && sameCurrency(r.currency));
-    const roomRate = rate ? D(rate.pricePerRoomPerNight)
-      : (hotel.basePrice != null && sameCurrency(hotel.currency)) ? D(hotel.basePrice)
+      r.pricePerRoomPerNight != null && fxAvailable(r.currency));
+    const roomRate = rate ? toQuote(D(rate.pricePerRoomPerNight), rate.currency)
+      : (hotel.basePrice != null && fxAvailable(hotel.currency)) ? toQuote(D(hotel.basePrice), hotel.currency)
       : null;
     if (roomRate) {
       if (!rate) warnings.push(`No room rates or rate card for hotel "${hotel.name}"; using its base price.`);
@@ -289,17 +332,20 @@ export async function resolveTourComponents(db: Db, input: ResolveInput): Promis
 
   // ---- Airfare ----
   let airfarePerPerson = "0.00";
+  const airfareByOccupancy: Partial<Record<"child" | "infant", string>> = {};
   if (input.origin && input.destination) {
     const fares: any[] = await db.select().from(airfareRates)
       .where(and(eq(airfareRates.isActive, true), eq(airfareRates.origin, input.origin), eq(airfareRates.destination, input.destination)))
       .orderBy(desc(airfareRates.createdAt));
-    const dep = new Date(onDate);
     const fare = fares.find((f) =>
-      sameCurrency(f.currency) &&
+      fxAvailable(f.currency) &&
       (!dep || !f.validFrom || f.validFrom <= dep) && (!dep || !f.validTo || f.validTo >= dep));
     if (fare) {
-      airfarePerPerson = money(D(fare.ratePerPerson));
-      meta.airfare = { source: `airfare_rates:${fare.id}` };
+      airfarePerPerson = money(toQuote(D(fare.ratePerPerson), fare.currency)!);
+      // Child/infant fares apply only when explicitly on file — never invented.
+      if (fare.childRate != null) airfareByOccupancy.child = money(toQuote(D(fare.childRate), fare.currency)!);
+      if (fare.infantRate != null) airfareByOccupancy.infant = money(toQuote(D(fare.infantRate), fare.currency)!);
+      meta.airfare = { source: `airfare_rates:${fare.id}`, childRate: airfareByOccupancy.child ?? null, infantRate: airfareByOccupancy.infant ?? null };
     } else {
       warnings.push(`No active date-valid airfare rate for ${input.origin} → ${input.destination}; airfare is 0.`);
     }
@@ -307,8 +353,22 @@ export async function resolveTourComponents(db: Db, input: ResolveInput): Promis
     warnings.push("No airfare origin/destination provided; airfare is 0.");
   }
 
+  // Children/infants share the parents' room: when a child/infant airfare is
+  // on file, emit those occupancies with zero hotel cost so the engine prices
+  // them (components + their own airfare). Without a fare on file, omit —
+  // never invent a child/infant price.
+  for (const h of resolvedHotels) {
+    if (airfareByOccupancy.child !== undefined) h.nightlyRates.child ??= "0.00";
+    if (airfareByOccupancy.infant !== undefined) h.nightlyRates.infant ??= "0.00";
+  }
+
+  if (Object.keys(fxUsed).length) meta.fx = { quoteCurrency, ratesUsed: fxUsed };
+
   return {
-    components: { transportationShare, guideDriverShare, sightseeingShare, airfarePerPerson },
+    components: {
+      transportationShare, guideDriverShare, sightseeingShare, airfarePerPerson,
+      ...(Object.keys(airfareByOccupancy).length ? { airfareByOccupancy } : {}),
+    },
     nights,
     hotels: resolvedHotels,
     warnings,

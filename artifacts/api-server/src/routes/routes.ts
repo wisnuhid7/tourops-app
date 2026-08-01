@@ -102,7 +102,9 @@ import {
   insertBookingWorkflowSchema, insertWorkflowStepSchema, insertInvoiceSchema,
   insertAffiliateSchema, insertMarkupRuleSchema, userRoleEnum,
   groupSizeBands, pricingRules, airfareRates, pricingQuotes, pricingQuoteLineItems,
-  insertGroupSizeBandSchema, insertPricingRuleSchema, insertAirfareRateSchema
+  insertGroupSizeBandSchema, insertPricingRuleSchema, insertAirfareRateSchema,
+  exchangeRates, pricingQuoteOverrides,
+  insertExchangeRateSchema, insertPricingQuoteOverrideSchema
 } from "@workspace/db";
 import { computeQuote, assistanceTypeForPax, PricingInputError, OCCUPANCY_TYPES, type HotelChoiceInput } from "../services/pricing-engine";
 import { resolveTourComponents, accommodationForTour, tourOffersRoomTypes, BOOKING_ROOM_TYPES, type BookingRoomType } from "../services/rate-resolver";
@@ -4015,13 +4017,15 @@ export async function registerRoutes(
       guideDriverShare: z.string(),
       sightseeingShare: z.string(),
       airfarePerPerson: z.string().optional(),
+      // Occupancy-specific fares (child/infant); fall back to airfarePerPerson.
+      airfareByOccupancy: z.partialRecord(z.enum(["child", "infant"]), z.string()).optional(),
     }),
     hotels: z.array(z.object({
       hotelChoice: z.number().int().min(1).max(3),
       hotelId: z.string().optional(),
       hotelName: z.string().optional(),
       // partialRecord: enum-keyed z.record in zod v4 makes every key required
-      nightlyRates: z.partialRecord(z.enum(["matrimonial", "double", "single", "third_person", "child"]), z.string()),
+      nightlyRates: z.partialRecord(z.enum(["matrimonial", "double", "single", "third_person", "child", "infant"]), z.string()),
     })).min(1).max(3),
   });
 
@@ -4083,6 +4087,7 @@ export async function registerRoutes(
           guideDriverShare: body.components.guideDriverShare,
           sightseeingShare: body.components.sightseeingShare,
           airfarePerPerson,
+          airfareByOccupancy: body.components.airfareByOccupancy,
         },
         hotels: body.hotels as HotelChoiceInput[],
         rule: {
@@ -4090,6 +4095,7 @@ export async function registerRoutes(
           marginValue: rule.marginValue,
           freePassengerPaying: rule.freePassengerPaying,
           freePassengerFree: rule.freePassengerFree,
+          roundingRule: rule.roundingRule ?? "cent",
         },
       });
 
@@ -4123,6 +4129,13 @@ export async function registerRoutes(
         }
         return q;
       });
+
+      // Permanent trail: every quote computation is audit-logged.
+      await storage.createAuditLog({
+        entityType: "pricing_quote", entityId: quote.id, action: "created",
+        changedBy: userId ?? undefined,
+        newValue: JSON.stringify({ tourId: body.tourId, paxCount: body.paxCount, currency: quote.currency, ruleId: rule.id, roundingRule: rule.roundingRule ?? "cent" }),
+      }).catch(() => { /* audit failure must not block quoting */ });
 
       return { ...quote, groupSizeBand: band?.label ?? null, lineItems: result.lineItems };
   }
@@ -4236,22 +4249,193 @@ export async function registerRoutes(
     } catch (e: any) { routeError(res, e); }
   });
 
+  // ---- Quote approval workflow ----
+  // "final" is the legacy value and is treated exactly like "approved".
+  // Allowed transitions (from → to). Approve/reject require an admin role;
+  // everything else needs PRICING_INTERNAL_ROLES.
+  const QUOTE_TRANSITIONS: Record<string, string[]> = {
+    draft: ["pending_approval", "cancelled", "archived"],
+    pending_approval: ["approved", "rejected", "draft", "cancelled"],
+    rejected: ["draft", "cancelled", "archived"],
+    approved: ["sent", "draft", "cancelled", "archived"],
+    sent: ["viewed", "accepted", "expired", "cancelled"],
+    viewed: ["accepted", "expired", "cancelled"],
+    accepted: ["archived"],
+    expired: ["draft", "archived"],
+    cancelled: ["archived"],
+    archived: [],
+  };
+  const QUOTE_APPROVAL_ACTIONS = new Set(["approved", "rejected"]);
+  // Legacy pre-workflow value: treat stored/requested "final" as approved.
+  const normalizeQuoteStatus = (s: string) => (s === "final" ? "approved" : s);
+  // Statuses a customer may see (assigned or via share token). "approved" is
+  // NOT visible — publication happens only via the explicit "sent" handoff.
+  // Legacy "final" quotes stay visible: their share links pre-date the
+  // workflow and were published under the old final-only rule.
+  const CUSTOMER_VISIBLE_QUOTE_STATUSES = new Set(["final", "sent", "viewed", "accepted"]);
+  // Selling prices may only be overridden before approval is granted.
+  const OVERRIDABLE_QUOTE_STATUSES = new Set(["draft", "pending_approval", "rejected"]);
+
   // Update quote status / customer assignment / notes (internal only).
   app.patch("/api/pricing/quotes/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
       const patchSchema = z.object({
-        status: z.enum(["draft", "final", "archived"]).optional(),
+        status: z.enum([
+          "draft", "final", "archived", "pending_approval", "approved",
+          "rejected", "sent", "viewed", "accepted", "expired", "cancelled",
+        ]).optional(),
         customerId: z.string().nullable().optional(),
         notes: z.string().nullable().optional(),
       }).strict();
       const parsed = patchSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const [existing] = await db.select().from(pricingQuotes)
+        .where(eq(pricingQuotes.id, req.params.id as string));
+      if (!existing) return res.status(404).json({ message: "Quote not found" });
+
+      const userId = (req.session as any).userId as string;
+      const update: Record<string, unknown> = { ...parsed.data, updatedAt: new Date() };
+      const from = normalizeQuoteStatus(existing.status);
+      const to = parsed.data.status ? normalizeQuoteStatus(parsed.data.status) : undefined;
+      const isTransition = to !== undefined && to !== from;
+      if (to !== undefined) update.status = to;
+      if (isTransition) {
+        const allowed = QUOTE_TRANSITIONS[from] ?? [];
+        if (!allowed.includes(to))
+          return res.status(409).json({ message: `Cannot move a ${from} quote to ${to}` });
+        if (QUOTE_APPROVAL_ACTIONS.has(to)) {
+          // Only admins approve/reject; the requester may not approve their own quote.
+          if (!await requireRole(req, res, ADMIN_ROLES)) return;
+          if (existing.createdBy && existing.createdBy === userId)
+            return res.status(403).json({ message: "Quotes must be approved by someone other than their creator" });
+        }
+        if (to === "approved") { update.approvedBy = userId; update.approvedAt = new Date(); }
+        if (to === "draft") { update.approvedBy = null; update.approvedAt = null; }
+      }
+      // Compare-and-swap on the status we validated against, so a concurrent
+      // transition can't sneak past the transition map.
       const [quote] = await db.update(pricingQuotes)
-        .set({ ...parsed.data, updatedAt: new Date() })
-        .where(eq(pricingQuotes.id, req.params.id as string)).returning();
-      if (!quote) return res.status(404).json({ message: "Quote not found" });
+        .set(update)
+        .where(and(
+          eq(pricingQuotes.id, req.params.id as string),
+          eq(pricingQuotes.status, existing.status),
+        )).returning();
+      if (!quote)
+        return res.status(409).json({ message: "Quote was updated concurrently; reload and retry" });
+      if (isTransition) {
+        await storage.createAuditLog({
+          entityType: "pricing_quote", entityId: quote.id, action: "status_changed",
+          changedBy: userId, previousValue: existing.status, newValue: quote.status,
+        }).catch(() => {});
+      }
       res.json(quote);
+    } catch (e: any) { routeError(res, e); }
+  });
+
+  // Manual selling-price override on a line item. Admins only; reason is
+  // mandatory; the original price and the override are kept permanently.
+  app.post("/api/pricing/quotes/:id/override", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const bodySchema = z.object({
+        lineItemId: z.string().min(1),
+        overrideValue: z.string(),
+        reason: z.string(),
+      }).strict();
+      const parsed = bodySchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const check = insertPricingQuoteOverrideSchema.safeParse({
+        quoteId: req.params.id, ...parsed.data,
+      });
+      if (!check.success) return res.status(400).json({ message: check.error.issues.map((i) => i.message).join("; ") });
+      const [quote] = await db.select().from(pricingQuotes)
+        .where(eq(pricingQuotes.id, req.params.id as string));
+      if (!quote) return res.status(404).json({ message: "Quote not found" });
+      // Price-lock invariant: once approved (or sent/viewed/accepted), prices
+      // are frozen — overriding requires sending the quote back to draft and
+      // through a fresh approval cycle.
+      if (!OVERRIDABLE_QUOTE_STATUSES.has(quote.status))
+        return res.status(409).json({ message: `Cannot override prices on a ${quote.status} quote; move it back to draft first` });
+      const [li] = await db.select().from(pricingQuoteLineItems)
+        .where(eq(pricingQuoteLineItems.id, parsed.data.lineItemId));
+      if (!li || li.quoteId !== quote.id)
+        return res.status(404).json({ message: "Line item not found on this quote" });
+      const userId = (req.session as any).userId as string;
+      const override = await db.transaction(async (tx) => {
+        const [ov] = await tx.insert(pricingQuoteOverrides).values({
+          quoteId: quote.id, lineItemId: li.id, fieldName: "selling_price",
+          originalValue: li.sellingPrice, overrideValue: parsed.data.overrideValue,
+          reason: parsed.data.reason.trim(), createdBy: userId, approvedBy: userId,
+        }).returning();
+        await tx.update(pricingQuoteLineItems)
+          .set({ sellingPrice: parsed.data.overrideValue })
+          .where(eq(pricingQuoteLineItems.id, li.id));
+        await tx.update(pricingQuotes).set({ updatedAt: new Date() })
+          .where(eq(pricingQuotes.id, quote.id));
+        return ov;
+      });
+      await storage.createAuditLog({
+        entityType: "pricing_quote", entityId: quote.id, action: "price_overridden",
+        changedBy: userId, previousValue: li.sellingPrice, newValue: parsed.data.overrideValue,
+        note: `${li.hotelChoice}/${li.occupancy}: ${parsed.data.reason.trim()}`,
+      }).catch(() => {});
+      res.json(override);
+    } catch (e: any) { routeError(res, e); }
+  });
+
+  // Override history for a quote (internal only).
+  app.get("/api/pricing/quotes/:id/overrides", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
+      const rows = await db.select().from(pricingQuoteOverrides)
+        .where(eq(pricingQuoteOverrides.quoteId, req.params.id as string))
+        .orderBy(desc(pricingQuoteOverrides.createdAt));
+      res.json(rows);
+    } catch (e: any) { routeError(res, e); }
+  });
+
+  // ---- Exchange rates (manual currency conversion table) ----
+  app.get("/api/pricing/exchange-rates", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
+      const rows = await db.select().from(exchangeRates).orderBy(desc(exchangeRates.createdAt));
+      res.json(rows);
+    } catch (e: any) { routeError(res, e); }
+  });
+  app.post("/api/pricing/exchange-rates", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const parsed = insertExchangeRateSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.issues.map((i) => i.message).join("; ") });
+      const userId = (req.session as any).userId as string;
+      const [row] = await db.insert(exchangeRates)
+        .values({ ...parsed.data, enteredBy: userId }).returning();
+      await storage.createAuditLog({
+        entityType: "exchange_rate", entityId: row.id, action: "created",
+        changedBy: userId, newValue: JSON.stringify({ pair: `${row.sourceCurrency}/${row.targetCurrency}`, rate: row.rate }),
+      }).catch(() => {});
+      res.status(201).json(row);
+    } catch (e: any) { routeError(res, e); }
+  });
+  app.patch("/api/pricing/exchange-rates/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const parsed = insertExchangeRateSchema.partial().safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.issues.map((i) => i.message).join("; ") });
+      const [existing] = await db.select().from(exchangeRates).where(eq(exchangeRates.id, req.params.id as string));
+      if (!existing) return res.status(404).json({ message: "Exchange rate not found" });
+      const [row] = await db.update(exchangeRates)
+        .set({ ...parsed.data, updatedAt: new Date() })
+        .where(eq(exchangeRates.id, req.params.id as string)).returning();
+      const userId = (req.session as any).userId as string;
+      await storage.createAuditLog({
+        entityType: "exchange_rate", entityId: row.id, action: "updated",
+        changedBy: userId,
+        previousValue: JSON.stringify({ rate: existing.rate, isActive: existing.isActive }),
+        newValue: JSON.stringify({ rate: row.rate, isActive: row.isActive }),
+      }).catch(() => {});
+      res.json(row);
     } catch (e: any) { routeError(res, e); }
   });
 
@@ -4283,7 +4467,7 @@ export async function registerRoutes(
   // unauthorized so quote existence isn't disclosed.
   app.get("/api/pricing/quotes/:id/customer", isAuthenticated, async (req, res) => {
     try {
-      const [quote] = await db.select().from(pricingQuotes)
+      let [quote] = await db.select().from(pricingQuotes)
         .where(eq(pricingQuotes.id, req.params.id as string));
       if (!quote) return res.status(404).json({ message: "Quote not found" });
 
@@ -4291,10 +4475,25 @@ export async function registerRoutes(
       const isInternal = !!profile && PRICING_INTERNAL_ROLES.includes(profile.role);
       const isAssignedCustomer = !!quote.customerId
         && quote.customerId === (req.session as any).userId
-        && quote.status === "final";
+        && CUSTOMER_VISIBLE_QUOTE_STATUSES.has(quote.status);
       if (!isInternal && !isAssignedCustomer)
         return res.status(404).json({ message: "Quote not found" });
 
+      // First customer look at a sent quote marks it viewed. If a concurrent
+      // request already transitioned it, keep the quote we loaded.
+      if (isAssignedCustomer && quote.status === "sent") {
+        const [updated] = await db.update(pricingQuotes)
+          .set({ status: "viewed", updatedAt: new Date() })
+          .where(and(eq(pricingQuotes.id, quote.id), eq(pricingQuotes.status, "sent")))
+          .returning();
+        if (updated) {
+          quote = updated;
+          await storage.createAuditLog({
+            entityType: "pricing_quote", entityId: quote.id, action: "status_changed",
+            changedBy: (req.session as any).userId, previousValue: "sent", newValue: "viewed",
+          }).catch(() => {});
+        }
+      }
       res.json(await customerQuoteView(quote));
     } catch (e: any) { routeError(res, e); }
   });
@@ -4306,10 +4505,23 @@ export async function registerRoutes(
   // prices only via customerQuoteView.
   app.get("/api/pricing/quotes/shared/:token", async (req, res) => {
     try {
-      const [quote] = await db.select().from(pricingQuotes)
+      let [quote] = await db.select().from(pricingQuotes)
         .where(eq(pricingQuotes.shareToken, req.params.token as string));
-      if (!quote || quote.status !== "final")
+      if (!quote || !CUSTOMER_VISIBLE_QUOTE_STATUSES.has(quote.status))
         return res.status(404).json({ message: "Quote not found" });
+      if (quote.status === "sent") {
+        const [updated] = await db.update(pricingQuotes)
+          .set({ status: "viewed", updatedAt: new Date() })
+          .where(and(eq(pricingQuotes.id, quote.id), eq(pricingQuotes.status, "sent")))
+          .returning();
+        if (updated) {
+          quote = updated;
+          await storage.createAuditLog({
+            entityType: "pricing_quote", entityId: quote.id, action: "status_changed",
+            previousValue: "sent", newValue: "viewed", note: "Viewed via share link",
+          }).catch(() => {});
+        }
+      }
       res.json(await customerQuoteView(quote));
     } catch (e: any) { routeError(res, e); }
   });

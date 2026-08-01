@@ -17,11 +17,11 @@ import { useLanguage } from "@/hooks/use-language";
 import { Plus, Trash2, Calculator, Eye, Link2, CheckCircle2 } from "lucide-react";
 import type { Tour, PricingQuote, PricingRule, AirfareRate, GroupSizeBand, PricingQuoteLineItem } from "@workspace/db";
 
-const OCCUPANCIES = ["matrimonial", "double", "single", "third_person", "child"] as const;
+const OCCUPANCIES = ["matrimonial", "double", "single", "third_person", "child", "infant"] as const;
 type Occ = (typeof OCCUPANCIES)[number];
 
 interface HotelForm { hotelName: string; hotelId?: string; rates: Record<Occ, string> }
-const emptyHotel = (): HotelForm => ({ hotelName: "", rates: { matrimonial: "", double: "", single: "", third_person: "", child: "" } });
+const emptyHotel = (): HotelForm => ({ hotelName: "", rates: { matrimonial: "", double: "", single: "", third_person: "", child: "", infant: "" } });
 
 export default function AdminGroupQuotes() {
   const { toast } = useToast();
@@ -77,6 +77,7 @@ export default function AdminGroupQuotes() {
             single: h.nightlyRates.single ?? "",
             third_person: h.nightlyRates.third_person ?? "",
             child: h.nightlyRates.child ?? "",
+            infant: h.nightlyRates.infant ?? "",
           },
         })));
       }
@@ -120,14 +121,32 @@ export default function AdminGroupQuotes() {
     enabled: !!breakdownId,
   });
 
-  const finalizeQuote = useMutation({
-    mutationFn: (id: string) => apiRequest("PATCH", `/api/pricing/quotes/${id}`, { status: "final" }),
+  const setStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      apiRequest("PATCH", `/api/pricing/quotes/${id}`, { status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pricing/quotes"] });
-      toast({ title: t("pe_finalized") });
+      toast({ title: t("pe_status_updated") });
     },
-    onError: () => toast({ title: t("error_title"), variant: "destructive" }),
+    onError: (e: any) => toast({ title: t("error_title"), description: String(e?.message ?? ""), variant: "destructive" }),
   });
+  // Actions offered per current status (server enforces roles & transitions).
+  const statusActions = (status: string): { to: string; label: string }[] => {
+    switch (status) {
+      case "draft": return [{ to: "pending_approval", label: t("pe_submit_approval") }];
+      case "pending_approval": return [
+        { to: "approved", label: t("pe_approve") },
+        { to: "rejected", label: t("pe_reject") },
+      ];
+      case "rejected": case "expired": return [{ to: "draft", label: t("pe_back_to_draft") }];
+      case "approved": case "final": return [{ to: "sent", label: t("pe_send") }];
+      case "sent": case "viewed": return [{ to: "accepted", label: t("pe_mark_accepted") }];
+      default: return [];
+    }
+  };
+  // Mirrors server CUSTOMER_VISIBLE_QUOTE_STATUSES: approved quotes are not
+  // customer-visible until explicitly sent (legacy "final" stays shareable).
+  const SHAREABLE = ["final", "sent", "viewed", "accepted"];
 
   const copyShareLink = async (id: string) => {
     const res = await fetch(`/api/pricing/quotes/${id}/internal`, { credentials: "include" });
@@ -138,12 +157,13 @@ export default function AdminGroupQuotes() {
   };
 
   // ---- Settings tabs mutations (rules / airfare / bands) ----
-  const [newRule, setNewRule] = useState({ name: "", marginType: "percentage", marginValue: "20", freePassengerPaying: "3", freePassengerFree: "1" });
+  const [newRule, setNewRule] = useState({ name: "", marginType: "percentage", marginValue: "20", freePassengerPaying: "3", freePassengerFree: "1", roundingRule: "cent" });
   const addRule = useMutation({
     mutationFn: () => apiRequest("POST", "/api/pricing/rules", {
       name: newRule.name, marginType: newRule.marginType, marginValue: newRule.marginValue,
       freePassengerPaying: parseInt(newRule.freePassengerPaying, 10),
       freePassengerFree: parseInt(newRule.freePassengerFree, 10),
+      roundingRule: newRule.roundingRule,
     }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/pricing/rules"] }); toast({ title: t("pe_rule_created") }); },
     onError: (e: any) => toast({ title: t("error_title"), description: String(e?.message ?? ""), variant: "destructive" }),
@@ -154,18 +174,58 @@ export default function AdminGroupQuotes() {
     onError: (e: any) => toast({ title: t("pe_delete_blocked"), description: String(e?.message ?? ""), variant: "destructive" }),
   });
 
-  const [newRate, setNewRate] = useState({ origin: "", destination: "", ratePerPerson: "", childRate: "" });
+  const [newRate, setNewRate] = useState({ origin: "", destination: "", ratePerPerson: "", childRate: "", infantRate: "" });
   const addRate = useMutation({
     mutationFn: () => apiRequest("POST", "/api/pricing/airfare-rates", {
       origin: newRate.origin, destination: newRate.destination,
       ratePerPerson: newRate.ratePerPerson, childRate: newRate.childRate || undefined,
+      infantRate: newRate.infantRate || undefined,
     }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/pricing/airfare-rates"] }); setNewRate({ origin: "", destination: "", ratePerPerson: "", childRate: "" }); toast({ title: t("pe_rate_created") }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/pricing/airfare-rates"] }); setNewRate({ origin: "", destination: "", ratePerPerson: "", childRate: "", infantRate: "" }); toast({ title: t("pe_rate_created") }); },
     onError: (e: any) => toast({ title: t("error_title"), description: String(e?.message ?? ""), variant: "destructive" }),
   });
   const deleteRate = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/pricing/airfare-rates/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/pricing/airfare-rates"] }),
+  });
+
+  // ---- Exchange rates ----
+  const { data: fxRates } = useQuery<any[]>({ queryKey: ["/api/pricing/exchange-rates"] });
+  const [newFx, setNewFx] = useState({ sourceCurrency: "", targetCurrency: "USD", rate: "" });
+  const addFx = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/pricing/exchange-rates", {
+      sourceCurrency: newFx.sourceCurrency.trim().toUpperCase(),
+      targetCurrency: newFx.targetCurrency.trim().toUpperCase(),
+      rate: newFx.rate.trim(),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pricing/exchange-rates"] });
+      setNewFx({ sourceCurrency: "", targetCurrency: "USD", rate: "" });
+      toast({ title: t("pe_fx_created") });
+    },
+    onError: (e: any) => toast({ title: t("error_title"), description: String(e?.message ?? ""), variant: "destructive" }),
+  });
+  const toggleFx = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      apiRequest("PATCH", `/api/pricing/exchange-rates/${id}`, { isActive }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/pricing/exchange-rates"] }),
+    onError: (e: any) => toast({ title: t("error_title"), description: String(e?.message ?? ""), variant: "destructive" }),
+  });
+
+  // ---- Manual price override (admin) ----
+  const [overrideLi, setOverrideLi] = useState<PricingQuoteLineItem | null>(null);
+  const [overrideValue, setOverrideValue] = useState("");
+  const [overrideReason, setOverrideReason] = useState("");
+  const applyOverride = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/pricing/quotes/${breakdownId}/override`, {
+      lineItemId: overrideLi!.id, overrideValue: overrideValue.trim(), reason: overrideReason.trim(),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pricing/quotes", breakdownId, "internal"] });
+      setOverrideLi(null); setOverrideValue(""); setOverrideReason("");
+      toast({ title: t("pe_override_applied") });
+    },
+    onError: (e: any) => toast({ title: t("error_title"), description: String(e?.message ?? ""), variant: "destructive" }),
   });
 
   const toggleBand = useMutation({
@@ -195,6 +255,7 @@ export default function AdminGroupQuotes() {
           <TabsTrigger value="rules" data-testid="tab-rules">{t("pe_pricing_rules")}</TabsTrigger>
           <TabsTrigger value="airfare" data-testid="tab-airfare">{t("pe_airfare_rates")}</TabsTrigger>
           <TabsTrigger value="bands" data-testid="tab-bands">{t("pe_group_bands")}</TabsTrigger>
+          <TabsTrigger value="fx" data-testid="tab-fx">{t("pe_exchange_rates")}</TabsTrigger>
         </TabsList>
 
         {/* ---- Quotes list ---- */}
@@ -211,16 +272,17 @@ export default function AdminGroupQuotes() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={q.status === "final" ? "default" : "secondary"}>{q.status}</Badge>
+                  <Badge variant={["approved", "final", "accepted"].includes(q.status) ? "default" : ["rejected", "cancelled", "expired"].includes(q.status) ? "destructive" : "secondary"}>{q.status}</Badge>
                   <Button size="sm" variant="outline" onClick={() => setBreakdownId(q.id)} data-testid={`button-breakdown-${q.id}`}>
                     <Eye className="w-4 h-4 mr-1" />{t("pe_breakdown")}
                   </Button>
-                  {q.status === "draft" && (
-                    <Button size="sm" variant="outline" onClick={() => finalizeQuote.mutate(q.id)} data-testid={`button-finalize-${q.id}`}>
-                      <CheckCircle2 className="w-4 h-4 mr-1" />{t("pe_finalize")}
+                  {statusActions(q.status).map((a) => (
+                    <Button key={a.to} size="sm" variant="outline" disabled={setStatus.isPending}
+                      onClick={() => setStatus.mutate({ id: q.id, status: a.to })} data-testid={`button-status-${a.to}-${q.id}`}>
+                      <CheckCircle2 className="w-4 h-4 mr-1" />{a.label}
                     </Button>
-                  )}
-                  {q.status === "final" && (
+                  ))}
+                  {SHAREABLE.includes(q.status) && (
                     <Button size="sm" variant="outline" onClick={() => copyShareLink(q.id)} data-testid={`button-share-${q.id}`}>
                       <Link2 className="w-4 h-4 mr-1" />{t("pe_copy_share_link")}
                     </Button>
@@ -255,19 +317,33 @@ export default function AdminGroupQuotes() {
                   <Input className="w-16" value={newRule.freePassengerPaying} onChange={(e) => setNewRule({ ...newRule, freePassengerPaying: e.target.value })} data-testid="input-paying-count" />
                 </div>
               </div>
+              <div>
+                <Label>{t("pe_rounding")}</Label>
+                <Select value={newRule.roundingRule} onValueChange={(v) => setNewRule({ ...newRule, roundingRule: v })}>
+                  <SelectTrigger className="w-44" data-testid="select-rounding-rule"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cent">{t("pe_rounding_cent")}</SelectItem>
+                    <SelectItem value="unit_nearest">{t("pe_rounding_unit_nearest")}</SelectItem>
+                    <SelectItem value="unit_up">{t("pe_rounding_unit_up")}</SelectItem>
+                    <SelectItem value="five_up">{t("pe_rounding_five_up")}</SelectItem>
+                    <SelectItem value="ten_up">{t("pe_rounding_ten_up")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <Button onClick={() => addRule.mutate()} disabled={!newRule.name || addRule.isPending} data-testid="button-add-rule"><Plus className="w-4 h-4 mr-1" />{t("add")}</Button>
             </CardContent>
           </Card>
           <Card><CardContent className="pt-4">
             <Table>
               <TableHeader><TableRow>
-                <TableHead>{t("name_label")}</TableHead><TableHead>{t("pe_margin")}</TableHead><TableHead>{t("pe_free_policy")}</TableHead><TableHead>{t("active")}</TableHead><TableHead /></TableRow></TableHeader>
+                <TableHead>{t("name_label")}</TableHead><TableHead>{t("pe_margin")}</TableHead><TableHead>{t("pe_free_policy")}</TableHead><TableHead>{t("pe_rounding")}</TableHead><TableHead>{t("active")}</TableHead><TableHead /></TableRow></TableHeader>
               <TableBody>
                 {rules?.map((r) => (
                   <TableRow key={r.id} data-testid={`row-rule-${r.id}`}>
                     <TableCell>{r.name}{!r.tourId && <Badge variant="outline" className="ml-2">{t("pe_global")}</Badge>}</TableCell>
                     <TableCell>{r.marginType === "percentage" ? `${r.marginValue}%` : money(r.marginValue, r.currency)}</TableCell>
                     <TableCell>{r.freePassengerFree} / {r.freePassengerPaying}</TableCell>
+                    <TableCell>{t(`pe_rounding_${(r as any).roundingRule ?? "cent"}` as any)}</TableCell>
                     <TableCell><Badge variant={r.isActive ? "default" : "secondary"}>{r.isActive ? t("active") : t("inactive")}</Badge></TableCell>
                     <TableCell><Button size="icon" variant="ghost" onClick={() => deleteRule.mutate(r.id)} data-testid={`button-delete-rule-${r.id}`}><Trash2 className="w-4 h-4" /></Button></TableCell>
                   </TableRow>
@@ -286,19 +362,21 @@ export default function AdminGroupQuotes() {
               <div><Label>{t("pe_destination")}</Label><Input className="w-28" value={newRate.destination} onChange={(e) => setNewRate({ ...newRate, destination: e.target.value })} data-testid="input-destination" /></div>
               <div><Label>{t("pe_rate_per_person")}</Label><Input className="w-28" value={newRate.ratePerPerson} onChange={(e) => setNewRate({ ...newRate, ratePerPerson: e.target.value })} data-testid="input-rate" /></div>
               <div><Label>{t("pe_child_rate")}</Label><Input className="w-28" value={newRate.childRate} onChange={(e) => setNewRate({ ...newRate, childRate: e.target.value })} data-testid="input-child-rate" /></div>
+              <div><Label>{t("pe_infant_rate")}</Label><Input className="w-28" value={newRate.infantRate} onChange={(e) => setNewRate({ ...newRate, infantRate: e.target.value })} data-testid="input-infant-rate" /></div>
               <Button onClick={() => addRate.mutate()} disabled={!newRate.origin || !newRate.destination || !newRate.ratePerPerson || addRate.isPending} data-testid="button-add-rate"><Plus className="w-4 h-4 mr-1" />{t("add")}</Button>
             </CardContent>
           </Card>
           <Card><CardContent className="pt-4">
             <Table>
               <TableHeader><TableRow>
-                <TableHead>{t("pe_route")}</TableHead><TableHead>{t("pe_rate_per_person")}</TableHead><TableHead>{t("pe_child_rate")}</TableHead><TableHead /></TableRow></TableHeader>
+                <TableHead>{t("pe_route")}</TableHead><TableHead>{t("pe_rate_per_person")}</TableHead><TableHead>{t("pe_child_rate")}</TableHead><TableHead>{t("pe_infant_rate")}</TableHead><TableHead /></TableRow></TableHeader>
               <TableBody>
                 {rates?.map((r) => (
                   <TableRow key={r.id} data-testid={`row-rate-${r.id}`}>
                     <TableCell>{r.origin} → {r.destination}</TableCell>
                     <TableCell>{money(r.ratePerPerson, r.currency)}</TableCell>
                     <TableCell>{money(r.childRate, r.currency)}</TableCell>
+                    <TableCell>{money(r.infantRate, r.currency)}</TableCell>
                     <TableCell><Button size="icon" variant="ghost" onClick={() => deleteRate.mutate(r.id)} data-testid={`button-delete-rate-${r.id}`}><Trash2 className="w-4 h-4" /></Button></TableCell>
                   </TableRow>
                 ))}
@@ -320,6 +398,34 @@ export default function AdminGroupQuotes() {
                     <TableCell>{b.minPax}–{b.maxPax}</TableCell>
                     <TableCell>{b.assistanceType === "professional_guide" ? t("pe_professional_guide") : t("pe_driver_chaperone")}</TableCell>
                     <TableCell><Switch checked={!!b.isActive} onCheckedChange={(v) => toggleBand.mutate({ id: b.id, isActive: v })} data-testid={`switch-band-${b.id}`} /></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent></Card>
+        </TabsContent>
+
+        {/* ---- Exchange rates ---- */}
+        <TabsContent value="fx" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader><CardTitle className="text-base">{t("pe_add_exchange_rate")}</CardTitle></CardHeader>
+            <CardContent className="flex flex-wrap gap-3 items-end">
+              <div><Label>{t("pe_source_currency")}</Label><Input className="w-24" placeholder="IDR" value={newFx.sourceCurrency} onChange={(e) => setNewFx({ ...newFx, sourceCurrency: e.target.value })} data-testid="input-fx-source" /></div>
+              <div><Label>{t("pe_target_currency")}</Label><Input className="w-24" placeholder="USD" value={newFx.targetCurrency} onChange={(e) => setNewFx({ ...newFx, targetCurrency: e.target.value })} data-testid="input-fx-target" /></div>
+              <div><Label>{t("pe_fx_rate")}</Label><Input className="w-36" placeholder="0.000061" value={newFx.rate} onChange={(e) => setNewFx({ ...newFx, rate: e.target.value })} data-testid="input-fx-rate" /></div>
+              <Button onClick={() => addFx.mutate()} disabled={!newFx.sourceCurrency || !newFx.targetCurrency || !newFx.rate || addFx.isPending} data-testid="button-add-fx"><Plus className="w-4 h-4 mr-1" />{t("add")}</Button>
+            </CardContent>
+          </Card>
+          <Card><CardContent className="pt-4">
+            <Table>
+              <TableHeader><TableRow>
+                <TableHead>{t("pe_currency_pair")}</TableHead><TableHead>{t("pe_fx_rate")}</TableHead><TableHead>{t("active")}</TableHead></TableRow></TableHeader>
+              <TableBody>
+                {fxRates?.map((r) => (
+                  <TableRow key={r.id} data-testid={`row-fx-${r.id}`}>
+                    <TableCell>{r.sourceCurrency} → {r.targetCurrency}</TableCell>
+                    <TableCell>{r.rate}</TableCell>
+                    <TableCell><Switch checked={!!r.isActive} onCheckedChange={(v) => toggleFx.mutate({ id: r.id, isActive: v })} data-testid={`switch-fx-${r.id}`} /></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -418,7 +524,7 @@ export default function AdminGroupQuotes() {
               </div>
               <Table>
                 <TableHeader><TableRow>
-                  <TableHead>{t("hotel")}</TableHead><TableHead>{t("pe_occupancy")}</TableHead><TableHead>{t("pe_base_cost")}</TableHead><TableHead>{t("pe_margin")}</TableHead><TableHead>{t("pe_free_adjustment")}</TableHead><TableHead>{t("pe_selling_price")}</TableHead></TableRow></TableHeader>
+                  <TableHead>{t("hotel")}</TableHead><TableHead>{t("pe_occupancy")}</TableHead><TableHead>{t("pe_base_cost")}</TableHead><TableHead>{t("pe_margin")}</TableHead><TableHead>{t("pe_free_adjustment")}</TableHead><TableHead>{t("pe_selling_price")}</TableHead><TableHead /></TableRow></TableHeader>
                 <TableBody>
                   {breakdown.lineItems?.map((li) => (
                     <TableRow key={li.id} data-testid={`row-line-item-${li.id}`}>
@@ -428,10 +534,24 @@ export default function AdminGroupQuotes() {
                       <TableCell>{money(li.marginAmount, breakdown.currency)}</TableCell>
                       <TableCell>{money(li.freeAdjustmentAmount, breakdown.currency)}</TableCell>
                       <TableCell className="font-semibold">{money(li.sellingPrice, breakdown.currency)}</TableCell>
+                      <TableCell>
+                        <Button size="sm" variant="ghost" onClick={() => { setOverrideLi(li); setOverrideValue(li.sellingPrice); setOverrideReason(""); }} data-testid={`button-override-${li.id}`}>
+                          {t("pe_override")}
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
+              {overrideLi && (
+                <div className="rounded-md border p-3 flex flex-wrap items-end gap-3" data-testid="override-form">
+                  <div className="text-sm font-medium w-full">{t("pe_override")}: {overrideLi.hotelName ?? `#${overrideLi.hotelChoice}`} · {t(`pe_${overrideLi.occupancy}` as any)}</div>
+                  <div><Label>{t("pe_override_value")}</Label><Input className="w-32" value={overrideValue} onChange={(e) => setOverrideValue(e.target.value)} data-testid="input-override-value" /></div>
+                  <div className="flex-1 min-w-48"><Label>{t("pe_override_reason")}</Label><Input value={overrideReason} onChange={(e) => setOverrideReason(e.target.value)} data-testid="input-override-reason" /></div>
+                  <Button size="sm" onClick={() => applyOverride.mutate()} disabled={!overrideValue || overrideReason.trim().length < 5 || applyOverride.isPending} data-testid="button-apply-override">{t("apply")}</Button>
+                  <Button size="sm" variant="outline" onClick={() => setOverrideLi(null)}>{t("cancel")}</Button>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

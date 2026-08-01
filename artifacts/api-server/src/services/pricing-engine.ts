@@ -18,9 +18,22 @@ Decimal.set({ precision: 28, rounding: Decimal.ROUND_HALF_UP });
 
 export type AssistanceType = "driver_chaperone" | "professional_guide";
 export type MarginType = "fixed" | "percentage";
-export type OccupancyType = "double" | "single" | "third_person" | "child" | "matrimonial";
+export type OccupancyType = "double" | "single" | "third_person" | "child" | "matrimonial" | "infant";
+export type RoundingRule = "cent" | "unit_nearest" | "unit_up" | "five_up" | "ten_up";
 
-export const OCCUPANCY_TYPES: OccupancyType[] = ["matrimonial", "double", "single", "third_person", "child"];
+export const OCCUPANCY_TYPES: OccupancyType[] = ["matrimonial", "double", "single", "third_person", "child", "infant"];
+
+/** Customer-price rounding. Internal breakdown figures always stay at 2dp. */
+export function applyRounding(price: Decimal, rule: RoundingRule | undefined): Decimal {
+  switch (rule) {
+    case "unit_nearest": return price.toDecimalPlaces(0, Decimal.ROUND_HALF_UP);
+    case "unit_up": return price.toDecimalPlaces(0, Decimal.ROUND_CEIL);
+    case "five_up": return price.div(5).toDecimalPlaces(0, Decimal.ROUND_CEIL).mul(5);
+    case "ten_up": return price.div(10).toDecimalPlaces(0, Decimal.ROUND_CEIL).mul(10);
+    case "cent":
+    default: return price.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+  }
+}
 
 /** Professional tour guide from this passenger count upward; below → driver-chaperone. */
 export const GUIDE_THRESHOLD = 16;
@@ -43,6 +56,8 @@ export interface PricingRuleLike {
   marginValue: string;          // percentage ("20" = +20%) or fixed amount
   freePassengerPaying: number;  // e.g. 3
   freePassengerFree: number;    // e.g. 1
+  /** Customer-price rounding policy. Defaults to "cent" (legacy 2dp). */
+  roundingRule?: RoundingRule;
 }
 
 export interface CostComponents {
@@ -50,6 +65,11 @@ export interface CostComponents {
   guideDriverShare: string;    // per-person share of guide/driver cost
   sightseeingShare: string;    // per-person share of sightseeing/entrance costs
   airfarePerPerson: string;
+  /**
+   * Occupancy-specific airfare (e.g. child/infant fares). Falls back to
+   * airfarePerPerson for occupancies not listed.
+   */
+  airfareByOccupancy?: Partial<Record<OccupancyType, string>>;
 }
 
 export interface HotelChoiceInput {
@@ -78,7 +98,8 @@ export interface LineItemResult {
   baseCost: string;            // step 1
   marginAmount: string;        // step 2 delta
   freeAdjustmentAmount: string;// step 3 delta
-  sellingPrice: string;        // final (2 dp)
+  sellingPrice: string;        // final, after the configured rounding rule
+  sellingPriceExact: string;   // pre-rounding-rule value (2 dp), for audit
 }
 
 export interface QuoteComputationResult {
@@ -130,10 +151,17 @@ export function computeQuote(input: QuoteComputationInput): QuoteComputationResu
   }
 
   const c = input.components;
-  const componentBase = dec(c.transportationShare, "transportationShare")
+  const landBase = dec(c.transportationShare, "transportationShare")
     .plus(dec(c.guideDriverShare, "guideDriverShare"))
-    .plus(dec(c.sightseeingShare, "sightseeingShare"))
-    .plus(dec(c.airfarePerPerson, "airfarePerPerson"));
+    .plus(dec(c.sightseeingShare, "sightseeingShare"));
+  const defaultAirfare = dec(c.airfarePerPerson, "airfarePerPerson");
+  const airfareFor = (occupancy: OccupancyType): Decimal => {
+    const specific = c.airfareByOccupancy?.[occupancy];
+    return specific === undefined || specific === null
+      ? defaultAirfare
+      : dec(specific, `airfareByOccupancy.${occupancy}`);
+  };
+  const componentBase = landBase.plus(defaultAirfare);
 
   const factor = freeAdjustmentFactor(input.rule);
   const lineItems: LineItemResult[] = [];
@@ -147,8 +175,8 @@ export function computeQuote(input: QuoteComputationInput): QuoteComputationResu
       const nightlyRate = dec(nightly, `nightlyRates.${occupancy}`);
       const hotelCostTotal = nightlyRate.mul(input.nights);
 
-      // Step 1 — base cost
-      const baseCost = componentBase.plus(hotelCostTotal);
+      // Step 1 — base cost (airfare may differ per occupancy: child/infant fares)
+      const baseCost = landBase.plus(airfareFor(occupancy)).plus(hotelCostTotal);
       // Step 2 — company profit margin
       const withMargin = applyMargin(baseCost, input.rule);
       const marginAmount = withMargin.minus(baseCost);
@@ -159,6 +187,8 @@ export function computeQuote(input: QuoteComputationInput): QuoteComputationResu
         .mul(input.rule.freePassengerPaying + input.rule.freePassengerFree)
         .div(input.rule.freePassengerPaying);
       const freeAdjustmentAmount = finalPrice.minus(withMargin);
+      // Step 4 — configurable customer-price rounding (selling price only)
+      const rounded = applyRounding(finalPrice, input.rule.roundingRule);
 
       lineItems.push({
         hotelChoice: hotel.hotelChoice,
@@ -170,7 +200,8 @@ export function computeQuote(input: QuoteComputationInput): QuoteComputationResu
         baseCost: baseCost.toFixed(2),
         marginAmount: marginAmount.toFixed(2),
         freeAdjustmentAmount: freeAdjustmentAmount.toFixed(2),
-        sellingPrice: finalPrice.toFixed(2),
+        sellingPrice: rounded.toFixed(2),
+        sellingPriceExact: finalPrice.toFixed(2),
       });
 
       if (referenceGroupCost === null && occupancy === "double") {

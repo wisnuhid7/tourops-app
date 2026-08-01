@@ -1320,10 +1320,23 @@ export const assistanceTypeEnum = pgEnum("assistance_type", [
 ]);
 export const marginTypeEnum = pgEnum("margin_type", ["fixed", "percentage"]);
 export const occupancyTypeEnum = pgEnum("occupancy_type", [
-  "double", "single", "third_person", "child", "matrimonial",
+  "double", "single", "third_person", "child", "matrimonial", "infant",
 ]);
+// Rounding applied to the customer-facing selling price only (internal
+// breakdown figures stay at 2dp). Configurable per pricing rule.
+export const roundingRuleEnum = pgEnum("rounding_rule", [
+  "cent",          // round to 2 decimals (default, legacy behavior)
+  "unit_nearest",  // round to nearest whole currency unit
+  "unit_up",       // round up to next whole unit
+  "five_up",       // round up to next multiple of 5
+  "ten_up",        // round up to next multiple of 10
+]);
+// Approval workflow. Values are ADD-ONLY (prod rows may hold any of them).
+// "final" is the legacy pre-workflow value and is treated as approved.
 export const pricingQuoteStatusEnum = pgEnum("pricing_quote_status", [
   "draft", "final", "archived",
+  "pending_approval", "approved", "rejected",
+  "sent", "viewed", "accepted", "expired", "cancelled",
 ]);
 
 export const groupSizeBands = pgTable("group_size_bands", {
@@ -1349,6 +1362,8 @@ export const pricingRules = pgTable("pricing_rules", {
   // (1 per 3 => group revenue must cover pax*(1+1/3) => factor 4/3).
   freePassengerPaying: integer("free_passenger_paying").notNull().default(3),
   freePassengerFree: integer("free_passenger_free").notNull().default(1),
+  // Customer-price rounding policy (selling price only; internals stay 2dp).
+  roundingRule: roundingRuleEnum("rounding_rule").notNull().default("cent"),
   currency: text("currency").notNull().default("USD"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
@@ -1364,6 +1379,7 @@ export const airfareRates = pgTable("airfare_rates", {
   airline: text("airline"),
   ratePerPerson: numeric("rate_per_person").notNull(),
   childRate: numeric("child_rate"),                  // null = same as adult
+  infantRate: numeric("infant_rate"),                // null = no infant fare on file
   currency: text("currency").notNull().default("USD"),
   validFrom: timestamp("valid_from"),
   validTo: timestamp("valid_to"),
@@ -1407,6 +1423,10 @@ export const pricingQuotes = pgTable("pricing_quotes", {
   // (customerId) or via its unguessable share token, and only once `final`.
   customerId: varchar("customer_id"),
   shareToken: varchar("share_token").notNull().default(sql`gen_random_uuid()`),
+  // Approval workflow: who approved (or rejected) and when. Set exactly once
+  // when the quote transitions to approved; cleared if re-drafted.
+  approvedBy: varchar("approved_by"),
+  approvedAt: timestamp("approved_at"),
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -1433,6 +1453,8 @@ export const pricingQuoteLineItems = pgTable("pricing_quote_line_items", {
   freeAdjustmentAmount: numeric("free_adjustment_amount").notNull().default("0"), // step 3 delta
   // Customer-visible
   sellingPrice: numeric("selling_price").notNull().default("0"),      // final rounded
+  // Pre-rounding-rule value (2dp). Kept so configurable rounding is auditable.
+  sellingPriceExact: numeric("selling_price_exact"),
 }, (table) => ({
   quoteIdIdx: index("pricing_quote_line_items_quote_id_idx").on(table.quoteId),
   quoteChoiceOccIdx: uniqueIndex("pricing_quote_line_items_choice_occ_idx")
@@ -1465,6 +1487,7 @@ export type PricingRule = typeof pricingRules.$inferSelect;
 export const insertAirfareRateSchema = createInsertSchema(airfareRates, {
   ratePerPerson: (s: z.ZodString) => nonNegativePriceString(s),
   childRate: (s: z.ZodString) => nonNegativePriceString(s),
+  infantRate: (s: z.ZodString) => nonNegativePriceString(s),
   validFrom: () => z.coerce.date().nullable().optional(),
   validTo: () => z.coerce.date().nullable().optional(),
 })
@@ -1489,6 +1512,82 @@ export const insertPricingQuoteLineItemSchema = createInsertSchema(pricingQuoteL
   });
 export type InsertPricingQuoteLineItem = z.infer<typeof insertPricingQuoteLineItemSchema>;
 export type PricingQuoteLineItem = typeof pricingQuoteLineItems.$inferSelect;
+
+// Manual currency conversion rates for supplier costs quoted in a different
+// currency than the quote currency. Approved quotes never re-convert — the
+// rate used is frozen into calculationMeta at computation time.
+export const exchangeRates = pgTable("exchange_rates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourceCurrency: text("source_currency").notNull(),  // e.g. "IDR"
+  targetCurrency: text("target_currency").notNull(),  // e.g. "USD"
+  rate: numeric("rate").notNull(),                    // target per 1 source
+  validFrom: timestamp("valid_from"),
+  validTo: timestamp("valid_to"),
+  isActive: boolean("is_active").notNull().default(true),
+  enteredBy: varchar("entered_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  pairIdx: index("exchange_rates_pair_idx").on(table.sourceCurrency, table.targetCurrency),
+}));
+
+const CURRENCY_RE = /^[A-Z]{3}$/;
+export const insertExchangeRateSchema = createInsertSchema(exchangeRates, {
+  validFrom: () => z.coerce.date().nullable().optional(),
+  validTo: () => z.coerce.date().nullable().optional(),
+})
+  .omit({ id: true, createdAt: true, updatedAt: true, enteredBy: true })
+  .superRefine((v, ctx) => {
+    // FX rate must be a strictly positive plain decimal (0 would zero out
+    // costs). Bounded digits so it fits Postgres numeric without a DB error;
+    // positivity is checked on the string (no float round-trip).
+    if (v.rate !== undefined) {
+      const s = String(v.rate).trim();
+      if (!/^\d{1,12}(\.\d{1,12})?$/.test(s) || !/[1-9]/.test(s))
+        ctx.addIssue({ code: "custom", path: ["rate"], message: "rate must be a positive decimal number" });
+    }
+    if (v.sourceCurrency !== undefined && !CURRENCY_RE.test(v.sourceCurrency))
+      ctx.addIssue({ code: "custom", path: ["sourceCurrency"], message: "sourceCurrency must be a 3-letter ISO code" });
+    if (v.targetCurrency !== undefined && !CURRENCY_RE.test(v.targetCurrency))
+      ctx.addIssue({ code: "custom", path: ["targetCurrency"], message: "targetCurrency must be a 3-letter ISO code" });
+    if (v.sourceCurrency && v.targetCurrency && v.sourceCurrency === v.targetCurrency)
+      ctx.addIssue({ code: "custom", path: ["targetCurrency"], message: "source and target currencies must differ" });
+    if (v.validFrom && v.validTo && v.validFrom > v.validTo)
+      ctx.addIssue({ code: "custom", path: ["validTo"], message: "validTo must be on or after validFrom" });
+  });
+export type InsertExchangeRate = z.infer<typeof insertExchangeRateSchema>;
+export type ExchangeRate = typeof exchangeRates.$inferSelect;
+
+// Manual selling-price overrides on quote line items. The original value is
+// preserved here; the line item carries the override. Reason is mandatory.
+export const pricingQuoteOverrides = pgTable("pricing_quote_overrides", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  quoteId: varchar("quote_id").notNull(),
+  lineItemId: varchar("line_item_id").notNull(),
+  fieldName: text("field_name").notNull().default("selling_price"),
+  originalValue: numeric("original_value").notNull(),
+  overrideValue: numeric("override_value").notNull(),
+  reason: text("reason").notNull(),
+  createdBy: varchar("created_by"),
+  approvedBy: varchar("approved_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  quoteIdIdx: index("pricing_quote_overrides_quote_id_idx").on(table.quoteId),
+}));
+
+export const insertPricingQuoteOverrideSchema = createInsertSchema(pricingQuoteOverrides, {
+  overrideValue: (s: z.ZodString) => nonNegativePriceString(s),
+})
+  .omit({ id: true, createdAt: true, originalValue: true, createdBy: true, approvedBy: true })
+  .superRefine((v, ctx) => {
+    if (v.reason !== undefined && v.reason.trim().length < 5)
+      ctx.addIssue({ code: "custom", path: ["reason"], message: "reason is required (min 5 characters)" });
+    // Bound digits so the value fits Postgres numeric without a DB error.
+    if (v.overrideValue !== undefined && !/^\d{1,12}(\.\d{1,6})?$/.test(String(v.overrideValue).trim()))
+      ctx.addIssue({ code: "custom", path: ["overrideValue"], message: "overrideValue must be a plain decimal with at most 12 integer and 6 fraction digits" });
+  });
+export type InsertPricingQuoteOverride = z.infer<typeof insertPricingQuoteOverrideSchema>;
+export type PricingQuoteOverride = typeof pricingQuoteOverrides.$inferSelect;
 
 // --- New Table for Generic Dashboard Master Records ---
 

@@ -89,6 +89,31 @@ vi.mock("@workspace/db", () => {
   return new Proxy(
     {
       db: {},
+      // Real enum values needed because POST /api/admin/users builds
+      // z.enum(userRoleEnum.enumValues) at request time.
+      userRoleEnum: {
+        enumValues: [
+          "super_admin",
+          "admin",
+          "travel_agent",
+          "customer",
+          "airline_supplier",
+          "country_manager",
+          "city_manager",
+          "hotel_manager",
+          "transport_manager",
+          "guide_manager",
+          "sights_manager",
+          "content_editor",
+          "flight_agent",
+          "tour_builder",
+          "supplier",
+          "tour_leader",
+          "accounting",
+          "operations_manager",
+          "support_agent",
+        ],
+      },
       countries: table("countries"),
       cities: table("cities"),
       tourDays: table("tourDays"),

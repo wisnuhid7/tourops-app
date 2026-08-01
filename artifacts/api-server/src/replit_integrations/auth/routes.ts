@@ -271,6 +271,8 @@ export function registerAuthRoutes(app: Express): void {
         firstName: z.string().min(1, "First name is required"),
         lastName: z.string().optional(),
         email: z.string().email("Invalid email address").optional().or(z.literal("")),
+        // Client account classification (who they book for). Defaults to individual.
+        accountType: z.enum(["individual", "family_organizer", "group_organizer", "tour_leader", "organization"]).optional(),
       });
 
       const parsed = registerSchema.safeParse(req.body);
@@ -279,7 +281,7 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(400).json({ message: firstError });
       }
 
-      const { username, password, firstName, lastName, email } = parsed.data;
+      const { username, password, firstName, lastName, email, accountType } = parsed.data;
 
       // Check for existing username
       const existing = await authStorage.getUserByUsername(username);
@@ -297,7 +299,7 @@ export function registerAuthRoutes(app: Express): void {
       });
 
       // Auto-create customer profile
-      await authStorage.ensureProfile(user.id);
+      await authStorage.ensureProfile(user.id, accountType ?? "individual");
 
       // Kick off email verification when the account was registered with an
       // email address (non-blocking — queued).

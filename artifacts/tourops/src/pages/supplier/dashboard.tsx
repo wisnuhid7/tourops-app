@@ -34,6 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from "date-fns";
 import { useLanguage } from "@/hooks/use-language";
+import { SupplierServiceRequests } from "@/components/supplier-service-requests";
 import { HotelFormFields, emptyHotelFormValues, hotelToFormValues, hotelFormToPayload, type HotelFormValues } from "@/components/hotel-form-fields";
 
 export default function SupplierDashboard() {
@@ -347,6 +348,10 @@ export default function SupplierDashboard() {
             <ClipboardList className="h-4 w-4 mr-2" />
             {t("tasks_tab")}
           </TabsTrigger>
+          <TabsTrigger value="service_requests" data-testid="tab-service-requests" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
+            <Bell className="h-4 w-4 mr-2" />
+            {t("sr_tab")}
+          </TabsTrigger>
           {(profile?.role === "hotel_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
             <TabsTrigger value="hotels" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
               <Hotel className="h-4 w-4 mr-2" />
@@ -396,6 +401,10 @@ export default function SupplierDashboard() {
             </TabsTrigger>
           )}
         </TabsList>
+
+        <TabsContent value="service_requests">
+          <SupplierServiceRequests />
+        </TabsContent>
 
         <TabsContent value="tasks">
           <div className="flex justify-between items-center mb-6">

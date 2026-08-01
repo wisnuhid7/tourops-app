@@ -50,6 +50,7 @@ import { queues } from "../lib/workers";
 import { scraperSafety } from "../lib/scraperSafety";
 import { setupAuth, isAuthenticated } from "../replit_integrations/auth";
 import { registerPaymentRoutes } from "./paymentRoutes";
+import { registerServiceOpsRoutes } from "./serviceOpsRoutes";
 import { registerAuthRoutes, passwordSchema } from "../replit_integrations/auth";
 import { authStorage } from "../replit_integrations/auth/storage";
 import { db } from "@workspace/db";
@@ -314,6 +315,7 @@ export async function registerRoutes(
   await setupAuth(app);
   registerAuthRoutes(app);
   registerPaymentRoutes(app);
+  registerServiceOpsRoutes(app);
 
   // Pre-create uploads directory so it exists before any request hits
   const uploadsDir = path.join(process.cwd(), "uploads", "images");

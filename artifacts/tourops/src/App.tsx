@@ -60,6 +60,8 @@ import ForgotPasswordPage from "@/pages/forgot-password";
 import ResetPasswordPage from "@/pages/reset-password";
 import VerifyEmailPage from "@/pages/verify-email";
 import AccountSecurityPage from "@/pages/account-security";
+import AdminTestData from "@/pages/admin/test-data";
+import { TestEnvironmentBanner } from "@/components/test-environment-banner";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { getRoleHome, SUPPLIER_ROLES } from "@/lib/roles";
@@ -151,6 +153,7 @@ function AuthenticatedLayout() {
             <Route path="/admin/payments" component={AdminPayments} />
             <Route path="/admin/messages" component={AdminMessages} />
             <Route path="/admin/assignments" component={AdminAssignments} />
+            <Route path="/admin/test-data" component={AdminTestData} />
 
             {/* Account security (all authenticated roles) */}
             <Route path="/account/security" component={AccountSecurityPage} />
@@ -264,6 +267,7 @@ function App() {
       <LanguageProvider>
         <ThemeProvider>
           <TooltipProvider>
+            <TestEnvironmentBanner />
             <AppRouter />
             <Toaster />
           </TooltipProvider>

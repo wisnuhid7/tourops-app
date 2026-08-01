@@ -56,7 +56,7 @@ export function AppSidebar() {
   const getNav = () => {
     const role = profile?.role;
     if (role === "admin" || role === "super_admin") {
-      return [
+      const items = [
         { title: t("dashboard"), url: "/admin", icon: LayoutDashboard },
         { title: t("tours"), url: "/admin/tours", icon: Globe },
         { title: t("departures"), url: "/admin/departures", icon: CalendarDays },
@@ -80,6 +80,8 @@ export function AppSidebar() {
         { title: t("nav_messages"), url: "/admin/messages", icon: Mail },
         { title: t("nav_assignments"), url: "/admin/assignments", icon: UserCheck },
       ];
+      if (role === "super_admin") items.push({ title: t("nav_test_data"), url: "/admin/test-data", icon: Database });
+      return items;
     }
     // Each role's dashboard URL is derived from the single source of truth in
     // lib/roles.ts (getRoleHome) so the sidebar link can never drift from the

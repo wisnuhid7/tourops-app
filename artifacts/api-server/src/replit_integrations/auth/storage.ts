@@ -49,12 +49,15 @@ class AuthStorage implements IAuthStorage {
     return profile;
   }
 
-  async ensureProfile(userId: string): Promise<UserProfile> {
+  async ensureProfile(
+    userId: string,
+    accountType?: "individual" | "family_organizer" | "group_organizer" | "tour_leader" | "organization",
+  ): Promise<UserProfile> {
     const existing = await this.getProfileByUserId(userId);
     if (existing) return existing;
     const [profile] = await db
       .insert(userProfiles)
-      .values({ userId, role: "customer" })
+      .values({ userId, role: "customer", accountType: accountType ?? "individual" })
       .returning();
     return profile;
   }

@@ -17,4 +17,5 @@
 - [TourOps pricing engine](pricing-engine.md) — decimal-string money, fixed 3-step calc order, quote customer access needs final-status + customerId/shareToken (IDOR lesson), zod v4 partialRecord gotcha.
 - [Group join flow guards](join-flow-guards.md) — joins only via the join endpoint (server-derived price/leader); partial unique index beats read-then-insert races; by-code lookup returns shaped data, not 403.
 - [Payments provider layer](payments-provider-layer.md) — gateway abstraction + webhook idempotency via unique (provider,event_id); session.regenerate() wipes per-request cookie downgrades (login 200 but cookie rejected).
+- [Staging test-data engine](staging-test-data.md) — reset deletes only provably-owned rows (createdBy/fixed IDs, never LIKE prefixes); prod-blocked endpoints; drizzle ANY(array) gotcha; $3,408 pricing anchor.
 - [Wide-read exclusion & subroute parity](wide-read-exclusion-pattern.md) — restricting a role via the wide-read filters is not enough; booking/workflow subroutes default to ALL_STAFF and re-leak by ID.

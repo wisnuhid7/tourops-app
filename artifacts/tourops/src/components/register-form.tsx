@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import { UserPlus, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface RegisterFormProps {
   onShowLogin?: () => void;
@@ -19,6 +20,7 @@ export function RegisterForm({ onShowLogin }: RegisterFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [accountType, setAccountType] = useState("individual");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { refetch } = useAuth();
@@ -38,7 +40,7 @@ export function RegisterForm({ onShowLogin }: RegisterFormProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ username, password, firstName, lastName: lastName || undefined, email: email || undefined }),
+        body: JSON.stringify({ username, password, firstName, lastName: lastName || undefined, email: email || undefined, accountType }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -118,6 +120,19 @@ export function RegisterForm({ onShowLogin }: RegisterFormProps) {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="jane@example.com"
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="reg-account-type">{t("account_type")}</Label>
+            <Select value={accountType} onValueChange={setAccountType}>
+              <SelectTrigger id="reg-account-type"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="individual">{t("account_type_individual")}</SelectItem>
+                <SelectItem value="family_organizer">{t("account_type_family_organizer")}</SelectItem>
+                <SelectItem value="group_organizer">{t("account_type_group_organizer")}</SelectItem>
+                <SelectItem value="tour_leader">{t("account_type_tour_leader")}</SelectItem>
+                <SelectItem value="organization">{t("account_type_organization")}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="space-y-2">
             <Label htmlFor="reg-password">{t("password")} <span className="text-destructive">*</span></Label>

@@ -49,10 +49,21 @@ export const userRoleEnum = pgEnum("user_role", [
   "support_agent",
 ]);
 
+// Client account classification for customer-role profiles (who they book for).
+export const clientAccountTypeEnum = pgEnum("client_account_type", [
+  "individual",
+  "family_organizer",
+  "group_organizer",
+  "tour_leader",
+  "organization",
+]);
+
 export const userProfiles = pgTable("user_profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull(),
   role: userRoleEnum("role").notNull().default("customer"),
+  // Only meaningful for customer-role profiles; staff/supplier profiles leave it null.
+  accountType: clientAccountTypeEnum("account_type"),
   phone: text("phone"),
   companyName: text("company_name"),
   countryCode: text("country_code"),
@@ -65,6 +76,7 @@ export const userProfiles = pgTable("user_profiles", {
 }));
 
 export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({ id: true });
+
 export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
 export type UserProfile = typeof userProfiles.$inferSelect;
 
@@ -1588,6 +1600,102 @@ export const insertPricingQuoteOverrideSchema = createInsertSchema(pricingQuoteO
   });
 export type InsertPricingQuoteOverride = z.infer<typeof insertPricingQuoteOverrideSchema>;
 export type PricingQuoteOverride = typeof pricingQuoteOverrides.$inferSelect;
+
+// --- Supplier service requests (per-booking, per-supplier work orders) ---
+
+export const serviceRequestStatusEnum = pgEnum("service_request_status", [
+  "pending",     // created by ops, not yet sent
+  "sent",        // visible to the supplier
+  "confirmed",
+  "rejected",
+  "changes_requested",
+  "cancelled",
+]);
+
+// A single service Tourops asks one supplier to deliver for a booking.
+// Suppliers see ONLY their own rows and never selling prices/margins:
+// agreedRate is the supplier's own cost rate, entered by ops.
+export const bookingServiceRequests = pgTable("booking_service_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id").notNull(),
+  serviceType: serviceTypeEnum("service_type").notNull(),
+  supplierUserId: varchar("supplier_user_id").notNull(), // user_profiles.userId of the supplier account
+  serviceDate: timestamp("service_date"),
+  location: text("location"),
+  quantity: integer("quantity").default(1),
+  paxCount: integer("pax_count"),
+  agreedRate: numeric("agreed_rate"),
+  currency: text("currency").default("USD"),
+  status: serviceRequestStatusEnum("status").notNull().default("pending"),
+  notesForSupplier: text("notes_for_supplier"),
+  supplierResponse: text("supplier_response"),
+  respondedAt: timestamp("responded_at"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  bookingIdx: index("booking_service_requests_booking_idx").on(table.bookingId),
+  supplierIdx: index("booking_service_requests_supplier_idx").on(table.supplierUserId),
+}));
+
+export const insertBookingServiceRequestSchema = createInsertSchema(bookingServiceRequests, {
+  serviceDate: () => z.coerce.date().nullable().optional(),
+})
+  .omit({ id: true, createdAt: true, updatedAt: true, createdBy: true, respondedAt: true, supplierResponse: true, status: true })
+  .superRefine((v, ctx) => {
+    if (v.agreedRate !== undefined && v.agreedRate !== null && !/^\d{1,12}(\.\d{1,6})?$/.test(String(v.agreedRate).trim()))
+      ctx.addIssue({ code: "custom", path: ["agreedRate"], message: "agreedRate must be a plain non-negative decimal" });
+    if (v.quantity !== undefined && v.quantity !== null && v.quantity < 1)
+      ctx.addIssue({ code: "custom", path: ["quantity"], message: "quantity must be at least 1" });
+    if (v.paxCount !== undefined && v.paxCount !== null && v.paxCount < 0)
+      ctx.addIssue({ code: "custom", path: ["paxCount"], message: "paxCount must be non-negative" });
+  });
+export type InsertBookingServiceRequest = z.infer<typeof insertBookingServiceRequestSchema>;
+export type BookingServiceRequest = typeof bookingServiceRequests.$inferSelect;
+
+// --- Client payment schedules (deposit + installments per booking) ---
+
+export const paymentScheduleStatusEnum = pgEnum("payment_schedule_status", [
+  "pending",
+  "paid",
+  "partially_paid",
+  "late",
+  "cancelled",
+]);
+
+export const bookingPaymentSchedules = pgTable("booking_payment_schedules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  bookingId: varchar("booking_id").notNull(),
+  installmentNumber: integer("installment_number").notNull(),
+  label: text("label").notNull(),           // e.g. "Deposit", "Second Payment"
+  percentage: numeric("percentage").notNull(), // of booking total, decimal string e.g. "20"
+  amount: numeric("amount").notNull(),         // decimal-string money in booking currency
+  currency: text("currency").notNull().default("USD"),
+  dueDate: timestamp("due_date").notNull(),
+  paidAmount: numeric("paid_amount").notNull().default("0"),
+  status: paymentScheduleStatusEnum("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  bookingIdx: index("booking_payment_schedules_booking_idx").on(table.bookingId),
+  uniqueInstallment: uniqueIndex("booking_payment_schedules_unique_installment").on(table.bookingId, table.installmentNumber),
+}));
+
+export type BookingPaymentSchedule = typeof bookingPaymentSchedules.$inferSelect;
+
+// --- Test-data seed runs (staging only; report of each seed execution) ---
+
+export const seedRuns = pgTable("seed_runs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  action: text("action").notNull(),          // full_seed | reset | validate | phase:<name>
+  status: text("status").notNull(),          // running | completed | failed
+  report: jsonb("report"),                   // per-phase created/updated/skipped/failed + validation results
+  error: text("error"),
+  startedBy: varchar("started_by"),
+  startedAt: timestamp("started_at").defaultNow(),
+  finishedAt: timestamp("finished_at"),
+});
+export type SeedRun = typeof seedRuns.$inferSelect;
 
 // --- New Table for Generic Dashboard Master Records ---
 

@@ -1,0 +1,9 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "ZbJur12DFd5DDOQO60lbu"
+uri = "file://docs/manual-test-scenarios.md"
+type = "text"
+title = "Manual Test Scenarios"
+description = "Complete human testing guide for TourOps — 14 areas, ~60 scenarios with test accounts and expected results."

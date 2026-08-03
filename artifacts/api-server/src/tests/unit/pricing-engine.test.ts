@@ -194,6 +194,194 @@ describe("computeQuote — 3-step order", () => {
   });
 });
 
+// ---- Adjustment rules ----
+import type { AdjustmentRuleLike } from "../../services/pricing-engine";
+
+const taxRule = (id: string, overrides?: Partial<AdjustmentRuleLike>): AdjustmentRuleLike => ({
+  id,
+  name: "VAT 10%",
+  type: "tax",
+  amountType: "percentage",
+  amount: "10",
+  applicationOrder: 0,
+  appliesToStage: "after_free_policy",
+  ...overrides,
+});
+
+const feeRule = (id: string, overrides?: Partial<AdjustmentRuleLike>): AdjustmentRuleLike => ({
+  id,
+  name: "Booking fee",
+  type: "booking_fee",
+  amountType: "fixed",
+  amount: "5",
+  applicationOrder: 1,
+  appliesToStage: "after_free_policy",
+  ...overrides,
+});
+
+const discountRule = (id: string, overrides?: Partial<AdjustmentRuleLike>): AdjustmentRuleLike => ({
+  id,
+  name: "Group discount",
+  type: "discount",
+  amountType: "percentage",
+  amount: "15",
+  applicationOrder: 0,
+  appliesToStage: "before_margin",
+  ...overrides,
+});
+
+const baseInput = {
+  paxCount: 4,
+  nights: 0,
+  components: { transportationShare: "100", guideDriverShare: "0", sightseeingShare: "0", airfarePerPerson: "0" },
+  hotels: [{ hotelChoice: 1, nightlyRates: { double: "0" } }],
+  rule: { marginType: "percentage" as const, marginValue: "20", freePassengerPaying: 3, freePassengerFree: 0 },
+};
+
+describe("adjustment rules — taxes and fees", () => {
+  it("percentage tax after_free_policy increases sellingPrice and appears in adjustmentItems", () => {
+    // base=100, margin 20% → 120, no free adj, then 10% tax → 132
+    const result = computeQuote({
+      ...baseInput,
+      adjustmentRules: [taxRule("t1")],
+    });
+    const li = result.lineItems[0];
+    expect(li.sellingPrice).toBe("132.00");
+    expect(li.adjustmentItems).toHaveLength(1);
+    expect(li.adjustmentItems[0].ruleId).toBe("t1");
+    expect(li.adjustmentItems[0].name).toBe("VAT 10%");
+    expect(li.adjustmentItems[0].appliedAmount).toBe("12.00"); // 10% of 120
+    expect(li.adjustmentItems[0].type).toBe("tax");
+  });
+
+  it("fixed booking fee after_free_policy adds flat amount", () => {
+    // base=100, margin 20% → 120, +5 fixed fee → 125
+    const result = computeQuote({
+      ...baseInput,
+      adjustmentRules: [feeRule("f1")],
+    });
+    const li = result.lineItems[0];
+    expect(li.sellingPrice).toBe("125.00");
+    expect(li.adjustmentItems[0].appliedAmount).toBe("5.00");
+  });
+
+  it("discount before_margin reduces base before margin is applied", () => {
+    // base=100, 15% discount before margin → 85, then 20% margin → 102
+    const result = computeQuote({
+      ...baseInput,
+      adjustmentRules: [discountRule("d1")],
+    });
+    const li = result.lineItems[0];
+    expect(li.sellingPrice).toBe("102.00");
+    // discount item has negative appliedAmount
+    expect(li.adjustmentItems[0].appliedAmount).toBe("-15.00");
+  });
+
+  it("multiple rules applied in applicationOrder within the same stage", () => {
+    // after_free_policy: first 10% tax on 120 → +12, then +5 fixed → total 137
+    const result = computeQuote({
+      ...baseInput,
+      adjustmentRules: [
+        taxRule("t1", { applicationOrder: 0 }),
+        feeRule("f1", { applicationOrder: 1 }),
+      ],
+    });
+    const li = result.lineItems[0];
+    // 120 + 12 (10% of 120) + 5 = 137
+    expect(li.sellingPrice).toBe("137.00");
+    expect(li.adjustmentItems).toHaveLength(2);
+    expect(li.adjustmentItems[0].ruleId).toBe("t1");
+    expect(li.adjustmentItems[1].ruleId).toBe("f1");
+    // Percentage tax applies to 120, fixed fee is flat
+    expect(li.adjustmentItems[0].appliedAmount).toBe("12.00");
+    expect(li.adjustmentItems[1].appliedAmount).toBe("5.00");
+  });
+
+  it("rules at different stages are applied in correct order", () => {
+    // Stage 1: before_margin: 15% discount on base 100 → 85
+    // Stage 2: margin 20% on 85 → 102
+    // Stage 3: after_free_policy: 10% tax on 102 → 112.20
+    const result = computeQuote({
+      ...baseInput,
+      adjustmentRules: [
+        discountRule("d1", { appliesToStage: "before_margin" }),
+        taxRule("t1", { appliesToStage: "after_free_policy" }),
+      ],
+    });
+    const li = result.lineItems[0];
+    expect(li.sellingPrice).toBe("112.20");
+    expect(li.adjustmentItems).toHaveLength(2);
+  });
+
+  it("after_margin rule applies between margin step and free-passenger step", () => {
+    // base=100, 20% margin → 120, then surcharge 5% after_margin → 126
+    // then no free passenger adj (factor 1)
+    const result = computeQuote({
+      ...baseInput,
+      adjustmentRules: [
+        taxRule("t1", { appliesToStage: "after_margin", amountType: "percentage", amount: "5" }),
+      ],
+    });
+    const li = result.lineItems[0];
+    expect(li.sellingPrice).toBe("126.00"); // 120 * 1.05
+    expect(li.adjustmentItems[0].appliedAmount).toBe("6.00");
+  });
+
+  it("no adjustmentRules produces empty adjustmentItems array", () => {
+    const result = computeQuote(baseInput);
+    expect(result.lineItems[0].adjustmentItems).toEqual([]);
+  });
+
+  it("percentage discount produces negative appliedAmount", () => {
+    const result = computeQuote({
+      ...baseInput,
+      adjustmentRules: [discountRule("d1", { appliesToStage: "after_free_policy", amount: "20" })],
+    });
+    const li = result.lineItems[0];
+    // 120 - 20% → 120 - 24 = 96
+    expect(li.sellingPrice).toBe("96.00");
+    expect(li.adjustmentItems[0].appliedAmount).toBe("-24.00");
+  });
+
+  it("tied applicationOrder breaks deterministically on id (lexicographic) — fixed then percentage", () => {
+    // Both rules have applicationOrder: 0 — tiebreak by id lexicography.
+    // id "a" < "b", so fixed fee (+5) applied first, then 10% tax.
+    // base=100, margin 20% → 120, then: +5 = 125, then +10% of 125 = +12.50 → 137.50
+    const result = computeQuote({
+      ...baseInput,
+      adjustmentRules: [
+        taxRule("b-tax", { applicationOrder: 0, appliesToStage: "after_free_policy" }),
+        feeRule("a-fee", { applicationOrder: 0, appliesToStage: "after_free_policy" }),
+      ],
+    });
+    const li = result.lineItems[0];
+    // a-fee (fixed +5) applied first: 120+5=125; b-tax (10% of 125) = +12.50 → 137.50
+    expect(li.sellingPrice).toBe("137.50");
+    expect(li.adjustmentItems[0].ruleId).toBe("a-fee");
+    expect(li.adjustmentItems[0].appliedAmount).toBe("5.00");
+    expect(li.adjustmentItems[1].ruleId).toBe("b-tax");
+    expect(li.adjustmentItems[1].appliedAmount).toBe("12.50"); // 10% of 125
+
+    // Reverse id order: "b" fee first, then "a" tax
+    // 120 + 5 = 125, 10% of 125 = 12.50 → same total, different sequencing
+    // Test with opposite naming to confirm id-based ordering
+    const result2 = computeQuote({
+      ...baseInput,
+      adjustmentRules: [
+        feeRule("b-fee", { applicationOrder: 0, appliesToStage: "after_free_policy" }),
+        taxRule("a-tax", { applicationOrder: 0, appliesToStage: "after_free_policy" }),
+      ],
+    });
+    const li2 = result2.lineItems[0];
+    // a-tax (10% of 120) = +12 first, then b-fee (+5) → 137
+    expect(li2.sellingPrice).toBe("137.00");
+    expect(li2.adjustmentItems[0].ruleId).toBe("a-tax");
+    expect(li2.adjustmentItems[0].appliedAmount).toBe("12.00");
+    expect(li2.adjustmentItems[1].ruleId).toBe("b-fee");
+    expect(li2.adjustmentItems[1].appliedAmount).toBe("5.00");
+  });
+});
+
 // ---- Rate-driven costing helpers ----
 import { occupanciesFromRoomRate } from "../../services/rate-resolver";
 

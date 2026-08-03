@@ -997,7 +997,6 @@ export const importJobs = pgTable("import_jobs", {
 });
 
 
-
 export const dataSources = pgTable("data_sources", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
@@ -1481,6 +1480,9 @@ export const pricingQuoteLineItems = pgTable("pricing_quote_line_items", {
   baseCost: numeric("base_cost").notNull().default("0"),              // step 1
   marginAmount: numeric("margin_amount").notNull().default("0"),      // step 2 delta
   freeAdjustmentAmount: numeric("free_adjustment_amount").notNull().default("0"), // step 3 delta
+  // Per-rule adjustment breakdown: [{ruleId, name, type, appliedAmount}]
+  // appliedAmount is the per-person monetary delta (negative for discounts).
+  adjustmentItems: jsonb("adjustment_items"),
   // Customer-visible
   sellingPrice: numeric("selling_price").notNull().default("0"),      // final rounded
   // Pre-rounding-rule value (2dp). Kept so configurable rounding is auditable.
@@ -1542,6 +1544,10 @@ export const insertPricingQuoteLineItemSchema = createInsertSchema(pricingQuoteL
   });
 export type InsertPricingQuoteLineItem = z.infer<typeof insertPricingQuoteLineItemSchema>;
 export type PricingQuoteLineItem = typeof pricingQuoteLineItems.$inferSelect;
+
+export const adjustmentTypeEnum = pgEnum("pricing_adjustment_type", [
+  "tax", "service_fee", "booking_fee", "surcharge", "discount",
+]);
 
 // Manual currency conversion rates for supplier costs quoted in a different
 // currency than the quote currency. Approved quotes never re-convert — the
@@ -1836,3 +1842,31 @@ export const masterRecords = pgTable("master_records", {
 export const insertMasterRecordSchema = createInsertSchema(masterRecords).omit({ id: true, createdAt: true });
 export type InsertMasterRecord = z.infer<typeof insertMasterRecordSchema>;
 export type MasterRecord = typeof masterRecords.$inferSelect;
+
+export const adjustmentStageEnum = pgEnum("pricing_adjustment_stage", [
+  "before_margin", "after_margin", "after_free_policy",
+]);
+
+export const pricingAdjustmentRules = pgTable("pricing_adjustment_rules", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  type: adjustmentTypeEnum("type").notNull(),
+  /** reuses marginTypeEnum: "fixed" = flat per-person, "percentage" = % of running total at that stage */
+  amountType: marginTypeEnum("amount_type").notNull().default("percentage"),
+  amount: numeric("amount").notNull(),
+  applicationOrder: integer("application_order").notNull().default(0),
+  appliesToStage: adjustmentStageEnum("applies_to_stage").notNull().default("after_free_policy"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  orderIdx: index("pricing_adjustment_rules_order_idx").on(table.applicationOrder),
+}));
+
+export type PricingAdjustmentRule = typeof pricingAdjustmentRules.$inferSelect;
+
+export const insertPricingAdjustmentRuleSchema = createInsertSchema(pricingAdjustmentRules, {
+  amount: (s: z.ZodString) => nonNegativePriceString(s),
+}).omit({ id: true, createdAt: true, updatedAt: true });
+
+export type InsertPricingAdjustmentRule = z.infer<typeof insertPricingAdjustmentRuleSchema>;

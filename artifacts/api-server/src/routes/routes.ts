@@ -104,7 +104,9 @@ import {
   insertBookingWorkflowSchema, insertWorkflowStepSchema, insertInvoiceSchema,
   insertAffiliateSchema, insertMarkupRuleSchema, userRoleEnum,
   groupSizeBands, pricingRules, airfareRates, pricingQuotes, pricingQuoteLineItems,
+  pricingAdjustmentRules,
   insertGroupSizeBandSchema, insertPricingRuleSchema, insertAirfareRateSchema,
+  insertPricingAdjustmentRuleSchema,
   exchangeRates, pricingQuoteOverrides,
   insertExchangeRateSchema, insertPricingQuoteOverrideSchema
 } from "@workspace/db";
@@ -4090,6 +4092,50 @@ export async function registerRoutes(
     } catch (e: any) { routeError(res, e); }
   });
 
+  // ---- Pricing adjustment rules (taxes, fees, discounts) ----
+  app.get("/api/pricing/adjustment-rules", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
+      const rows = await db.select().from(pricingAdjustmentRules)
+        .orderBy(pricingAdjustmentRules.applicationOrder, pricingAdjustmentRules.createdAt);
+      res.json(rows);
+    } catch (e: any) { routeError(res, e); }
+  });
+
+  app.post("/api/pricing/adjustment-rules", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const parsed = insertPricingAdjustmentRuleSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const [rule] = await db.insert(pricingAdjustmentRules).values(parsed.data).returning();
+      res.json(rule);
+    } catch (e: any) { routeError(res, e); }
+  });
+
+  app.patch("/api/pricing/adjustment-rules/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const patchSchema = insertPricingAdjustmentRuleSchema.partial();
+      const parsed = patchSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const [rule] = await db.update(pricingAdjustmentRules)
+        .set({ ...parsed.data, updatedAt: new Date() })
+        .where(eq(pricingAdjustmentRules.id, req.params.id as string)).returning();
+      if (!rule) return res.status(404).json({ message: "Adjustment rule not found" });
+      res.json(rule);
+    } catch (e: any) { routeError(res, e); }
+  });
+
+  app.delete("/api/pricing/adjustment-rules/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const [rule] = await db.delete(pricingAdjustmentRules)
+        .where(eq(pricingAdjustmentRules.id, req.params.id as string)).returning();
+      if (!rule) return res.status(404).json({ message: "Adjustment rule not found" });
+      res.json({ success: true });
+    } catch (e: any) { routeError(res, e); }
+  });
+
   // ---- Quotes: compute + persist ----
   const quoteRequestSchema = z.object({
     tourId: z.string().min(1),
@@ -4167,6 +4213,12 @@ export async function registerRoutes(
         .where(eq(groupSizeBands.isActive, true)).orderBy(groupSizeBands.sortOrder);
       const band = bands.find((b) => body.paxCount >= b.minPax && body.paxCount <= b.maxPax) ?? null;
 
+      // Load active adjustment rules (taxes, fees, discounts) for this quote.
+      // Order by applicationOrder then id so ties are broken deterministically.
+      const activeAdjRules = await db.select().from(pricingAdjustmentRules)
+        .where(eq(pricingAdjustmentRules.isActive, true))
+        .orderBy(pricingAdjustmentRules.applicationOrder, pricingAdjustmentRules.id);
+
       const result = computeQuote({
         paxCount: body.paxCount,
         nights: body.nights,
@@ -4185,6 +4237,15 @@ export async function registerRoutes(
           freePassengerFree: rule.freePassengerFree,
           roundingRule: rule.roundingRule ?? "cent",
         },
+        adjustmentRules: activeAdjRules.map((r) => ({
+          id: r.id,
+          name: r.name,
+          type: r.type,
+          amountType: r.amountType as "fixed" | "percentage",
+          amount: r.amount,
+          appliesToStage: r.appliesToStage as "before_margin" | "after_margin" | "after_free_policy",
+          applicationOrder: r.applicationOrder,
+        })),
       });
 
       const quote = await db.transaction(async (tx) => {
@@ -4212,7 +4273,12 @@ export async function registerRoutes(
         }).returning();
         if (result.lineItems.length > 0) {
           await tx.insert(pricingQuoteLineItems).values(
-            result.lineItems.map((li) => ({ ...li, quoteId: q.id })),
+            result.lineItems.map((li) => ({
+              ...li,
+              quoteId: q.id,
+              // adjustmentItems is a JSONB column; store as-is.
+              adjustmentItems: li.adjustmentItems.length > 0 ? li.adjustmentItems : null,
+            })),
           );
         }
         return q;

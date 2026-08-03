@@ -4,6 +4,7 @@ import { logger } from "./lib/logger";
 import { registerRoutes } from "./routes/routes";
 import { runStartupMaintenance } from "./seed-core";
 import { initEmailSystem } from "./lib/email";
+import { runMigrations } from "./db-migrations";
 
 const rawPort = process.env["PORT"];
 
@@ -23,6 +24,15 @@ const httpServer = http.createServer(app);
 
 async function main() {
   initEmailSystem();
+
+  // Apply any pending schema migrations before routes are registered.
+  try {
+    await runMigrations();
+  } catch (err) {
+    logger.error({ err }, "Database migration failed — aborting startup");
+    process.exit(1);
+  }
+
   await registerRoutes(httpServer, app);
 
   // Data-only, idempotent self-heal: remap legacy roles and create any

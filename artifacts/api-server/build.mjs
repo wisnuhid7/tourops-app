@@ -3,12 +3,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm } from "node:fs/promises";
+import { rm, cp, mkdir } from "node:fs/promises";
+import { existsSync } from "node:fs";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
 
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
+// Workspace root is two levels up: artifacts/api-server → artifacts → root
+const workspaceRoot = path.resolve(artifactDir, "../..");
 
 async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
@@ -118,6 +121,16 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  // Copy SQL migration files into dist/migrations/ so they are always
+  // co-located with the bundle regardless of deployment environment.
+  const srcMigrations = path.resolve(workspaceRoot, "lib/db/migrations");
+  const distMigrations = path.resolve(distDir, "migrations");
+  if (existsSync(srcMigrations)) {
+    await mkdir(distMigrations, { recursive: true });
+    await cp(srcMigrations, distMigrations, { recursive: true });
+    console.log("Copied migrations → dist/migrations/");
+  }
 }
 
 buildAll().catch((err) => {

@@ -3,8 +3,11 @@ name: TourOps pricing engine conventions
 description: Decisions behind the Phase 1&2 pricing engine (decimal strings, quote access model, zod v4 gotcha)
 ---
 
-- All money is decimal strings end-to-end (PG `numeric` ↔ decimal.js); engine rejects non `^\d+(\.\d+)?$` inputs. **Why:** avoids float drift; matches existing tour price convention.
-- Calculation order is fixed: base cost (component shares + hotel×nights + airfare) → margin (fixed/percentage) → free-passenger factor ((paying+free)/paying). Selling price is the authoritative figure; independently rounded components may differ by a cent.
+- All money is decimal strings end-to-end (PG `numeric` ↔ decimal.js); engine rejects non-numeric inputs. **Why:** avoids float drift; matches existing tour price convention.
+- Calculation order is fixed: base cost → [before_margin adj rules] → margin → [after_margin adj rules] → free-passenger factor → [after_free_policy adj rules]. Discounts produce negative per-rule amounts; all others are positive. `sellingPrice` includes all stages.
+- Adjustment rules: configurable tax/fee/discount table; engine applies rules at the configured stage in order. Per-line-item rule breakdown persisted as JSONB for audit purposes.
+- lib/db uses `composite:true` + `emitDeclarationOnly:true` — after schema changes rebuild the package before running api-server typecheck. Deleting .tsbuildinfo alone is not sufficient.
+- Migration runner: SQL files are copied into `dist/migrations/` at build time (build.mjs) and resolved via `fileURLToPath(import.meta.url)`. Idempotent SQL + `schema_migrations` tracking table means replaying is safe.
 - Quote access model: customer views require quote `status=final` AND (assigned `customerId` OR unguessable `shareToken`); unauthorized reads return 404, not 403. Internal breakdown limited to admin/super_admin/operations_manager. **Why:** code review found IDOR — any authed user could read any quote by UUID.
 - Rule precedence: explicit ruleId (must be active + own/global tour) > newest active tour rule > newest active global rule. Airfare rate must be active and date-valid.
 - zod v4 gotcha: `z.record(z.enum(...), v)` makes every enum key REQUIRED; use `z.partialRecord` for optional occupancy maps.

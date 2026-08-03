@@ -15,13 +15,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { Plus, Trash2, Calculator, Eye, Link2, CheckCircle2 } from "lucide-react";
-import type { Tour, PricingQuote, PricingRule, AirfareRate, GroupSizeBand, PricingQuoteLineItem } from "@workspace/db";
+import type { Tour, PricingQuote, PricingRule, AirfareRate, GroupSizeBand, PricingQuoteLineItem, PricingAdjustmentRule } from "@workspace/db";
 
 const OCCUPANCIES = ["matrimonial", "double", "single", "third_person", "child", "infant"] as const;
 type Occ = (typeof OCCUPANCIES)[number];
 
 interface HotelForm { hotelName: string; hotelId?: string; rates: Record<Occ, string> }
 const emptyHotel = (): HotelForm => ({ hotelName: "", rates: { matrimonial: "", double: "", single: "", third_person: "", child: "", infant: "" } });
+
+const ADJUSTMENT_TYPES = ["tax", "service_fee", "booking_fee", "surcharge", "discount"] as const;
+const ADJUSTMENT_STAGES = ["before_margin", "after_margin", "after_free_policy"] as const;
 
 export default function AdminGroupQuotes() {
   const { toast } = useToast();
@@ -32,6 +35,7 @@ export default function AdminGroupQuotes() {
   const { data: rules } = useQuery<PricingRule[]>({ queryKey: ["/api/pricing/rules"] });
   const { data: rates } = useQuery<AirfareRate[]>({ queryKey: ["/api/pricing/airfare-rates"] });
   const { data: bands } = useQuery<GroupSizeBand[]>({ queryKey: ["/api/pricing/group-size-bands"] });
+  const { data: adjRules } = useQuery<PricingAdjustmentRule[]>({ queryKey: ["/api/pricing/adjustment-rules"] });
 
   // ---- Quote builder state ----
   const [showBuilder, setShowBuilder] = useState(false);
@@ -111,7 +115,7 @@ export default function AdminGroupQuotes() {
 
   // ---- Breakdown dialog ----
   const [breakdownId, setBreakdownId] = useState<string | null>(null);
-  const { data: breakdown } = useQuery<PricingQuote & { lineItems: PricingQuoteLineItem[]; groupSizeBand: GroupSizeBand | null }>({
+  const { data: breakdown } = useQuery<PricingQuote & { lineItems: (PricingQuoteLineItem & { adjustmentItems?: Array<{ ruleId: string; name: string; type: string; appliedAmount: string }> })[]; groupSizeBand: GroupSizeBand | null }>({
     queryKey: ["/api/pricing/quotes", breakdownId, "internal"],
     queryFn: async () => {
       const res = await fetch(`/api/pricing/quotes/${breakdownId}/internal`, { credentials: "include" });
@@ -234,8 +238,51 @@ export default function AdminGroupQuotes() {
     onError: (e: any) => toast({ title: t("error_title"), description: String(e?.message ?? ""), variant: "destructive" }),
   });
 
+  // ---- Adjustment rules mutations ----
+  const [newAdj, setNewAdj] = useState({ name: "", type: "tax", amountType: "percentage", amount: "0", applicationOrder: "10", appliesToStage: "after_margin" });
+  const addAdj = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/pricing/adjustment-rules", {
+      name: newAdj.name, type: newAdj.type, amountType: newAdj.amountType,
+      amount: newAdj.amount, applicationOrder: parseInt(newAdj.applicationOrder, 10),
+      appliesToStage: newAdj.appliesToStage,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pricing/adjustment-rules"] });
+      setNewAdj({ name: "", type: "tax", amountType: "percentage", amount: "0", applicationOrder: "10", appliesToStage: "after_margin" });
+      toast({ title: t("pe_adj_created") });
+    },
+    onError: (e: any) => toast({ title: t("error_title"), description: String(e?.message ?? ""), variant: "destructive" }),
+  });
+  const toggleAdj = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      apiRequest("PATCH", `/api/pricing/adjustment-rules/${id}`, { isActive }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/pricing/adjustment-rules"] }),
+    onError: (e: any) => toast({ title: t("error_title"), description: String(e?.message ?? ""), variant: "destructive" }),
+  });
+  const deleteAdj = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/pricing/adjustment-rules/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/pricing/adjustment-rules"] }),
+    onError: (e: any) => toast({ title: t("error_title"), description: String(e?.message ?? ""), variant: "destructive" }),
+  });
+
   const money = (v: string | null | undefined, cur = "USD") => v == null ? "—" : `${cur} ${v}`;
   const tourTitle = (id: string) => tours?.find((x) => x.id === id)?.title ?? id.slice(0, 8);
+  const adjTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      tax: t("pe_adj_type_tax"), service_fee: t("pe_adj_type_service_fee"),
+      booking_fee: t("pe_adj_type_booking_fee"), surcharge: t("pe_adj_type_surcharge"),
+      discount: t("pe_adj_type_discount"),
+    };
+    return labels[type] ?? type;
+  };
+  const adjStageLabel = (stage: string) => {
+    const labels: Record<string, string> = {
+      before_margin: t("pe_adj_stage_before_margin"),
+      after_margin: t("pe_adj_stage_after_margin"),
+      after_free_policy: t("pe_adj_stage_after_free_policy"),
+    };
+    return labels[stage] ?? stage;
+  };
 
   return (
     <div className="p-6 space-y-6" data-testid="page-group-quotes">
@@ -253,6 +300,7 @@ export default function AdminGroupQuotes() {
         <TabsList>
           <TabsTrigger value="quotes" data-testid="tab-quotes">{t("pe_quotes")}</TabsTrigger>
           <TabsTrigger value="rules" data-testid="tab-rules">{t("pe_pricing_rules")}</TabsTrigger>
+          <TabsTrigger value="adjustments" data-testid="tab-adjustments">{t("pe_adj_tab")}</TabsTrigger>
           <TabsTrigger value="airfare" data-testid="tab-airfare">{t("pe_airfare_rates")}</TabsTrigger>
           <TabsTrigger value="bands" data-testid="tab-bands">{t("pe_group_bands")}</TabsTrigger>
           <TabsTrigger value="fx" data-testid="tab-fx">{t("pe_exchange_rates")}</TabsTrigger>
@@ -496,6 +544,11 @@ export default function AdminGroupQuotes() {
                 <Plus className="w-4 h-4 mr-1" />{t("pe_add_hotel_choice")}
               </Button>
             )}
+            {adjRules && adjRules.filter((r) => r.isActive).length > 0 && (
+              <div className="rounded-md border border-blue-200 bg-blue-50 dark:bg-blue-950/30 p-3 text-xs text-muted-foreground" data-testid="adj-rules-hint">
+                {adjRules.filter((r) => r.isActive).length} {t("pe_adj_applied_hint")}
+              </div>
+            )}
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowBuilder(false)}>{t("cancel")}</Button>
               <Button onClick={() => createQuote.mutate()} disabled={!tourId || createQuote.isPending} data-testid="button-create-quote">
@@ -524,7 +577,7 @@ export default function AdminGroupQuotes() {
               </div>
               <Table>
                 <TableHeader><TableRow>
-                  <TableHead>{t("hotel")}</TableHead><TableHead>{t("pe_occupancy")}</TableHead><TableHead>{t("pe_base_cost")}</TableHead><TableHead>{t("pe_margin")}</TableHead><TableHead>{t("pe_free_adjustment")}</TableHead><TableHead>{t("pe_selling_price")}</TableHead><TableHead /></TableRow></TableHeader>
+                  <TableHead>{t("hotel")}</TableHead><TableHead>{t("pe_occupancy")}</TableHead><TableHead>{t("pe_base_cost")}</TableHead><TableHead>{t("pe_margin")}</TableHead><TableHead>{t("pe_free_adjustment")}</TableHead><TableHead>{t("pe_adj_adjustments")}</TableHead><TableHead>{t("pe_selling_price")}</TableHead><TableHead /></TableRow></TableHeader>
                 <TableBody>
                   {breakdown.lineItems?.map((li) => (
                     <TableRow key={li.id} data-testid={`row-line-item-${li.id}`}>
@@ -533,6 +586,17 @@ export default function AdminGroupQuotes() {
                       <TableCell>{money(li.baseCost, breakdown.currency)}</TableCell>
                       <TableCell>{money(li.marginAmount, breakdown.currency)}</TableCell>
                       <TableCell>{money(li.freeAdjustmentAmount, breakdown.currency)}</TableCell>
+                      <TableCell>
+                        {li.adjustmentItems && li.adjustmentItems.length > 0 ? (
+                          <div className="space-y-0.5">
+                            {li.adjustmentItems.map((ai, idx) => (
+                              <div key={idx} className={`text-xs ${ai.type === "discount" ? "text-green-600" : "text-amber-700"}`}>
+                                {ai.name}: {Number(ai.appliedAmount) < 0 ? "" : "+"}{money(ai.appliedAmount, breakdown.currency)}
+                              </div>
+                            ))}
+                          </div>
+                        ) : <span className="text-muted-foreground text-xs">—</span>}
+                      </TableCell>
                       <TableCell className="font-semibold">{money(li.sellingPrice, breakdown.currency)}</TableCell>
                       <TableCell>
                         <Button size="sm" variant="ghost" onClick={() => { setOverrideLi(li); setOverrideValue(li.sellingPrice); setOverrideReason(""); }} data-testid={`button-override-${li.id}`}>
@@ -559,3 +623,4 @@ export default function AdminGroupQuotes() {
     </div>
   );
 }
+

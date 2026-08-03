@@ -38,3 +38,7 @@ description: Decisions behind the Phase 1&2 pricing engine (decimal strings, quo
 - Per-occupancy airfare via components.airfareByOccupancy (child/infant fall back to airfarePerPerson); infant occupancy only emitted when a fare is on file; child/infant hotel share defaults "0.00" (share parents' room).
 - Rounding: rounding_rule on pricing_rules (cent/unit_nearest/unit_up/five_up/ten_up); line items keep sellingPriceExact (2dp pre-rounding) beside rounded sellingPrice.
 - All quote lifecycle events audit-logged (created/status_changed/price_overridden, entityType pricing_quote; exchange_rate writes too), always non-blocking `.catch(()=>{})`.
+
+## Public catalog price & authoritative booking totals — 2026-08-03
+- Customer-facing tour price = `publicTourPricing()` (routes.ts): pricingService total (base + day-item costs + markup + service fee) + cheapest same-currency per-person room share (occupancy matrimonial/doble=2, triple=3); 60s in-memory cache bounds catalog N+1. Staff-set departure `pricePerPerson` wins client-side with accommodationFrom added for display. tours.totalPrice/markupAmount columns are legacy/unused — never displayed.
+- POST /api/bookings is server-authoritative: client totalPrice ignored (staff-only override), per-person resolved departure→publicPricing→basePrice, departureId must belong to tourId, accommodation charged per `ceil(partySize/occupancy)` rooms. **Why:** review caught client-tampered totals and one-room-per-booking undercharging.

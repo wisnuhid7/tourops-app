@@ -441,8 +441,61 @@ export async function registerRoutes(
     } catch (e: any) { routeError(res, e); }
   });
 
+  // -------------------------------------------------------------------------
+  // Public selling price: the advertised per-person price is the FULL price —
+  // base + day-item costs + markup + service fee (pricingService), plus the
+  // cheapest per-person hotel accommodation across room types. Staff-set
+  // departure prices (pricePerPerson) still take precedence client-side.
+  // -------------------------------------------------------------------------
+  const ROOM_TYPE_OCCUPANCY: Record<BookingRoomType, number> = { matrimonial: 2, doble: 2, triple: 3 };
+
+  type PublicTourPricing = { perPersonBase: number; accommodationFrom: number; perPersonFrom: number; currency: string };
+  // Short-TTL cache: catalog pages fan out to per-tour pricing queries; 60s
+  // bounds both the DB amplification and the staleness after a price edit.
+  const publicPricingCache = new Map<string, { value: PublicTourPricing | null; expires: number }>();
+  const PUBLIC_PRICING_TTL_MS = 60_000;
+
+  async function publicTourPricing(tourId: string): Promise<PublicTourPricing | null> {
+    const cached = publicPricingCache.get(tourId);
+    if (cached && cached.expires > Date.now()) return cached.value;
+    let value: PublicTourPricing | null = null;
+    try {
+      const pricing = await pricingService.calculateTourPrice(tourId);
+      const perPersonBase = Math.round(pricing.totalPrice);
+      // Cheapest per-person accommodation among room types priced in the tour
+      // currency (no FX conversion yet — foreign-currency rooms are ignored,
+      // not allowed to zero out a same-currency option).
+      let accommodationFrom = 0;
+      for (const rt of BOOKING_ROOM_TYPES) {
+        const acc = await accommodationForTour(db, tourId, rt);
+        const total = Number(acc.total);
+        if (!Number.isFinite(total) || total <= 0) continue;
+        if (acc.currency.toUpperCase() !== pricing.currency.toUpperCase()) continue;
+        const perPerson = Math.round(total / ROOM_TYPE_OCCUPANCY[rt]);
+        if (accommodationFrom === 0 || perPerson < accommodationFrom) accommodationFrom = perPerson;
+      }
+      value = {
+        perPersonBase,
+        accommodationFrom,
+        perPersonFrom: perPersonBase + accommodationFrom,
+        currency: pricing.currency,
+      };
+    } catch {
+      value = null; // never let pricing enrichment break public catalog reads
+    }
+    publicPricingCache.set(tourId, { value, expires: Date.now() + PUBLIC_PRICING_TTL_MS });
+    return value;
+  }
+
   app.get("/api/tours/public", async (_req, res) => {
-    try { res.json(await storage.getPublishedTours()); }
+    try {
+      const tours = await storage.getPublishedTours();
+      const enriched = await Promise.all(tours.map(async (t: any) => ({
+        ...t,
+        publicPricing: await publicTourPricing(t.id),
+      })));
+      res.json(enriched);
+    }
     catch (e: any) { routeError(res, e); }
   });
 
@@ -516,7 +569,7 @@ export async function registerRoutes(
       // the background so the next view renders translated (fire-and-forget,
       // deduped + failure-cooldown inside the helper).
       maybeAutoTranslateTourInBackground(tour as any);
-      res.json(tour);
+      res.json({ ...tour, publicPricing: await publicTourPricing(tour.id) });
     } catch (e: any) { routeError(res, e); }
   });
 
@@ -1001,12 +1054,40 @@ export async function registerRoutes(
         if (aff) affiliateId = aff.id;
       }
 
+      // ---- Server-authoritative pricing --------------------------------
+      // The client's totalPrice is display-only and NEVER trusted (except an
+      // explicit staff override). Per-person price is resolved server-side:
+      // departure price when set, otherwise the computed full selling price
+      // (base + components + markup + fee), otherwise the tour base price.
+      const partySize = Math.max(1, Number(req.body.partySizeExpected) || 1);
+      let perPersonPrice: number | undefined;
+      if (req.body.tourId) {
+        if (req.body.departureId) {
+          const dep = await storage.getDeparture(req.body.departureId);
+          if (!dep || dep.tourId !== req.body.tourId) {
+            return res.status(400).json({ message: "Departure does not belong to this tour" });
+          }
+          const depPrice = Number(dep.pricePerPerson);
+          if (Number.isFinite(depPrice) && depPrice > 0) perPersonPrice = depPrice;
+        }
+        if (perPersonPrice === undefined) {
+          const pp = await publicTourPricing(req.body.tourId);
+          if (pp && pp.perPersonBase > 0) perPersonPrice = pp.perPersonBase;
+          else {
+            const tourRow = await storage.getTour(req.body.tourId);
+            perPersonPrice = Number(tourRow?.basePrice) || 0;
+          }
+        }
+      }
+
       // Room-type selection: accommodation is priced server-side from the
-      // hotel's registered nightly rate × the tour's hotel nights. Never
-      // trust a client-provided accommodation figure.
+      // hotel's registered nightly rate × the tour's hotel nights, for as
+      // many rooms as the party needs. Never trust a client-provided figure.
       let roomType: BookingRoomType | undefined;
       let accommodationCost: string | undefined;
-      let totalPrice: number | undefined = req.body.totalPrice;
+      let totalPrice: number | undefined =
+        perPersonPrice !== undefined ? perPersonPrice * partySize
+        : (isStaff ? req.body.totalPrice : undefined);
       let bookingCurrency: string | undefined;
       if (req.body.roomType != null && req.body.roomType !== "") {
         if (!BOOKING_ROOM_TYPES.includes(req.body.roomType)) {
@@ -1023,9 +1104,12 @@ export async function registerRoutes(
             message: `Accommodation is priced in ${acc.currency} but the booking is in ${bodyCurrency}; currency conversion is not supported yet.`,
           });
         }
-        accommodationCost = acc.total;
+        // Rooms needed for the whole party, not a single room.
+        const roomsNeeded = Math.max(1, Math.ceil(partySize / ROOM_TYPE_OCCUPANCY[roomType!]));
+        const accTotal = new Decimal(acc.total).mul(roomsNeeded);
+        accommodationCost = accTotal.toFixed(2);
         bookingCurrency = acc.currency;
-        totalPrice = new Decimal(totalPrice ?? 0).plus(acc.total).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toNumber();
+        totalPrice = new Decimal(totalPrice ?? 0).plus(accTotal).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toNumber();
       } else if (req.body.tourId && req.body.bookingType !== "join_leader_group") {
         // Customers starting a booking on a tour that offers room types must
         // pick one. (join_leader_group participants share the leader's rooms;

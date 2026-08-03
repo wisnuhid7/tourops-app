@@ -344,19 +344,32 @@ export default function TourDetail() {
   }
 
   const openDepartures = departures?.filter((d) => d.status === "open") || [];
-  // "Starting from" = lowest open-departure price when departures exist, otherwise the tour base price.
+  // "Starting from" = lowest open-departure price when departures exist,
+  // otherwise the server-computed full selling price (base + components +
+  // markup + service fee + cheapest per-person accommodation).
+  const publicPricing = (tour as any).publicPricing as
+    | { perPersonBase: number; accommodationFrom: number; perPersonFrom: number; currency: string }
+    | null | undefined;
+  const fullSellingPrice = Number(publicPricing?.perPersonFrom) > 0
+    ? Number(publicPricing!.perPersonFrom)
+    : Number(tour.basePrice) || 0;
+  // Accommodation is charged per room at booking; advertise the cheapest
+  // per-person share so the displayed price is the full price.
+  const accommodationFrom = Number(publicPricing?.accommodationFrom) || 0;
   const departurePrices = openDepartures.map((d) => Number(d.pricePerPerson)).filter((n) => Number.isFinite(n) && n > 0);
   const startingFromPrice = departurePrices.length > 0
-    ? Math.min(...departurePrices)
-    : (openDepartures.length === 0 ? Number(tour.basePrice) || 0 : 0);
+    ? Math.min(...departurePrices) + accommodationFrom
+    : fullSellingPrice;
   // Child price follows the active price structure: when the adult price comes
   // from a departure, scale the tour's child rate proportionally (departures
   // have no child-price column); otherwise show the tour's base child price.
   const basePrice = Number(tour.basePrice) || 0;
   const baseChildPrice = Number(tour.childPrice) || 0;
   const usingDeparturePrice = departurePrices.length > 0;
+  // Scale the child price to the displayed adult price so both reflect the
+  // same price structure (departure price or full computed selling price).
   const startingChildPrice = baseChildPrice > 0 && basePrice > 0
-    ? (usingDeparturePrice && startingFromPrice !== basePrice
+    ? (startingFromPrice !== basePrice
         ? Math.round(startingFromPrice * (Math.min(baseChildPrice, basePrice) / basePrice))
         : Math.min(baseChildPrice, startingFromPrice))
     : 0;
@@ -636,7 +649,7 @@ export default function TourDetail() {
                         <p className="font-medium">{dep.startDate} - {dep.endDate}</p>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
                           <span className="flex items-center gap-1"><Users className="h-3 w-3" />{Math.max(0, (dep.capacityTotal || 0) - (dep.capacityBooked || 0))} {t("spots_left")}</span>
-                          {dep.pricePerPerson && <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{Number(dep.pricePerPerson).toLocaleString()} / {t("per_person")}</span>}
+                          {dep.pricePerPerson && <span className="flex items-center gap-1"><DollarSign className="h-3 w-3" />{(Number(dep.pricePerPerson) + accommodationFrom).toLocaleString()} / {t("per_person")}</span>}
                         </div>
                       </div>
                     </div>
@@ -689,7 +702,9 @@ export default function TourDetail() {
                                 partySizeExpected: partySize,
                                 roomType: roomType || undefined,
                                 notes,
-                                totalPrice: Number(dep.pricePerPerson || tour.basePrice || 0) * partySize,
+                                // Per-person price excludes accommodation — the server
+                                // prices and adds the selected room type itself.
+                                totalPrice: Number(dep.pricePerPerson || publicPricing?.perPersonBase || tour.basePrice || 0) * partySize,
                               })}
                               disabled={bookMutation.isPending || (roomTypeOptions.length > 0 && !roomType)}
                               data-testid="button-confirm-booking"

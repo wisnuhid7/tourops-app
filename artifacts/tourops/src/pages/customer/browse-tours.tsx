@@ -70,8 +70,8 @@ export default function BrowseTours() {
         (durationFilter === "11-15" && dur >= 11 && dur <= 15) ||
         (durationFilter === "16+" && dur >= 16);
 
-      // Price
-      const price = Number(t.basePrice || 0);
+      // Price (full computed selling price when available)
+      const price = Number((t as any).publicPricing?.perPersonFrom || t.basePrice || 0);
       const matchesPrice = price <= maxPrice;
 
       // Date Range
@@ -294,10 +294,10 @@ export default function BrowseTours() {
                     )}
                   </div>
                   <div className="flex items-center justify-between gap-4 pt-1">
-                    {Number(tour.basePrice) > 0 ? (
+                    {Number((tour as any).publicPricing?.perPersonFrom || tour.basePrice) > 0 ? (
                       <div>
                         <span className="text-lg font-bold flex items-center gap-1">
-                          <DollarSign className="h-4 w-4" />{Number(tour.basePrice).toLocaleString()}
+                          <DollarSign className="h-4 w-4" />{Number((tour as any).publicPricing?.perPersonFrom || tour.basePrice).toLocaleString()}
                           <span className="text-xs font-normal text-muted-foreground">/ {t("per_person")}</span>
                         </span>
                         {Number(tour.childPrice) > 0 && (

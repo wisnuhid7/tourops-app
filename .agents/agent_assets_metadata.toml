@@ -7,3 +7,10 @@ uri = "file://docs/manual-test-scenarios.md"
 type = "text"
 title = "Manual Test Scenarios"
 description = "Complete human testing guide for TourOps — 14 areas, ~60 scenarios with test accounts and expected results."
+
+[[outputs]]
+id = "mG1MY3yKmQKOM7Jw6c8Wk"
+uri = "file://docs/how-to-add-a-tour.md"
+type = "text"
+title = "How to Add a Tour From Scratch"
+description = "Step-by-step guide: country → cities → master data → supplier products & rate approval → tour creation → day-by-day itinerary → markup/fees → departures → publish, with the roles allowed for each step."

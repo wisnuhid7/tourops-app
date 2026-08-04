@@ -4221,6 +4221,55 @@ export async function registerRoutes(
     } catch (e: any) { routeError(res, e); }
   });
 
+  // Bulk import airfare rates from the Excel template (client parses xlsx →
+  // JSON, same pattern as /api/tours/import). All-or-nothing: every row is
+  // validated first; any bad row rejects the whole file so a typo can't
+  // silently skip a season.
+  app.post("/api/pricing/airfare-rates/import", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const rows = req.body?.rates;
+      if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ message: "No airfare rows to import" });
+      if (rows.length > 500) return res.status(400).json({ message: "Maximum 500 airfare rates per import" });
+      const errors: string[] = [];
+      const parsedRows: any[] = [];
+      rows.forEach((raw: any, i: number) => {
+        const label = `Row ${i + 2} (${raw?.origin || "?"} → ${raw?.destination || "?"})`;
+        const parsed = insertAirfareRateSchema.safeParse(raw);
+        if (!parsed.success) {
+          const first = parsed.error.issues[0];
+          errors.push(`${label}: ${first ? `${first.path.join(".")} — ${first.message}` : "invalid data"}`);
+          return;
+        }
+        parsedRows.push({ ...parsed.data, isActive: true });
+      });
+      // Duplicate route+season rows make fare selection nondeterministic —
+      // reject them both within the file and against existing active rates.
+      const seasonKey = (r: { origin: string; destination: string; airline?: string | null; validFrom?: Date | string | null; validTo?: Date | string | null }) => {
+        const d = (v: any) => (v ? new Date(v).toISOString().slice(0, 10) : "");
+        return `${r.origin.trim().toLowerCase()}|${r.destination.trim().toLowerCase()}|${(r.airline ?? "").trim().toLowerCase()}|${d(r.validFrom)}|${d(r.validTo)}`;
+      };
+      if (parsedRows.length) {
+        const seen = new Map<string, number>();
+        parsedRows.forEach((r, i) => {
+          const key = seasonKey(r);
+          if (seen.has(key)) errors.push(`Row ${i + 2} (${r.origin} → ${r.destination}): duplicate of row ${seen.get(key)! + 2} — same route, airline, and season`);
+          else seen.set(key, i);
+        });
+        const existing = await db.select().from(airfareRates).where(eq(airfareRates.isActive, true));
+        const existingKeys = new Set(existing.map(seasonKey));
+        parsedRows.forEach((r, i) => {
+          if (existingKeys.has(seasonKey(r))) errors.push(`Row ${i + 2} (${r.origin} → ${r.destination}): an active rate for this route, airline, and season already exists — edit it instead`);
+        });
+      }
+      if (errors.length) {
+        return res.status(400).json({ message: errors.slice(0, 10).join(" • ") + (errors.length > 10 ? ` • …and ${errors.length - 10} more` : "") });
+      }
+      const created = await db.insert(airfareRates).values(parsedRows).returning();
+      res.json({ created: created.length });
+    } catch (e: any) { routeError(res, e); }
+  });
+
   // ---- Pricing adjustment rules (taxes, fees, discounts) ----
   app.get("/api/pricing/adjustment-rules", isAuthenticated, async (req, res) => {
     try {

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/layout";
+import { AirfareImportDialog } from "@/components/airfare-import-dialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -463,7 +464,10 @@ function AirfareTab() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>{t("pe_airfare_list")}</CardTitle></CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>{t("pe_airfare_list")}</CardTitle>
+          <AirfareImportDialog />
+        </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>

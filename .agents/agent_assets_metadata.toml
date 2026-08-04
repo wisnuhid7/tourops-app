@@ -21,3 +21,10 @@ uri = "file://docs/master-tour-template.xlsx"
 type = "table"
 title = "Master Tour Template (updated)"
 description = "Price columns are now optional fallbacks at the end — prices are calculated by the pricing engine from your services, margin, group-size costing, and airfare settings."
+
+[[outputs]]
+id = "gXgbg0Xwf3sz1RYqrw1YV"
+uri = "file://docs/airfare-rates-template.xlsx"
+type = "table"
+title = "Airfare Rates Template"
+description = "Excel template for bulk-loading airfares per route and season. Fill one row per route + season and upload it in Staff Portal → Pricing Engine → Airfare Rates → Import Excel."

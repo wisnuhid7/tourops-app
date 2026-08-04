@@ -55,8 +55,8 @@ import { registerLifecycleRoutes } from "./lifecycleRoutes";
 import { registerAuthRoutes, passwordSchema } from "../replit_integrations/auth";
 import { authStorage } from "../replit_integrations/auth/storage";
 import { db } from "@workspace/db";
-import { countries, cities, tours, tourDays, tourDepartures } from "@workspace/db";
-import { eq, and, sql, isNull, desc } from "drizzle-orm";
+import { countries, cities, tours, tourDays, tourDayItems, tourDepartures } from "@workspace/db";
+import { eq, and, sql, isNull, desc, inArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { z } from "zod/v4";
@@ -701,6 +701,135 @@ export async function registerRoutes(
         routeError(res, e);
       }
     });
+
+  // Bulk import from the "Master Tour Template" spreadsheet. The client
+  // parses the XLSX and posts structured JSON; each tour succeeds or fails
+  // independently so one bad row never blocks the rest of the file.
+  const IMPORT_ITEM_TYPES = ["arrival", "departure", "sight", "hotel", "guide", "meal", "transport", "flight", "custom"];
+  app.post("/api/tours/import", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, TOUR_BUILDER_ROLES)) return;
+      const toursIn = req.body?.tours;
+      if (!Array.isArray(toursIn) || toursIn.length === 0) {
+        return res.status(400).json({ message: "No tours found in the uploaded file" });
+      }
+      if (toursIn.length > 100) {
+        return res.status(400).json({ message: "Too many tours in one file (max 100)" });
+      }
+
+      // Name → catalog lookups so the sheet can reference hotels/sights by name.
+      const [allHotels, allSights] = await Promise.all([storage.getAllHotels(), storage.getAllSights()]);
+      const hotelByName = new Map(allHotels.map((h: any) => [String(h.name).trim().toLowerCase(), h]));
+      const sightByName = new Map(allSights.map((s: any) => [String(s.name).trim().toLowerCase(), s]));
+
+      const itemSchema = insertTourDayItemSchema.omit({ tourDayId: true });
+      const results: any[] = [];
+      for (const t of toursIn) {
+        const ref = t?.ref || t?.title || "(untitled)";
+        try {
+          const { days: daysIn, ref: _ref, ...tourFields } = t || {};
+          const payload: any = { ...tourFields, isPublished: false }; // imports always land as drafts
+          if (!payload.slug && payload.title) {
+            payload.slug = String(payload.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '-' + Date.now();
+          }
+          if (Array.isArray(daysIn)) payload.duration = Math.max(1, daysIn.length);
+          const parsedTour = insertTourSchema.safeParse(payload);
+          if (!parsedTour.success) {
+            results.push({ ref, ok: false, error: parsedTour.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join("; ") });
+            continue;
+          }
+
+          // Validate all days/items BEFORE creating the tour, so a failed
+          // tour doesn't leave a half-imported shell behind.
+          const parsedDays: any[] = [];
+          let dayError: string | null = null;
+          for (const d of daysIn || []) {
+            const { items: itemsIn, ...dayFields } = d || {};
+            const parsedDay = insertTourDaySchema.omit({ tourId: true }).safeParse(dayFields);
+            if (!parsedDay.success) {
+              dayError = `Day ${d?.dayNumber ?? "?"}: ${parsedDay.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join("; ")}`;
+              break;
+            }
+            const parsedItems: any[] = [];
+            for (const it of itemsIn || []) {
+              const raw: any = { ...it };
+              if (!IMPORT_ITEM_TYPES.includes(raw.itemType)) {
+                dayError = `Day ${d?.dayNumber ?? "?"} item "${raw.title || "?"}": itemType must be one of ${IMPORT_ITEM_TYPES.join(", ")}`;
+                break;
+              }
+              // Resolve catalog references by name; fill cost from catalog when the sheet leaves it blank.
+              if (raw.hotelName) {
+                const h = hotelByName.get(String(raw.hotelName).trim().toLowerCase());
+                if (!h) { dayError = `Day ${d?.dayNumber ?? "?"}: hotel "${raw.hotelName}" not found in the hotel catalog`; break; }
+                raw.hotelId = h.id;
+                if ((raw.cost === undefined || raw.cost === null || raw.cost === "") && h.basePrice != null) raw.cost = String(h.basePrice);
+                delete raw.hotelName;
+              }
+              if (raw.sightName) {
+                const s = sightByName.get(String(raw.sightName).trim().toLowerCase());
+                if (!s) { dayError = `Day ${d?.dayNumber ?? "?"}: sight "${raw.sightName}" not found in the sights catalog`; break; }
+                raw.sightId = s.id;
+                if ((raw.cost === undefined || raw.cost === null || raw.cost === "") && (s as any).ticketPrice != null) raw.cost = String((s as any).ticketPrice);
+                delete raw.sightName;
+              }
+              if (raw.cost !== undefined && raw.cost !== null && raw.cost !== "") {
+                raw.cost = String(raw.cost).trim();
+                // Strict non-negative decimal — the insert schema does not
+                // validate numeric parseability, so bad values would 500 at
+                // the DB after earlier writes.
+                if (!/^\d+(\.\d+)?$/.test(raw.cost)) {
+                  dayError = `Day ${d?.dayNumber ?? "?"} item "${raw.title || "?"}": cost must be a non-negative number (got "${raw.cost}")`;
+                  break;
+                }
+              } else delete raw.cost;
+              const parsedItem = itemSchema.safeParse(raw);
+              if (!parsedItem.success) {
+                dayError = `Day ${d?.dayNumber ?? "?"} item "${raw.title || "?"}": ${parsedItem.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join("; ")}`;
+                break;
+              }
+              parsedItems.push(parsedItem.data);
+            }
+            if (dayError) break;
+            parsedDays.push({ day: parsedDay.data, items: parsedItems });
+          }
+          if (dayError) { results.push({ ref, ok: false, error: dayError }); continue; }
+
+          // All-or-nothing per tour: if any day/item write fails, remove
+          // everything created for this tour so no half-imported shell remains.
+          let createdTourId: string | null = null;
+          try {
+            const tour = await storage.createTour(parsedTour.data);
+            createdTourId = tour.id;
+            for (const { day, items } of parsedDays) {
+              const createdDay = await storage.createTourDay({ ...day, tourId: tour.id });
+              let sortOrder = 0;
+              for (const item of items) {
+                await storage.createTourDayItem({ ...item, tourDayId: createdDay.id, sortOrder: item.sortOrder ?? sortOrder++ });
+              }
+            }
+            results.push({ ref, ok: true, tourId: tour.id, title: tour.title, days: parsedDays.length });
+          } catch (e: any) {
+            if (createdTourId) {
+              try {
+                const dayRows = await db.select({ id: tourDays.id }).from(tourDays).where(eq(tourDays.tourId, createdTourId));
+                const dayIds = dayRows.map((r) => r.id);
+                if (dayIds.length) await db.delete(tourDayItems).where(inArray(tourDayItems.tourDayId, dayIds));
+                await db.delete(tourDays).where(eq(tourDays.tourId, createdTourId));
+                await db.delete(tours).where(eq(tours.id, createdTourId));
+              } catch (cleanupErr) {
+                logger.error({ err: cleanupErr, tourId: createdTourId }, "tour import cleanup failed");
+              }
+            }
+            throw e;
+          }
+        } catch (e: any) {
+          results.push({ ref, ok: false, error: isSlugUniqueViolation(e) ? "A tour with this slug already exists" : "Failed to create tour" });
+        }
+      }
+      const created = results.filter(r => r.ok).length;
+      res.json({ created, failed: results.length - created, results });
+    } catch (e: any) { routeError(res, e); }
+  });
 
   app.delete("/api/tours/:id", isAuthenticated, async (req, res) => {
     try {

@@ -28,3 +28,10 @@ uri = "file://docs/airfare-rates-template.xlsx"
 type = "table"
 title = "Airfare Rates Template"
 description = "Excel template for bulk-loading airfares per route and season. Fill one row per route + season and upload it in Staff Portal → Pricing Engine → Airfare Rates → Import Excel."
+
+[[outputs]]
+id = "UK0D1pwbl4UGstda7IH5x"
+uri = "file://docs/countries-list.xlsx"
+type = "table"
+title = "Countries List (182)"
+description = "All countries in your database, with how many cities each has (total, tourism cities, airport cities). Sorted alphabetically — use it as a checklist for building your sights list per country."

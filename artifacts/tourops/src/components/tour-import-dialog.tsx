@@ -35,13 +35,17 @@ function buildTemplate() {
     [`4. itemType must be one of: ${ITEM_TYPES}.`],
     ["5. hotelName / sightName must match EXACTLY a name already registered in your catalogs. If cost is left blank, the catalog price is used."],
     ["6. countries and tags are comma-separated lists (e.g. Israel, Jordan)."],
-    ["7. Imported tours are created as DRAFTS — review them, then publish from the Tours page."],
-    ["8. Upload this file in Staff Portal → Tours → Import Excel."],
+    ["7. PRICES ARE CALCULATED AUTOMATICALLY by the pricing engine from the services you list here (hotels, guides, sights, transport)"],
+    ["   plus what you configure in the Pricing screens: company margin, free tour-leader policy, group-size bus costing,"],
+    ["   airfare per departure city and season, and taxes/fees. You do NOT need to fill any price on the Tours sheet."],
+    ["8. basePrice / childPrice / singleSupplement are OPTIONAL fallbacks, shown only while a tour has no pricing data yet. Leave them blank."],
+    ["9. Imported tours are created as DRAFTS — review them, set up pricing, then publish from the Tours page."],
+    ["10. Upload this file in Staff Portal → Tours → Import Excel."],
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(instructions), "Instructions");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-    ["ref", "title", "description", "category", "countries", "basePrice", "childPrice", "singleSupplement", "highlights", "inclusions", "exclusions", "tags", "imageUrl"],
-    ["T1", "Example: Highlights of Israel – 5 Days", "A short example tour. Delete this row.", "cultural", "Israel", 800, 400, 250, "Old City of Jerusalem; Dead Sea", "Hotels; Guide; Transport", "Flights; Travel insurance", "faith, history", ""],
+    ["ref", "title", "description", "category", "countries", "highlights", "inclusions", "exclusions", "tags", "imageUrl", "basePrice", "childPrice", "singleSupplement"],
+    ["T1", "Example: Highlights of Israel – 5 Days", "A short example tour. Delete this row.", "cultural", "Israel", "Old City of Jerusalem; Dead Sea", "Hotels; Guide; Transport", "Flights; Travel insurance", "faith, history", "", "", "", ""],
   ]), "Tours");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
     ["tourRef", "dayNumber", "title", "countryCode", "city", "description", "activities"],

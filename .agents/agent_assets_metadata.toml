@@ -19,5 +19,5 @@ description = "Step-by-step guide: country → cities → master data → suppli
 id = "x-mJAOgxfiZ5oqFuhdpuw"
 uri = "file://docs/master-tour-template.xlsx"
 type = "table"
-title = "Master Tour Template"
-description = "Excel template for bulk-creating tours: Tours, Days, and Items sheets plus instructions. Fill it and upload it in Staff Portal → Tours → Import Excel."
+title = "Master Tour Template (updated)"
+description = "Price columns are now optional fallbacks at the end — prices are calculated by the pricing engine from your services, margin, group-size costing, and airfare settings."

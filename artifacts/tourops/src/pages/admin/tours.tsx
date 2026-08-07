@@ -19,6 +19,7 @@ import { Plus, Search, MapPin, Calendar, Eye, EyeOff, Pencil, Trash2, ListOrdere
 import type { Tour } from "@workspace/db";
 import { ItineraryEditor } from "@/components/itinerary-editor";
 import { TourImportDialog } from "@/components/tour-import-dialog";
+import { TourExportButton } from "@/components/tour-export-button";
 
 export default function AdminTours() {
   const [, setLocation] = useLocation();
@@ -66,6 +67,7 @@ export default function AdminTours() {
           <p className="text-muted-foreground text-sm">{t("manage_tour_catalog")}</p>
         </div>
         <div className="flex gap-2">
+          <TourExportButton ids={filteredTours.map((t) => t.id)} />
           <TourImportDialog />
           <Button data-testid="button-create-tour" onClick={() => setLocation("/admin/tour-generator")}>
             <Plus className="h-4 w-4 mr-2" />{t("create_tour")}

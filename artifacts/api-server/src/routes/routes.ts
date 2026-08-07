@@ -559,6 +559,100 @@ export async function registerRoutes(
     }
   });
 
+  // Export tours as JSON payload that the client turns into an Excel file
+  // matching the Master Tour Template import format.  GET /api/tours/export
+  // accepts an optional ?ids=id1,id2,... query param; omitting it exports all
+  // tours visible to the caller.  Hotel and sight IDs are resolved to names so
+  // the resulting file round-trips cleanly through import.
+  app.get("/api/tours/export", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, TOUR_BUILDER_ROLES)) return;
+
+      const rawIds = typeof req.query.ids === "string" ? req.query.ids : "";
+      const requestedIds = rawIds ? rawIds.split(",").map((s) => s.trim()).filter(Boolean) : [];
+
+      const allTours = await storage.getAllTours();
+      const toursToExport = requestedIds.length
+        ? allTours.filter((t) => requestedIds.includes(t.id))
+        : allTours;
+
+      if (toursToExport.length === 0) {
+        return res.status(404).json({ message: "No tours found to export" });
+      }
+
+      const [allHotels, allSights, allGuideRates] = await Promise.all([
+        storage.getAllHotels(),
+        storage.getAllSights(),
+        storage.getGuideRates(),
+      ]);
+      const hotelNameById = new Map(allHotels.map((h: any) => [h.id, String(h.name || "").trim()]));
+      const sightNameById  = new Map(allSights.map((s: any) => [s.id, String(s.name || "").trim()]));
+      const guideNameById  = new Map(allGuideRates.map((g: any) => [g.id, String(g.guideName || "").trim()]));
+
+      const exportTours = await Promise.all(
+        toursToExport.map(async (tour, idx) => {
+          const ref = `T${idx + 1}`;
+          const days = await storage.getTourDays(tour.id);
+          const items = await storage.getTourDayItemsByTourId(tour.id);
+
+          const itemsByDayId = new Map<string, typeof items>();
+          for (const it of items) {
+            const list = itemsByDayId.get(it.tourDayId) || [];
+            list.push(it);
+            itemsByDayId.set(it.tourDayId, list);
+          }
+
+          const sortedDays = [...days].sort((a, b) => (a.dayNumber ?? 0) - (b.dayNumber ?? 0));
+
+          return {
+            ref,
+            title: tour.title ?? "",
+            description: tour.description ?? "",
+            category: tour.category ?? "",
+            countries: (tour.countries ?? []).join(", "),
+            highlights: tour.highlights ?? "",
+            inclusions: tour.inclusions ?? "",
+            exclusions: tour.exclusions ?? "",
+            tags: (tour.tags ?? []).join(", "),
+            imageUrl: tour.imageUrl ?? "",
+            basePrice: tour.basePrice ?? "",
+            childPrice: tour.childPrice ?? "",
+            singleSupplement: tour.singleSupplement ?? "",
+            duration: tour.duration ?? 1,
+            days: sortedDays.map((d) => ({
+              dayNumber: d.dayNumber ?? 0,
+              title: d.title ?? "",
+              countryCode: (d as any).countryCode ?? "",
+              city: (d as any).city ?? "",
+              description: (d as any).description ?? "",
+              activities: (d as any).activities ?? "",
+              imageUrl: (d as any).imageUrl ?? "",
+              items: (itemsByDayId.get(d.id) ?? [])
+                .sort((a, b) => ((a as any).sortOrder ?? 0) - ((b as any).sortOrder ?? 0))
+                .map((it) => ({
+                  itemType: it.itemType ?? "custom",
+                  title: it.title ?? "",
+                  startTime: (it as any).startTime ?? "",
+                  endTime: (it as any).endTime ?? "",
+                  cost: it.cost ?? "",
+                  currency: (it as any).currency ?? "USD",
+                  isOptional: (it as any).isOptional ?? false,
+                  bookingRequired: (it as any).bookingRequired ?? false,
+                  hotelName: it.hotelId ? (hotelNameById.get(it.hotelId) ?? "") : "",
+                  sightName: it.sightId ? (sightNameById.get(it.sightId) ?? "") : "",
+                  guideName: it.guideId ? (guideNameById.get(it.guideId) ?? "") : "",
+                  sortOrder: (it as any).sortOrder ?? 0,
+                  description: (it as any).description ?? "",
+                })),
+            })),
+          };
+        })
+      );
+
+      res.json({ tours: exportTours });
+    } catch (e: any) { routeError(res, e); }
+  });
+
   app.get("/api/tours/:id", async (req, res) => {
     try {
       const tour = await storage.getTour(req.params.id as string);
@@ -717,10 +811,15 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Too many tours in one file (max 100)" });
       }
 
-      // Name → catalog lookups so the sheet can reference hotels/sights by name.
-      const [allHotels, allSights] = await Promise.all([storage.getAllHotels(), storage.getAllSights()]);
+      // Name → catalog lookups so the sheet can reference hotels/sights/guides by name.
+      const [allHotels, allSights, allGuides] = await Promise.all([
+        storage.getAllHotels(),
+        storage.getAllSights(),
+        storage.getGuideRates(),
+      ]);
       const hotelByName = new Map(allHotels.map((h: any) => [String(h.name).trim().toLowerCase(), h]));
       const sightByName = new Map(allSights.map((s: any) => [String(s.name).trim().toLowerCase(), s]));
+      const guideByName = new Map(allGuides.map((g: any) => [String(g.guideName || "").trim().toLowerCase(), g]));
 
       const itemSchema = insertTourDayItemSchema.omit({ tourDayId: true });
       const results: any[] = [];
@@ -732,7 +831,14 @@ export async function registerRoutes(
           if (!payload.slug && payload.title) {
             payload.slug = String(payload.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '-' + Date.now();
           }
-          if (Array.isArray(daysIn)) payload.duration = Math.max(1, daysIn.length);
+          // Preserve explicit duration from the sheet (e.g. 7 nights for a
+          // 5-day itinerary); only fall back to day count when not provided
+          // or when it's less than the actual number of day rows.
+          if (Array.isArray(daysIn)) {
+            const sheetDuration = Number(payload.duration);
+            const dayCount = Math.max(1, daysIn.length);
+            payload.duration = (!isNaN(sheetDuration) && sheetDuration >= dayCount) ? sheetDuration : dayCount;
+          }
           const parsedTour = insertTourSchema.safeParse(payload);
           if (!parsedTour.success) {
             results.push({ ref, ok: false, error: parsedTour.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join("; ") });
@@ -771,6 +877,14 @@ export async function registerRoutes(
                 raw.sightId = s.id;
                 if ((raw.cost === undefined || raw.cost === null || raw.cost === "") && (s as any).ticketPrice != null) raw.cost = String((s as any).ticketPrice);
                 delete raw.sightName;
+              }
+              if (raw.guideName) {
+                const g = guideByName.get(String(raw.guideName).trim().toLowerCase());
+                if (!g) { dayError = `Day ${d?.dayNumber ?? "?"}: guide "${raw.guideName}" not found in the guide catalog`; break; }
+                raw.guideId = g.id;
+                if ((raw.cost === undefined || raw.cost === null || raw.cost === "") && (g as any).price != null) raw.cost = String((g as any).price);
+                if (!raw.currency && (g as any).currency) raw.currency = (g as any).currency;
+                delete raw.guideName;
               }
               if (raw.cost !== undefined && raw.cost !== null && raw.cost !== "") {
                 raw.cost = String(raw.cost).trim();

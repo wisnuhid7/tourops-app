@@ -9,17 +9,22 @@ import { useLanguage } from "@/hooks/use-language";
 import { Upload, FileDown, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
-// Master Tour Template — Excel bulk import.
-// Sheet contract (must stay in sync with buildTemplate() and the server's
-// POST /api/tours/import):
-//   Tours: ref | title | description | category | countries | basePrice |
-//          childPrice | singleSupplement | highlights | inclusions |
-//          exclusions | tags | imageUrl
-//   Days:  tourRef | dayNumber | title | countryCode | city | description | activities
-//   Items: tourRef | dayNumber | itemType | title | startTime | cost |
-//          hotelName | sightName | description
-// countries/tags are comma-separated. hotelName/sightName must match the
-// catalog by name; leaving cost blank pulls the catalog price.
+// Master Tour Template — Excel bulk import / export.
+// Sheet contract (must stay in sync with buildTemplate(), parseWorkbook(),
+// GET /api/tours/export, and POST /api/tours/import):
+//   Tours: ref | title | description | category | countries | highlights |
+//          inclusions | exclusions | tags | imageUrl | basePrice |
+//          childPrice | singleSupplement | duration
+//   Days:  tourRef | dayNumber | title | countryCode | city | description |
+//          activities | imageUrl
+//   Items: tourRef | dayNumber | itemType | title | startTime | endTime |
+//          cost | currency | isOptional | bookingRequired | hotelName |
+//          sightName | guideName | description
+// countries/tags are comma-separated. hotelName/sightName/guideName must
+// match EXACTLY a name already registered in the catalogs; leaving cost
+// blank pulls the catalog price. duration is the total nights/days shown
+// to customers; if omitted the importer derives it from the day row count.
+// isOptional / bookingRequired accept "true"/"false" (case-insensitive).
 // ---------------------------------------------------------------------------
 
 const ITEM_TYPES = "arrival, departure, sight, hotel, guide, meal, transport, flight, custom";
@@ -44,20 +49,20 @@ function buildTemplate() {
   ];
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(instructions), "Instructions");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-    ["ref", "title", "description", "category", "countries", "highlights", "inclusions", "exclusions", "tags", "imageUrl", "basePrice", "childPrice", "singleSupplement"],
-    ["T1", "Example: Highlights of Israel – 5 Days", "A short example tour. Delete this row.", "cultural", "Israel", "Old City of Jerusalem; Dead Sea", "Hotels; Guide; Transport", "Flights; Travel insurance", "faith, history", "", "", "", ""],
+    ["ref", "title", "description", "category", "countries", "highlights", "inclusions", "exclusions", "tags", "imageUrl", "basePrice", "childPrice", "singleSupplement", "duration"],
+    ["T1", "Example: Highlights of Israel – 5 Days", "A short example tour. Delete this row.", "cultural", "Israel", "Old City of Jerusalem; Dead Sea", "Hotels; Guide; Transport", "Flights; Travel insurance", "faith, history", "", "", "", "", 5],
   ]), "Tours");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-    ["tourRef", "dayNumber", "title", "countryCode", "city", "description", "activities"],
-    ["T1", 1, "Arrival in Tel Aviv", "IL", "Tel Aviv", "Welcome and transfer to the hotel.", "Airport pickup; Welcome dinner"],
-    ["T1", 2, "Jerusalem Old City", "IL", "Jerusalem", "Full day walking tour.", "Western Wall; Via Dolorosa"],
+    ["tourRef", "dayNumber", "title", "countryCode", "city", "description", "activities", "imageUrl"],
+    ["T1", 1, "Arrival in Tel Aviv", "IL", "Tel Aviv", "Welcome and transfer to the hotel.", "Airport pickup; Welcome dinner", ""],
+    ["T1", 2, "Jerusalem Old City", "IL", "Jerusalem", "Full day walking tour.", "Western Wall; Via Dolorosa", ""],
   ]), "Days");
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
-    ["tourRef", "dayNumber", "itemType", "title", "startTime", "cost", "hotelName", "sightName", "description"],
-    ["T1", 1, "transport", "Airport transfer", "14:00", 60, "", "", "Private van"],
-    ["T1", 1, "hotel", "Overnight in Tel Aviv", "", "", "Jerusalem Hotel", "", "Leave cost blank to use the catalog rate"],
-    ["T1", 2, "guide", "Licensed guide (full day)", "09:00", 250, "", "", ""],
-    ["T1", 2, "sight", "Entrance fees", "10:00", 25, "", "", ""],
+    ["tourRef", "dayNumber", "itemType", "title", "startTime", "endTime", "cost", "currency", "isOptional", "bookingRequired", "hotelName", "sightName", "guideName", "sortOrder", "description"],
+    ["T1", 1, "transport", "Airport transfer", "14:00", "15:00", 60, "USD", "false", "false", "", "", "", 0, "Private van"],
+    ["T1", 1, "hotel", "Overnight in Tel Aviv", "", "", "", "USD", "false", "false", "Jerusalem Hotel", "", "", 1, "Leave cost blank to use the catalog rate"],
+    ["T1", 2, "guide", "Licensed guide (full day)", "09:00", "17:00", 250, "USD", "false", "false", "", "", "Licensed Guide Name", 0, "Leave cost blank to use the catalog rate"],
+    ["T1", 2, "sight", "Entrance fees", "10:00", "", 25, "USD", "true", "false", "", "Sight Name", "", 1, ""],
   ]), "Items");
   return wb;
 }
@@ -99,6 +104,7 @@ function parseWorkbook(wb: XLSX.WorkBook): { tours: any[] } {
   const list = (v: any) => String(v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
   const str = (v: any) => { const s = String(v ?? "").trim(); return s || undefined; };
   const num = (v: any) => { const s = String(v ?? "").trim(); return s === "" ? undefined : s; };
+  const bool = (v: any) => { const s = String(v ?? "").trim().toLowerCase(); return s === "true" || s === "1" || s === "yes"; };
 
   return {
     tours: toursRows.map((r) => {
@@ -113,18 +119,26 @@ function parseWorkbook(wb: XLSX.WorkBook): { tours: any[] } {
           city: str(d.city),
           description: str(d.description),
           activities: str(d.activities),
+          imageUrl: str(d.imageUrl),
           items: itemsRows
             .filter((it) => String(it.tourRef).trim() === ref && Number(it.dayNumber) === Number(d.dayNumber))
             .map((it) => ({
               itemType: String(it.itemType || "custom").trim().toLowerCase(),
               title: String(it.title || "").trim(),
               startTime: str(it.startTime),
+              endTime: str(it.endTime),
               cost: num(it.cost),
+              currency: str(it.currency) ?? "USD",
+              isOptional: bool(it.isOptional),
+              bookingRequired: bool(it.bookingRequired),
               hotelName: str(it.hotelName),
               sightName: str(it.sightName),
+              guideName: str(it.guideName),
+              sortOrder: it.sortOrder !== undefined && it.sortOrder !== "" ? Number(it.sortOrder) : undefined,
               description: str(it.description),
             })),
         }));
+      const explicitDuration = num(r.duration);
       return {
         ref,
         title: String(r.title).trim(),
@@ -139,6 +153,7 @@ function parseWorkbook(wb: XLSX.WorkBook): { tours: any[] } {
         inclusions: str(r.inclusions),
         exclusions: str(r.exclusions),
         imageUrl: str(r.imageUrl),
+        duration: explicitDuration ? Number(explicitDuration) : undefined,
         days,
       };
     }),

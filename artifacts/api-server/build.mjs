@@ -132,9 +132,9 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     console.log("Copied migrations → dist/migrations/");
   }
 
-  // Copy static seed-data files into dist/data/ so they are co-located with
-  // the bundle in production. The seed-scraper-tours module resolves this path
-  // relative to import.meta.url (= dist/index.mjs), so dist/data/ must exist.
+  // Copy static seed-data files (scraper-tour seeds, geo import datasets) into
+  // dist/data/ so they are co-located with the bundle in production. Consumers
+  // resolve this path relative to the bundle (= dist/), so dist/data/ must exist.
   const srcData = path.resolve(artifactDir, "src/data");
   const distData = path.resolve(distDir, "data");
   if (existsSync(srcData)) {

@@ -50,6 +50,11 @@ export async function runStartupMaintenance(): Promise<void> {
   }
   try {
     await runStartupMaintenanceLocked();
+    // Auto-populate geo reference data (countries/cities/airports) on a fresh
+    // DB. Idempotent, insert-only; runs inside the same advisory lock so
+    // concurrently booting instances can't race.
+    const { maybeRunGeoImportAtStartup } = await import("./routes/geoImportRoutes");
+    await maybeRunGeoImportAtStartup();
   } finally {
     await db.execute(sql`SELECT pg_advisory_unlock(727270)`);
   }

@@ -9,4 +9,6 @@ The agent cannot write to production directly — `executeSql({ environment: "pr
 
 **Why:** Users hit this as "I can't log in on the published app with any of the accounts you gave me." The endpoint is fine (wrong-password still returns 401); the accounts simply don't exist in the prod DB.
 
+**Task-agent gotcha:** code written inside a task branch cannot reach production via a user publish until the task is *merged* — asking the user to publish mid-task silently ships the old code. For reference-data seeds, prefer an idempotent startup hook (gated on an empty target table, inside the existing advisory-lock startup maintenance) so the data lands automatically on the first boot after merge+publish; keep the secret-guarded endpoint as a manual fallback/re-run.
+
 **How to apply:** To seed prod data, add a secret-guarded bootstrap endpoint (gated on an env var like `SEED_SECRET`) that runs an idempotent seed. Harden it: constant-time secret compare (`crypto.timingSafeEqual`), refuse once a privileged account already exists (one-time gate, so a leaked secret can't reset admin creds), and never return plaintext passwords. Set the secret in the production environment, have the user **re-publish** (new code + env var only reach prod on publish), then call the endpoint once. Remove the endpoint/secret afterward.

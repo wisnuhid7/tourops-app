@@ -1456,6 +1456,9 @@ export const pricingQuotes = pgTable("pricing_quotes", {
   // when the quote transitions to approved; cleared if re-drafted.
   approvedBy: varchar("approved_by"),
   approvedAt: timestamp("approved_at"),
+  // Expiry: set to now+30d when approved; expired quotes can't be sent/accepted
+  // without recalculation (move back to draft and re-approve).
+  validUntil: timestamp("valid_until"),
   createdBy: varchar("created_by"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -1624,6 +1627,37 @@ export const insertPricingQuoteOverrideSchema = createInsertSchema(pricingQuoteO
   });
 export type InsertPricingQuoteOverride = z.infer<typeof insertPricingQuoteOverrideSchema>;
 export type PricingQuoteOverride = typeof pricingQuoteOverrides.$inferSelect;
+
+// Immutable calculation snapshots — one per approval/recalculation cycle.
+// Captures every input, output, and rule used so the price can be reproduced
+// exactly, even if the underlying pricing rule is later changed or deleted.
+// Rows are INSERT-only: never updated or deleted.
+export const quotePricingSnapshots = pgTable("quote_pricing_snapshots", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  quoteId: varchar("quote_id").notNull(),
+  // Monotonically increasing within a quote. Version 1 = first approval;
+  // increments each time the quote is re-approved after a re-draft cycle.
+  version: integer("version").notNull().default(1),
+  // Full inputs to computeQuote: pax, nights, component costs, rule values,
+  // adjustment rule snapshots, and the rate-resolver calculationMeta.
+  calculationInput: jsonb("calculation_input").notNull(),
+  // Full outputs: assistanceType, baseCostPerPerson, totalGroupCost,
+  // freeAdjustmentFactor, and the complete per-hotel/occupancy line items.
+  calculationOutput: jsonb("calculation_output").notNull(),
+  // The pricing rule record (values copied at snapshot time) plus the IDs of
+  // all active adjustment rules applied.
+  rulesUsed: jsonb("rules_used").notNull(),
+  // Why the snapshot was created: "approved", "re_approved", etc.
+  reason: text("reason").notNull().default("approved"),
+  createdBy: varchar("created_by"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  quoteIdIdx: index("quote_pricing_snapshots_quote_id_idx").on(table.quoteId),
+  quoteVersionIdx: uniqueIndex("quote_pricing_snapshots_quote_version_idx")
+    .on(table.quoteId, table.version),
+}));
+
+export type QuotePricingSnapshot = typeof quotePricingSnapshots.$inferSelect;
 
 // --- Supplier service requests (per-booking, per-supplier work orders) ---
 

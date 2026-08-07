@@ -107,7 +107,7 @@ import {
   pricingAdjustmentRules,
   insertGroupSizeBandSchema, insertPricingRuleSchema, insertAirfareRateSchema,
   insertPricingAdjustmentRuleSchema,
-  exchangeRates, pricingQuoteOverrides,
+  exchangeRates, pricingQuoteOverrides, quotePricingSnapshots,
   insertExchangeRateSchema, insertPricingQuoteOverrideSchema
 } from "@workspace/db";
 import { computeQuote, assistanceTypeForPax, PricingInputError, OCCUPANCY_TYPES, type HotelChoiceInput } from "../services/pricing-engine";
@@ -4397,6 +4397,55 @@ export async function registerRoutes(
         .where(eq(pricingAdjustmentRules.isActive, true))
         .orderBy(pricingAdjustmentRules.applicationOrder, pricingAdjustmentRules.id);
 
+      // Snapshot every input used in computeQuote at creation time.
+      // This is the only moment the exact rule values and adjustment rules are
+      // known; by approval time they may have changed. Stored under
+      // _computeInputs inside calculationMeta so the approval transaction can
+      // read them without re-querying mutable tables.
+      const computeInputsSnapshot = {
+        paxCount: body.paxCount,
+        nights: body.nights,
+        currency: body.currency ?? rule.currency,
+        components: {
+          transportationShare: body.components.transportationShare,
+          guideDriverShare: body.components.guideDriverShare,
+          sightseeingShare: body.components.sightseeingShare,
+          airfarePerPerson,
+          airfareByOccupancy: body.components.airfareByOccupancy ?? null,
+        },
+        hotels: (body.hotels as HotelChoiceInput[]).map((h) => ({
+          hotelChoice: h.hotelChoice,
+          hotelId: (h as any).hotelId ?? null,
+          hotelName: (h as any).hotelName ?? null,
+          nightlyRates: h.nightlyRates,
+        })),
+        rule: {
+          id: rule.id,
+          name: rule.name,
+          marginType: rule.marginType,
+          marginValue: rule.marginValue,
+          freePassengerPaying: rule.freePassengerPaying,
+          freePassengerFree: rule.freePassengerFree,
+          roundingRule: rule.roundingRule ?? "cent",
+          currency: rule.currency,
+        },
+        adjustmentRules: activeAdjRules.map((r) => ({
+          id: r.id,
+          name: r.name,
+          type: r.type,
+          amountType: r.amountType,
+          amount: r.amount,
+          appliesToStage: r.appliesToStage,
+          applicationOrder: r.applicationOrder,
+        })),
+      };
+      // Merge _computeInputs with any caller-supplied calculationMeta (e.g.
+      // rate-resolver sources and warnings from the from-tour endpoint).
+      const mergedMeta: Record<string, unknown> = {
+        ...(calculationMeta && typeof calculationMeta === "object" ? calculationMeta as Record<string, unknown> : {}),
+        _computeInputs: computeInputsSnapshot,
+      };
+
       const result = computeQuote({
         paxCount: body.paxCount,
         nights: body.nights,
@@ -4446,7 +4495,7 @@ export async function registerRoutes(
           marginType: rule.marginType,
           marginValue: rule.marginValue,
           notes: body.notes ?? null,
-          calculationMeta: calculationMeta ?? null,
+          calculationMeta: mergedMeta,
           createdBy: userId,
         }).returning();
         if (result.lineItems.length > 0) {
@@ -4642,17 +4691,126 @@ export async function registerRoutes(
           if (existing.createdBy && existing.createdBy === userId)
             return res.status(403).json({ message: "Quotes must be approved by someone other than their creator" });
         }
-        if (to === "approved") { update.approvedBy = userId; update.approvedAt = new Date(); }
-        if (to === "draft") { update.approvedBy = null; update.approvedAt = null; }
+        if (to === "approved") {
+          update.approvedBy = userId;
+          update.approvedAt = new Date();
+          // Set 30-day expiry from approval time.
+          const expiry = new Date();
+          expiry.setDate(expiry.getDate() + 30);
+          update.validUntil = expiry;
+        }
+        if (to === "draft") {
+          update.approvedBy = null;
+          update.approvedAt = null;
+          update.validUntil = null;
+        }
+        // Block sending/accepting an expired quote — must be re-approved first.
+        if ((to === "sent" || to === "accepted") && existing.validUntil && existing.validUntil < new Date())
+          return res.status(409).json({ message: "Quote has expired; move it back to draft and re-approve before sending" });
       }
-      // Compare-and-swap on the status we validated against, so a concurrent
-      // transition can't sneak past the transition map.
-      const [quote] = await db.update(pricingQuotes)
-        .set(update)
-        .where(and(
-          eq(pricingQuotes.id, req.params.id as string),
-          eq(pricingQuotes.status, existing.status),
-        )).returning();
+      // Perform the status update and, when approving, the immutable pricing
+      // snapshot in a single atomic transaction. A snapshot failure rolls back
+      // the approval so a quote can never exist in "approved" state without
+      // a complete audit record.
+      const quote = await db.transaction(async (tx) => {
+        // Compare-and-swap: fail if a concurrent transition already moved the
+        // quote away from the status we validated against.
+        const [q] = await tx.update(pricingQuotes)
+          .set(update)
+          .where(and(
+            eq(pricingQuotes.id, req.params.id as string),
+            eq(pricingQuotes.status, existing.status),
+          )).returning();
+        if (!q) return null; // concurrent update detected
+
+        if (isTransition && to === "approved") {
+          // Lock all line items for this quote so no concurrent price override
+          // can commit after we read them. The UPDATE on pricing_quotes above
+          // implicitly holds a row lock on the quote; the SELECT FOR UPDATE
+          // below extends that to the line items.  Any concurrent override that
+          // already holds a line item lock will cause this SELECT to wait; once
+          // it releases, we read the post-override prices (the correct final
+          // values).  Any override that tries to lock a line item AFTER this
+          // point will block until this transaction commits, then see status
+          // "approved" in its own status check and fail with 409.
+          await tx.execute(
+            sql`SELECT id FROM pricing_quote_line_items WHERE quote_id = ${q.id} FOR UPDATE`,
+          );
+          const lineItems = await tx.select().from(pricingQuoteLineItems)
+            .where(eq(pricingQuoteLineItems.quoteId, q.id))
+            .orderBy(pricingQuoteLineItems.hotelChoice);
+
+          // Retrieve the inputs captured at computation time. These are the
+          // exact rule values / hotel inputs / adjustment rules that were used
+          // when computeQuote was called — not re-queried mutable live records.
+          const computeInputs = (q.calculationMeta as any)?._computeInputs ?? null;
+
+          // Concurrency-safe version number: query max inside the same
+          // transaction; the unique index on (quote_id, version) will reject
+          // a second concurrent insert for the same version.
+          const vrows = await tx.execute<{ maxver: string }>(
+            sql`SELECT COALESCE(MAX(version), 0)::text AS maxver
+                FROM quote_pricing_snapshots
+                WHERE quote_id = ${q.id}`,
+          );
+          const nextVersion = parseInt(vrows.rows[0]?.maxver ?? "0", 10) + 1;
+
+          await tx.insert(quotePricingSnapshots).values({
+            quoteId: q.id,
+            version: nextVersion,
+            // calculationInput: exact inputs used in computeQuote at creation
+            // time, plus quote-header values as a fallback for legacy quotes
+            // created before _computeInputs was recorded.
+            calculationInput: computeInputs ?? {
+              paxCount: q.paxCount,
+              nights: q.nights,
+              currency: q.currency,
+              components: {
+                transportationShare: q.transportationShare,
+                guideDriverShare: q.guideDriverShare,
+                sightseeingShare: q.sightseeingShare,
+                airfarePerPerson: q.airfarePerPerson,
+              },
+              note: "legacy_quote_inputs_unavailable",
+            },
+            // calculationOutput: the committed line items at approval time,
+            // including any price overrides applied during the review cycle.
+            calculationOutput: {
+              baseCostPerPerson: q.baseCostPerPerson,
+              totalGroupCost: q.totalGroupCost,
+              freeAdjustmentFactor: q.freeAdjustmentFactor,
+              marginType: q.marginType,
+              marginValue: q.marginValue,
+              lineItems: lineItems.map((li) => ({
+                id: li.id,
+                hotelChoice: li.hotelChoice,
+                hotelId: li.hotelId,
+                hotelName: li.hotelName,
+                occupancy: li.occupancy,
+                hotelNightlyRate: li.hotelNightlyRate,
+                hotelCostTotal: li.hotelCostTotal,
+                baseCost: li.baseCost,
+                marginAmount: li.marginAmount,
+                freeAdjustmentAmount: li.freeAdjustmentAmount,
+                adjustmentItems: li.adjustmentItems,
+                sellingPrice: li.sellingPrice,
+                sellingPriceExact: li.sellingPriceExact,
+              })),
+            },
+            // rulesUsed: the rule and adjustment rules frozen at creation time
+            // (from _computeInputs) so reproduction is possible even if rules
+            // are later edited or deleted.
+            rulesUsed: computeInputs
+              ? { pricingRule: computeInputs.rule ?? null, adjustmentRules: computeInputs.adjustmentRules ?? [] }
+              : { note: "legacy_quote_rules_unavailable" },
+            reason: nextVersion > 1 ? "re_approved" : "approved",
+            createdBy: userId,
+          });
+        }
+
+        return q;
+      });
+
       if (!quote)
         return res.status(409).json({ message: "Quote was updated concurrently; reload and retry" });
       if (isTransition) {
@@ -4695,14 +4853,33 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Line item not found on this quote" });
       const userId = (req.session as any).userId as string;
       const override = await db.transaction(async (tx) => {
+        // Lock the quote row first so the status cannot be changed to
+        // "approved" concurrently (the approval UPDATE also locks the row).
+        // After getting the lock we re-read the status to confirm the quote
+        // is still in an overridable state — it may have been approved while
+        // we were outside this transaction.
+        const lockedRows = await tx.execute<{ status: string }>(
+          sql`SELECT status FROM pricing_quotes WHERE id = ${quote.id} FOR UPDATE`,
+        );
+        const lockedStatus = lockedRows.rows[0]?.status;
+        if (!lockedStatus || !OVERRIDABLE_QUOTE_STATUSES.has(lockedStatus))
+          throw Object.assign(new Error(`Cannot override prices on a ${lockedStatus ?? "unknown"} quote; move it back to draft first`), { statusCode: 409 });
+
+        // Re-read the current line item price inside the lock in case another
+        // override committed after our outer SELECT but before this transaction.
+        const [freshLi] = await tx.select().from(pricingQuoteLineItems)
+          .where(eq(pricingQuoteLineItems.id, li.id));
+        if (!freshLi || freshLi.quoteId !== quote.id)
+          throw Object.assign(new Error("Line item not found on this quote"), { statusCode: 404 });
+
         const [ov] = await tx.insert(pricingQuoteOverrides).values({
-          quoteId: quote.id, lineItemId: li.id, fieldName: "selling_price",
-          originalValue: li.sellingPrice, overrideValue: parsed.data.overrideValue,
+          quoteId: quote.id, lineItemId: freshLi.id, fieldName: "selling_price",
+          originalValue: freshLi.sellingPrice, overrideValue: parsed.data.overrideValue,
           reason: parsed.data.reason.trim(), createdBy: userId, approvedBy: userId,
         }).returning();
         await tx.update(pricingQuoteLineItems)
           .set({ sellingPrice: parsed.data.overrideValue })
-          .where(eq(pricingQuoteLineItems.id, li.id));
+          .where(eq(pricingQuoteLineItems.id, freshLi.id));
         await tx.update(pricingQuotes).set({ updatedAt: new Date() })
           .where(eq(pricingQuotes.id, quote.id));
         return ov;
@@ -4723,6 +4900,21 @@ export async function registerRoutes(
       const rows = await db.select().from(pricingQuoteOverrides)
         .where(eq(pricingQuoteOverrides.quoteId, req.params.id as string))
         .orderBy(desc(pricingQuoteOverrides.createdAt));
+      res.json(rows);
+    } catch (e: any) { routeError(res, e); }
+  });
+
+  // Immutable pricing snapshots for a quote (internal only). Returns all
+  // versions in ascending order; version 1 = first approval.
+  app.get("/api/pricing/quotes/:id/snapshots", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
+      const [quote] = await db.select().from(pricingQuotes)
+        .where(eq(pricingQuotes.id, req.params.id as string));
+      if (!quote) return res.status(404).json({ message: "Quote not found" });
+      const rows = await db.select().from(quotePricingSnapshots)
+        .where(eq(quotePricingSnapshots.quoteId, req.params.id as string))
+        .orderBy(quotePricingSnapshots.version);
       res.json(rows);
     } catch (e: any) { routeError(res, e); }
   });

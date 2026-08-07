@@ -25,7 +25,6 @@ import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES, SERVICE_TYPES, W
 import type { Booking, Traveler, BookingAssignment, BookingWorkflow, WorkflowStep, Document, Message, Payment, UserProfile, BookingServiceRequest, BookingPaymentSchedule } from "@workspace/db";
 import { useState } from "react";
 import { DocumentPreview } from "@/components/DocumentPreview";
-import type { Booking, Traveler, BookingAssignment, BookingWorkflow, WorkflowStep, Document, Message, Payment, UserProfile, BookingPaymentSchedule } from "@workspace/db";
 
 const serviceIcons: Record<string, any> = {
   airline: Plane, hotel: Hotel, transport: Bus, guide: UserCheck, sights: Ticket,

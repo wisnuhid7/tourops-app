@@ -592,8 +592,11 @@ export async function registerRoutes(
       const exportTours = await Promise.all(
         toursToExport.map(async (tour, idx) => {
           const ref = `T${idx + 1}`;
-          const days = await storage.getTourDays(tour.id);
-          const items = await storage.getTourDayItemsByTourId(tour.id);
+          const [days, items, departures] = await Promise.all([
+            storage.getTourDays(tour.id),
+            storage.getTourDayItemsByTourId(tour.id),
+            storage.getDeparturesByTour(tour.id),
+          ]);
 
           const itemsByDayId = new Map<string, typeof items>();
           for (const it of items) {
@@ -603,6 +606,7 @@ export async function registerRoutes(
           }
 
           const sortedDays = [...days].sort((a, b) => (a.dayNumber ?? 0) - (b.dayNumber ?? 0));
+          const sortedDepartures = [...departures].sort((a, b) => a.startDate.localeCompare(b.startDate));
 
           return {
             ref,
@@ -619,6 +623,17 @@ export async function registerRoutes(
             childPrice: tour.childPrice ?? "",
             singleSupplement: tour.singleSupplement ?? "",
             duration: tour.duration ?? 1,
+            // Departures use the same field names the importer reads so the
+            // JSON can round-trip directly without a client parseWorkbook step.
+            departures: sortedDepartures.map((dep) => ({
+              startDate: dep.startDate,
+              endDate: dep.endDate,
+              capacity: dep.capacityTotal ?? 20,
+              allowPublicJoin: dep.publicJoinEnabled ?? true,
+              pricePerPerson: dep.pricePerPerson ?? undefined,
+              bookingCutoffDate: (dep as any).bookingCutoffDate ?? undefined,
+              notes: (dep as any).notes ?? undefined,
+            })),
             days: sortedDays.map((d) => ({
               dayNumber: d.dayNumber ?? 0,
               title: d.title ?? "",
@@ -927,6 +942,27 @@ export async function registerRoutes(
           if (!payload.slug && payload.title) {
             payload.slug = String(payload.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '-' + Date.now();
           }
+
+          // ----------------------------------------------------------------
+          // Normalise fields that differ between the XLSX-parsed client path
+          // (handled by parseWorkbook) and a direct API round-trip (the raw
+          // JSON the export endpoint returns).
+          //
+          // • countries / tags  — export joins array→comma string for the
+          //   spreadsheet cell; insertTourSchema expects string[].
+          // • childPrice / singleSupplement — export sends "" when the DB
+          //   value is null; the nonNegativePriceString refiner rejects "".
+          // ----------------------------------------------------------------
+          if (typeof payload.countries === "string") {
+            payload.countries = payload.countries.split(",").map((s: string) => s.trim()).filter(Boolean);
+          }
+          if (typeof payload.tags === "string") {
+            payload.tags = payload.tags.split(",").map((s: string) => s.trim()).filter(Boolean);
+          }
+          for (const priceField of ["childPrice", "singleSupplement"] as const) {
+            if (payload[priceField] === "") payload[priceField] = undefined;
+          }
+
           // Preserve explicit duration from the sheet (e.g. 7 nights for a
           // 5-day itinerary); only fall back to day count when not provided
           // or when it's less than the actual number of day rows.
@@ -1025,6 +1061,9 @@ export async function registerRoutes(
             }
             if (!/^\d{4}-\d{2}-\d{2}$/.test(raw.endDate)) {
               depError = `Departure endDate "${raw.endDate}" must be YYYY-MM-DD`; break;
+            }
+            if (raw.endDate < raw.startDate) {
+              depError = `Departure endDate "${raw.endDate}" must not be earlier than startDate "${raw.startDate}"`; break;
             }
             if (!Number.isInteger(raw.capacityTotal) || raw.capacityTotal < 1) {
               depError = `Departure ${raw.startDate}: capacity must be a whole number ≥ 1 (got "${dep.capacity}")`; break;
@@ -1306,6 +1345,9 @@ export async function registerRoutes(
       if (!await requireRole(req, res, ADMIN_ROLES)) return;
       const parsed = insertTourDepartureSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      if (parsed.data.endDate < parsed.data.startDate) {
+        return res.status(400).json({ message: `endDate "${parsed.data.endDate}" must not be earlier than startDate "${parsed.data.startDate}"` });
+      }
       res.json(await storage.createDeparture(parsed.data));
     } catch (e: any) { routeError(res, e); }
   });
@@ -1324,6 +1366,17 @@ export async function registerRoutes(
         if (f in req.body) update[f] = req.body[f];
       }
       if (Object.keys(update).length === 0) return res.status(400).json({ message: "No updatable fields provided" });
+      // Validate endDate >= startDate. A partial update may supply only one of
+      // the two dates, so fetch the existing record to fill in the missing side.
+      if ("startDate" in update || "endDate" in update) {
+        const existing = await storage.getDeparture(req.params.id as string);
+        if (!existing) return res.status(404).json({ message: "Departure not found" });
+        const effectiveStart = update.startDate ?? existing.startDate;
+        const effectiveEnd   = update.endDate   ?? existing.endDate;
+        if (effectiveEnd < effectiveStart) {
+          return res.status(400).json({ message: `endDate "${effectiveEnd}" must not be earlier than startDate "${effectiveStart}"` });
+        }
+      }
       res.json(await storage.updateDeparture(req.params.id as string, update));
     } catch (e: any) { routeError(res, e); }
   });

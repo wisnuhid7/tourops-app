@@ -669,6 +669,101 @@ export async function registerRoutes(
     } catch (e: any) { routeError(res, e); }
   });
 
+  /**
+   * Price-preview — returns an itemised breakdown matching exactly what the
+   * POST /api/bookings server computation will produce, so the booking dialog
+   * can show confirmed numbers before the customer submits.
+   *
+   * GET /api/tours/:tourId/price-preview
+   *   ?partySize=2          (default 1)
+   *   &roomType=doble       (optional; one of matrimonial|doble|triple)
+   *   &departureId=<uuid>   (optional; use departure price when supplied)
+   */
+  app.get("/api/tours/:tourId/price-preview", async (req, res) => {
+    try {
+      const { tourId } = req.params;
+
+      // Only published tours are accessible to the public; staff may preview
+      // any tour they can already see in the admin panel.
+      const tourRow = await storage.getTour(tourId);
+      if (!tourRow) return res.status(404).json({ message: "Tour not found" });
+      // Use the established session-based staff guard — same as the tour detail route.
+      if (!tourRow.isPublished && !(await isStaffViewer(req))) {
+        return res.status(404).json({ message: "Tour not found" });
+      }
+
+      const partySize = Math.max(1, parseInt(String(req.query.partySize || "1")) || 1);
+      const roomTypeRaw = req.query.roomType ? String(req.query.roomType) : undefined;
+      const departureId = req.query.departureId ? String(req.query.departureId) : undefined;
+      // Currency is NOT caller-controlled — the booking endpoint uses
+      // req.body.currency || "USD" and the UI never sends a currency field,
+      // so both sides always use USD.  Hard-coding it here ensures the preview
+      // and POST /api/bookings compute accommodation identically.
+      const bookingCurrency = "USD";
+
+      let perPersonPrice = 0;
+      if (departureId) {
+        const dep = await storage.getDeparture(departureId);
+        // Reject a departure that doesn't belong to this tour — the booking
+        // endpoint does the same (400), so we must never show a preview total
+        // that the subsequent booking POST would refuse.
+        if (!dep || dep.tourId !== tourId) {
+          return res.status(400).json({ message: "Departure does not belong to this tour" });
+        }
+        const dp = Number(dep.pricePerPerson);
+        if (Number.isFinite(dp) && dp > 0) perPersonPrice = dp;
+      }
+      if (perPersonPrice === 0) {
+        const pp = await publicTourPricing(tourId);
+        if (pp && pp.perPersonBase > 0) perPersonPrice = pp.perPersonBase;
+        else perPersonPrice = Number(tourRow.basePrice) || 0;
+      }
+
+      const perPersonSubtotal = perPersonPrice * partySize;
+      let roomsNeeded = 0;
+      let accommodationCost = 0;
+      // currencyMismatch: true means the selected room type's hotel rates are in
+      // a different currency from the booking currency — the booking endpoint will
+      // reject this combination, so we surface the flag so the UI can warn the
+      // customer rather than letting them hit a 400 at confirmation.
+      let currencyMismatch = false;
+      let currency = bookingCurrency;
+      let roomType: BookingRoomType | undefined;
+
+      if (roomTypeRaw && BOOKING_ROOM_TYPES.includes(roomTypeRaw as BookingRoomType)) {
+        roomType = roomTypeRaw as BookingRoomType;
+        const acc = await accommodationForTour(db, tourId, roomType);
+        const accTotal = Number(acc.total);
+        if (Number.isFinite(accTotal) && accTotal > 0) {
+          if (acc.currency.toUpperCase() !== bookingCurrency.toUpperCase()) {
+            // Mirror the booking endpoint's rejection: do NOT add accommodation to
+            // the total and flag the mismatch so the UI can warn the customer.
+            currencyMismatch = true;
+          } else {
+            roomsNeeded = Math.max(1, Math.ceil(partySize / ROOM_TYPE_OCCUPANCY[roomType]));
+            accommodationCost = new Decimal(accTotal).mul(roomsNeeded).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toNumber();
+          }
+        }
+      }
+
+      // Mirror POST /api/bookings exactly: Decimal addition rounded half-up to
+      // a whole currency unit so the preview total equals the persisted booking total.
+      const grandTotal = new Decimal(perPersonSubtotal).plus(accommodationCost).toDecimalPlaces(0, Decimal.ROUND_HALF_UP).toNumber();
+
+      res.json({
+        perPersonPrice,
+        partySize,
+        perPersonSubtotal,
+        roomType: roomType ?? null,
+        roomsNeeded,
+        accommodationCost,
+        grandTotal,
+        currency,
+        currencyMismatch,
+      });
+    } catch (e: any) { routeError(res, e); }
+  });
+
   /** PG unique-constraint violation (code 23505), possibly wrapped by the driver. */
   function isUniqueViolation(e: any): boolean {
     return e?.code === "23505" || e?.cause?.code === "23505";

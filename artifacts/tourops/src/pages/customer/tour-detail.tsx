@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import { PublicHeader } from "@/components/public-header";
-import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer, Plane, Flag, Bed, Bus, Utensils, User, CircleDollarSign, Languages, Star, Mail, Phone, Cake } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer, Plane, Flag, Bed, Bus, Utensils, User, CircleDollarSign, Languages, Star, Mail, Phone, Cake, Receipt } from "lucide-react";
 import { getFullImageUrl, getGoogleMapsEmbedUrl } from "@/lib/utils";
 import { Link } from "wouter";
 import { useState, useRef } from "react";
@@ -261,6 +261,24 @@ export default function TourDetail() {
   const [partySize, setPartySize] = useState(1);
   const [roomType, setRoomType] = useState("");
   const [notes, setNotes] = useState("");
+
+  // Live price-preview: re-fetches whenever party size, room type, or
+  // selected departure changes so the breakdown in the dialog always matches
+  // exactly what the server will charge.
+  const pricePreviewParams = new URLSearchParams({ partySize: String(partySize) });
+  if (roomType) pricePreviewParams.set("roomType", roomType);
+  if (departureId) pricePreviewParams.set("departureId", departureId);
+  const { data: pricePreview, isFetching: pricePreviewFetching, isError: pricePreviewError } = useQuery<{
+    perPersonPrice: number; partySize: number; perPersonSubtotal: number;
+    roomType: string | null; roomsNeeded: number; accommodationCost: number;
+    grandTotal: number; currency: string; currencyMismatch: boolean;
+  }>({
+    queryKey: ["/api/tours", tourId, "price-preview", partySize, roomType, departureId],
+    queryFn: () => apiRequest("GET", `/api/tours/${tourId}/price-preview?${pricePreviewParams}`).then(r => r.json()),
+    enabled: !!tourId && showBooking,
+    staleTime: 30_000,
+    retry: 1,
+  });
 
   // Room types offered by at least one hotel on this tour, with the
   // per-night rate range shown to the customer.
@@ -692,6 +710,56 @@ export default function TourDetail() {
                               </div>
                             )}
                             <div><Label>{t("notes_optional")}</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("special_requests_placeholder")} /></div>
+
+                            {/* ── Price Breakdown ── */}
+                            {pricePreviewError ? (
+                              <p className="text-sm text-destructive text-center py-2">{t("booking_failed")}</p>
+                            ) : pricePreviewFetching && !pricePreview ? (
+                              <Skeleton className="h-24 w-full" />
+                            ) : pricePreview && (
+                              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2 text-sm">
+                                <p className="font-semibold flex items-center gap-1.5 text-primary">
+                                  <Receipt className="h-4 w-4" />{t("booking_price_breakdown")}
+                                </p>
+                                <div className="space-y-1 text-muted-foreground">
+                                  <div className="flex justify-between">
+                                    <span>{pricePreview.partySize} × {pricePreview.currency} {pricePreview.perPersonPrice.toLocaleString()} / {t("per_person")}</span>
+                                    <span className="font-medium text-foreground">{pricePreview.currency} {pricePreview.perPersonSubtotal.toLocaleString()}</span>
+                                  </div>
+                                  {pricePreview.currencyMismatch ? (
+                                    // Accommodation is in a different currency — booking would be rejected.
+                                    // Hide grand total (it would be wrong) and block confirmation.
+                                    <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5 pt-1 border-t border-primary/20 mt-2">
+                                      <Bed className="h-3.5 w-3.5 flex-shrink-0" />
+                                      {t("accommodation_cost_label")}: pricing unavailable — please contact us
+                                    </p>
+                                  ) : (
+                                    <>
+                                      {pricePreview.accommodationCost > 0 && (
+                                        <>
+                                          <div className="flex justify-between">
+                                            <span className="flex items-center gap-1">
+                                              <Bed className="h-3.5 w-3.5" />
+                                              {t("accommodation_cost_label")}
+                                              {roomType && ` (${t(roomType === "matrimonial" ? "room_matrimonial" : roomType === "doble" ? "room_double" : "room_triple")})`}
+                                            </span>
+                                            <span className="font-medium text-foreground">{pricePreview.currency} {pricePreview.accommodationCost.toLocaleString()}</span>
+                                          </div>
+                                          <div className="text-xs">
+                                            {t("booking_rooms_needed")}: {pricePreview.roomsNeeded}
+                                          </div>
+                                        </>
+                                      )}
+                                      <div className="flex justify-between border-t border-primary/20 pt-2 font-bold text-foreground">
+                                        <span>{t("grand_total")}</span>
+                                        <span>{pricePreview.currency} {pricePreview.grandTotal.toLocaleString()}</span>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
                             <Button
                               className="w-full"
                               onClick={() => submitBooking({
@@ -706,10 +774,17 @@ export default function TourDetail() {
                                 // prices and adds the selected room type itself.
                                 totalPrice: Number(dep.pricePerPerson || publicPricing?.perPersonBase || tour.basePrice || 0) * partySize,
                               })}
-                              disabled={bookMutation.isPending || (roomTypeOptions.length > 0 && !roomType)}
+                              disabled={
+                                bookMutation.isPending ||
+                                (roomTypeOptions.length > 0 && !roomType) ||
+                                !pricePreview ||
+                                pricePreviewFetching ||
+                                pricePreviewError ||
+                                pricePreview.currencyMismatch
+                              }
                               data-testid="button-confirm-booking"
                             >
-                              {bookMutation.isPending ? t("loading") : t("confirm_booking")}
+                              {bookMutation.isPending ? t("loading") : pricePreviewFetching ? t("loading") : t("confirm_booking")}
                             </Button>
                           </div>
                         </DialogContent>

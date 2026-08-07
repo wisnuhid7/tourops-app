@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Link, useLocation } from "wouter";
-import { Search, MapPin, Calendar, DollarSign, ArrowRight, Filter, Tag, X, Users } from "lucide-react";
+import { Search, MapPin, Calendar, DollarSign, ArrowRight, Filter, Tag, X, Users, Bed } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/hooks/use-language";
@@ -302,6 +302,11 @@ export default function BrowseTours() {
                         </span>
                         {Number(tour.childPrice) > 0 && (
                           <p className="text-xs text-muted-foreground">{t("child_price")} ${Number(tour.childPrice).toLocaleString()}</p>
+                        )}
+                        {Number((tour as any).publicPricing?.accommodationFrom) > 0 && (
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+                            <Bed className="h-3 w-3" />{t("price_includes_hotels")}
+                          </p>
                         )}
                       </div>
                     ) : (

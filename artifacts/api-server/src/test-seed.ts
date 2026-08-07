@@ -21,7 +21,7 @@ import {
   countries, cities, airports, exchangeRates,
   userProfiles, hotels, tours, tourDays, tourDayItems, tourDepartures,
   transportRates, guideRates, sightsRates, airfareRates,
-  groupSizeBands, pricingRules, pricingQuotes, pricingQuoteLineItems,
+  groupSizeBands, pricingRules, pricingQuotes, pricingQuoteLineItems, quotePricingSnapshots,
   bookings, bookingServiceRequests, bookingPaymentSchedules, seedRuns,
   travelers, travelerInvitations, bookingStatusHistory, bookingRooms,
   bookingChangeRequests, incidentReports, payments, messages,
@@ -146,6 +146,9 @@ export async function resetTestData(): Promise<Record<string, number>> {
     const quotes = await db.select({ id: pricingQuotes.id }).from(pricingQuotes).where(inArray(pricingQuotes.tourId, tourIds));
     const quoteIds = quotes.map(q => q.id);
     if (quoteIds.length) {
+      // Delete snapshots first – FK is ON DELETE RESTRICT so quotes can't be
+      // removed while snapshot rows still reference them.
+      await db.delete(quotePricingSnapshots).where(inArray(quotePricingSnapshots.quoteId, quoteIds));
       await db.delete(pricingQuoteLineItems).where(inArray(pricingQuoteLineItems.quoteId, quoteIds));
       await count("quotes", await db.delete(pricingQuotes).where(inArray(pricingQuotes.id, quoteIds)).returning({ id: pricingQuotes.id }));
     }

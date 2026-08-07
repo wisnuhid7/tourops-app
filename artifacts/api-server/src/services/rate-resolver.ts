@@ -21,10 +21,11 @@
  *   destination when both are provided.
  */
 import Decimal from "decimal.js";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lte, gte, or } from "drizzle-orm";
 import {
   tours, tourDays, tourDayItems, sights, hotels as hotelsTable,
-  hotelRates, guideRates, airfareRates, exchangeRates,
+  hotelRates, guideRates, airfareRates, exchangeRates, pricingSeasons,
+  countries as countriesTable,
 } from "@workspace/db";
 
 Decimal.set({ precision: 28, rounding: Decimal.ROUND_HALF_UP });
@@ -66,6 +67,44 @@ export interface ResolveResult {
 
 const D = (v: string | number | null | undefined) => new Decimal(v == null || v === "" ? 0 : v);
 const money = (d: Decimal) => d.toFixed(2);
+
+type SeasonWindow = { startDate: string; endDate: string } | null;
+
+const toDateStr = (v: any): string | null => {
+  if (!v) return null;
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  const s = String(v).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
+};
+
+/**
+ * Re-rank rate-card rows so season-specific cards sort ahead of year-round
+ * defaults when a season is matched. A rate is "season-specific" when its
+ * validity window is fully contained within the matched season's window
+ * (validFrom >= season.startDate AND validTo <= season.endDate). Only cards
+ * with BOTH bounds set qualify — null-bounded (year-round) cards are general
+ * defaults and sort last. Within each tier, the original order is preserved.
+ * The caller's dateValid() check gates which card is actually used; this only
+ * adjusts preference order among already-loaded candidates.
+ *
+ * Exported for unit tests.
+ */
+export function sortBySeasonWindow<T extends { validFrom?: any; validTo?: any }>(
+  rows: T[],
+  season: SeasonWindow,
+): T[] {
+  if (!season) return rows;
+  const { startDate: ss, endDate: se } = season;
+  const specific: T[] = [];
+  const general: T[] = [];
+  for (const r of rows) {
+    const rf = toDateStr(r.validFrom);
+    const rt = toDateStr(r.validTo);
+    const isSpecific = rf !== null && rt !== null && rf >= ss && rt <= se;
+    (isSpecific ? specific : general).push(r);
+  }
+  return [...specific, ...general];
+}
 
 /** Text rate-card dates are free-form; compare only when both parse. */
 function dateValid(validFrom: string | null, validTo: string | null, onDate?: string): boolean {
@@ -131,8 +170,53 @@ export async function resolveTourComponents(db: Db, input: ResolveInput): Promis
   const fxAvailable = (currency: string | null | undefined) =>
     sameCurrency(currency) || fxRate((currency ?? "USD").toUpperCase()) !== null;
 
+  // Load the tour first so its countries array can scope season resolution.
   const [tour] = await db.select().from(tours).where(eq(tours.id, input.tourId));
   if (!tour) throw Object.assign(new Error("Tour not found"), { statusCode: 404 });
+
+  // ---- Season resolution ----
+  // Candidates: active seasons whose date window contains the departure date,
+  // filtered to (a) global seasons (destinationId IS NULL) or (b) seasons
+  // whose destinationId matches one of the tour's countries. This prevents a
+  // high-priority season for Jordan from winning on an Israel-only tour.
+  // Among candidates, the highest priority number wins; ties broken by newest
+  // createdAt. Records the matched season in meta.season.
+  let matchedSeason: { id: string; name: string; priority: number; startDate: string; endDate: string } | null = null;
+  {
+    // tours.countries stores country names (e.g. "Israel"), not UUIDs.
+    // Resolve them to countries.id before filtering seasons, so destination_id
+    // comparisons are against the same type that the CRUD API stores.
+    const tourCountryNames: string[] = Array.isArray(tour.countries) ? tour.countries.filter(Boolean) : [];
+    let tourCountryIds: string[] = [];
+    if (tourCountryNames.length > 0) {
+      const countryRows: any[] = await db.select({ id: countriesTable.id })
+        .from(countriesTable)
+        .where(inArray(countriesTable.name, tourCountryNames));
+      tourCountryIds = countryRows.map((r: any) => r.id);
+    }
+    const destinationFilter = tourCountryIds.length > 0
+      ? or(isNull(pricingSeasons.destinationId), inArray(pricingSeasons.destinationId, tourCountryIds))
+      : isNull(pricingSeasons.destinationId); // tour has no resolved country IDs → only global seasons apply
+    const allSeasons: any[] = await db.select().from(pricingSeasons)
+      .where(and(
+        eq(pricingSeasons.isActive, true),
+        lte(pricingSeasons.startDate, onDate),
+        gte(pricingSeasons.endDate, onDate),
+        destinationFilter,
+      ))
+      .orderBy(desc(pricingSeasons.priority));
+    if (allSeasons.length > 0) {
+      const s = allSeasons[0];
+      matchedSeason = { id: s.id, name: s.name, priority: s.priority, startDate: s.startDate, endDate: s.endDate };
+      meta.season = { id: s.id, name: s.name, priority: s.priority, startDate: s.startDate, endDate: s.endDate };
+    } else {
+      warnings.push(`No pricing season matches the departure date ${onDate}; using base rates.`);
+      meta.season = null;
+    }
+  }
+
+  const seasonSort = <T extends { validFrom?: any; validTo?: any }>(rows: T[]) =>
+    sortBySeasonWindow(rows, matchedSeason);
 
   const days = await db.select().from(tourDays).where(eq(tourDays.tourId, input.tourId));
   const dayIds = days.map((d: any) => d.id);
@@ -292,9 +376,13 @@ export async function resolveTourComponents(db: Db, input: ResolveInput): Promis
       continue;
     }
     // Match rate cards by name (rate cards store free-text hotel names).
-    const candidates: any[] = await db.select().from(hotelRates)
+    // Season-aware: season-aligned rate cards (validFrom/validTo overlapping
+    // the matched season window) are sorted ahead of year-round defaults so
+    // the highest-season-priority rate wins when multiple cards are valid.
+    const candidatesRaw: any[] = await db.select().from(hotelRates)
       .where(and(eq(hotelRates.status, "active"), eq(hotelRates.hotelName, hotel.name)))
       .orderBy(desc(hotelRates.createdAt));
+    const candidates = seasonSort(candidatesRaw);
     const rate = candidates.find((r) =>
       dateValid(r.validFrom, r.validTo, onDate) &&
       r.pricePerRoomPerNight != null && fxAvailable(r.currency));
@@ -334,9 +422,12 @@ export async function resolveTourComponents(db: Db, input: ResolveInput): Promis
   let airfarePerPerson = "0.00";
   const airfareByOccupancy: Partial<Record<"child" | "infant", string>> = {};
   if (input.origin && input.destination) {
-    const fares: any[] = await db.select().from(airfareRates)
+    // Season-aware: prefer airfare rate cards whose validFrom/validTo window
+    // overlaps the matched season before falling back to year-round defaults.
+    const faresRaw: any[] = await db.select().from(airfareRates)
       .where(and(eq(airfareRates.isActive, true), eq(airfareRates.origin, input.origin), eq(airfareRates.destination, input.destination)))
       .orderBy(desc(airfareRates.createdAt));
+    const fares = seasonSort(faresRaw);
     const fare = fares.find((f) =>
       fxAvailable(f.currency) &&
       (!dep || !f.validFrom || f.validFrom <= dep) && (!dep || !f.validTo || f.validTo >= dep));

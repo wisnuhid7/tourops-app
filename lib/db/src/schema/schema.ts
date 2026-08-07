@@ -1877,6 +1877,24 @@ export const insertMasterRecordSchema = createInsertSchema(masterRecords).omit({
 export type InsertMasterRecord = z.infer<typeof insertMasterRecordSchema>;
 export type MasterRecord = typeof masterRecords.$inferSelect;
 
+export const pricingSeasons = pgTable("pricing_seasons", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),                    // e.g. "Christmas High Season"
+  /** null = global (applies to all tours); non-null = scoped to this country */
+  destinationId: varchar("destination_id").references(() => countries.id, { onDelete: "set null" }),
+  /** ISO date string "YYYY-MM-DD" — inclusive start of the season window */
+  startDate: text("start_date").notNull(),
+  /** ISO date string "YYYY-MM-DD" — inclusive end of the season window */
+  endDate: text("end_date").notNull(),
+  /** Higher number = higher priority; wins when multiple seasons overlap. */
+  priority: integer("priority").notNull().default(0),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  dateRangeIdx: index("pricing_seasons_date_range_idx").on(table.startDate, table.endDate),
+  priorityIdx: index("pricing_seasons_priority_idx").on(table.priority),
+}));
 export const adjustmentStageEnum = pgEnum("pricing_adjustment_stage", [
   "before_margin", "after_margin", "after_free_policy",
 ]);
@@ -1904,3 +1922,41 @@ export const insertPricingAdjustmentRuleSchema = createInsertSchema(pricingAdjus
 }).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type InsertPricingAdjustmentRule = z.infer<typeof insertPricingAdjustmentRuleSchema>;
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const validateSeasonDate = (field: string) =>
+  z.string().refine((v) => DATE_RE.test(v), { message: `${field} must be YYYY-MM-DD` });
+
+export const insertPricingSeasonSchema = createInsertSchema(pricingSeasons)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    startDate: validateSeasonDate("startDate"),
+    endDate: validateSeasonDate("endDate"),
+  })
+  .superRefine((v, ctx) => {
+    if (v.startDate > v.endDate)
+      ctx.addIssue({ code: "custom", path: ["endDate"], message: "endDate must be on or after startDate" });
+  });
+
+export type InsertPricingSeason = z.infer<typeof insertPricingSeasonSchema>;
+
+/**
+ * Safe partial schema for PATCH /api/pricing/seasons/:id.
+ * All fields optional; date format and ordering only validated when the
+ * relevant field(s) are actually supplied — avoids the full insert
+ * schema's superRefine firing on absent fields.
+ */
+export const patchPricingSeasonSchema = z.object({
+  name: z.string().min(1).optional(),
+  destinationId: z.string().nullable().optional(),
+  startDate: validateSeasonDate("startDate").optional(),
+  endDate: validateSeasonDate("endDate").optional(),
+  priority: z.number().int().optional(),
+  isActive: z.boolean().optional(),
+}).superRefine((v, ctx) => {
+  if (v.startDate !== undefined && v.endDate !== undefined && v.startDate > v.endDate)
+    ctx.addIssue({ code: "custom", path: ["endDate"], message: "endDate must be on or after startDate" });
+});
+
+export type PatchPricingSeason = z.infer<typeof patchPricingSeasonSchema>;
+export type PricingSeason = typeof pricingSeasons.$inferSelect;

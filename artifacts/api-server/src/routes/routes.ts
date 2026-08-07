@@ -104,9 +104,9 @@ import {
   insertBookingWorkflowSchema, insertWorkflowStepSchema, insertInvoiceSchema,
   insertAffiliateSchema, insertMarkupRuleSchema, userRoleEnum,
   groupSizeBands, pricingRules, airfareRates, pricingQuotes, pricingQuoteLineItems,
-  pricingAdjustmentRules,
+  pricingAdjustmentRules, pricingSeasons,
   insertGroupSizeBandSchema, insertPricingRuleSchema, insertAirfareRateSchema,
-  insertPricingAdjustmentRuleSchema,
+  insertPricingAdjustmentRuleSchema, insertPricingSeasonSchema, patchPricingSeasonSchema,
   exchangeRates, pricingQuoteOverrides, quotePricingSnapshots,
   insertExchangeRateSchema, insertPricingQuoteOverrideSchema
 } from "@workspace/db";
@@ -4519,6 +4519,68 @@ export async function registerRoutes(
       const [rule] = await db.delete(pricingAdjustmentRules)
         .where(eq(pricingAdjustmentRules.id, req.params.id as string)).returning();
       if (!rule) return res.status(404).json({ message: "Adjustment rule not found" });
+      res.json({ success: true });
+    } catch (e: any) { routeError(res, e); }
+  });
+
+  // ---- Pricing seasons (date-range based season definitions) ----
+  app.get("/api/pricing/seasons", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, PRICING_INTERNAL_ROLES)) return;
+      const rows = await db.select().from(pricingSeasons)
+        .orderBy(desc(pricingSeasons.priority), pricingSeasons.startDate);
+      res.json(rows);
+    } catch (e: any) { routeError(res, e); }
+  });
+  app.post("/api/pricing/seasons", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const parsed = insertPricingSeasonSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      // Validate destination exists when provided.
+      if (parsed.data.destinationId) {
+        const [dest] = await db.select({ id: countries.id }).from(countries)
+          .where(eq(countries.id, parsed.data.destinationId));
+        if (!dest) return res.status(400).json({ message: "destinationId does not reference a known country" });
+      }
+      const [season] = await db.insert(pricingSeasons).values(parsed.data).returning();
+      res.json(season);
+    } catch (e: any) { routeError(res, e); }
+  });
+  app.patch("/api/pricing/seasons/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      // Validate the patch body fields in isolation first.
+      const parsed = patchPricingSeasonSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      // Load existing season so we can validate the merged date range —
+      // a one-bound update (only startDate or only endDate) must not invert
+      // the range relative to the persisted counterpart.
+      const [existing] = await db.select().from(pricingSeasons)
+        .where(eq(pricingSeasons.id, req.params.id as string));
+      if (!existing) return res.status(404).json({ message: "Season not found" });
+      const mergedStart = parsed.data.startDate ?? existing.startDate;
+      const mergedEnd   = parsed.data.endDate   ?? existing.endDate;
+      if (mergedStart > mergedEnd)
+        return res.status(400).json({ message: "endDate must be on or after startDate after applying this update" });
+      // Validate destination exists when provided.
+      if (parsed.data.destinationId) {
+        const [dest] = await db.select({ id: countries.id }).from(countries)
+          .where(eq(countries.id, parsed.data.destinationId));
+        if (!dest) return res.status(400).json({ message: "destinationId does not reference a known country" });
+      }
+      const [season] = await db.update(pricingSeasons)
+        .set({ ...parsed.data, updatedAt: new Date() })
+        .where(eq(pricingSeasons.id, req.params.id as string)).returning();
+      res.json(season);
+    } catch (e: any) { routeError(res, e); }
+  });
+  app.delete("/api/pricing/seasons/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const [season] = await db.delete(pricingSeasons)
+        .where(eq(pricingSeasons.id, req.params.id as string)).returning();
+      if (!season) return res.status(404).json({ message: "Season not found" });
       res.json({ success: true });
     } catch (e: any) { routeError(res, e); }
   });

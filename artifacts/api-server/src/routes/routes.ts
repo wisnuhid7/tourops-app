@@ -917,11 +917,12 @@ export async function registerRoutes(
       const guideByName = new Map(allGuides.map((g: any) => [String(g.guideName || "").trim().toLowerCase(), g]));
 
       const itemSchema = insertTourDayItemSchema.omit({ tourDayId: true });
+      const departureSchema = insertTourDepartureSchema.omit({ tourId: true });
       const results: any[] = [];
       for (const t of toursIn) {
         const ref = t?.ref || t?.title || "(untitled)";
         try {
-          const { days: daysIn, ref: _ref, ...tourFields } = t || {};
+          const { days: daysIn, departures: departuresIn, ref: _ref, ...tourFields } = t || {};
           const payload: any = { ...tourFields, isPublished: false }; // imports always land as drafts
           if (!payload.slug && payload.title) {
             payload.slug = String(payload.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '-' + Date.now();
@@ -1003,7 +1004,43 @@ export async function registerRoutes(
           }
           if (dayError) { results.push({ ref, ok: false, error: dayError }); continue; }
 
-          // All-or-nothing per tour: if any day/item write fails, remove
+          // Validate departure rows BEFORE writing anything, same strategy as days.
+          const parsedDepartures: any[] = [];
+          let depError: string | null = null;
+          for (const dep of (Array.isArray(departuresIn) ? departuresIn : [])) {
+            if (!dep || (!dep.startDate && !dep.endDate)) continue; // blank row
+            const raw: any = {
+              startDate: String(dep.startDate ?? "").trim(),
+              endDate: String(dep.endDate ?? dep.startDate ?? "").trim(),
+              capacityTotal: dep.capacity !== undefined && dep.capacity !== "" ? Number(dep.capacity) : 20,
+              publicJoinEnabled: dep.allowPublicJoin !== undefined ? Boolean(dep.allowPublicJoin) : true,
+            };
+            if (dep.pricePerPerson !== undefined && dep.pricePerPerson !== "") {
+              raw.pricePerPerson = Math.round(Number(dep.pricePerPerson));
+            }
+            if (!raw.startDate) { depError = `Departure row missing startDate`; break; }
+            if (!raw.endDate) raw.endDate = raw.startDate;
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(raw.startDate)) {
+              depError = `Departure startDate "${raw.startDate}" must be YYYY-MM-DD`; break;
+            }
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(raw.endDate)) {
+              depError = `Departure endDate "${raw.endDate}" must be YYYY-MM-DD`; break;
+            }
+            if (!Number.isInteger(raw.capacityTotal) || raw.capacityTotal < 1) {
+              depError = `Departure ${raw.startDate}: capacity must be a whole number ≥ 1 (got "${dep.capacity}")`; break;
+            }
+            if (raw.pricePerPerson !== undefined && (!Number.isInteger(raw.pricePerPerson) || raw.pricePerPerson < 0)) {
+              depError = `Departure ${raw.startDate}: pricePerPerson must be a non-negative integer (got "${dep.pricePerPerson}")`; break;
+            }
+            const parsed = departureSchema.safeParse(raw);
+            if (!parsed.success) {
+              depError = `Departure ${raw.startDate}: ${parsed.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join("; ")}`; break;
+            }
+            parsedDepartures.push(parsed.data);
+          }
+          if (depError) { results.push({ ref, ok: false, error: depError }); continue; }
+
+          // All-or-nothing per tour: if any day/item/departure write fails, remove
           // everything created for this tour so no half-imported shell remains.
           let createdTourId: string | null = null;
           try {
@@ -1016,7 +1053,10 @@ export async function registerRoutes(
                 await storage.createTourDayItem({ ...item, tourDayId: createdDay.id, sortOrder: item.sortOrder ?? sortOrder++ });
               }
             }
-            results.push({ ref, ok: true, tourId: tour.id, title: tour.title, days: parsedDays.length });
+            for (const dep of parsedDepartures) {
+              await storage.createDeparture({ ...dep, tourId: tour.id });
+            }
+            results.push({ ref, ok: true, tourId: tour.id, title: tour.title, days: parsedDays.length, departures: parsedDepartures.length });
           } catch (e: any) {
             if (createdTourId) {
               try {
@@ -1024,6 +1064,7 @@ export async function registerRoutes(
                 const dayIds = dayRows.map((r) => r.id);
                 if (dayIds.length) await db.delete(tourDayItems).where(inArray(tourDayItems.tourDayId, dayIds));
                 await db.delete(tourDays).where(eq(tourDays.tourId, createdTourId));
+                await db.delete(tourDepartures).where(eq(tourDepartures.tourId, createdTourId));
                 await db.delete(tours).where(eq(tours.id, createdTourId));
               } catch (cleanupErr) {
                 logger.error({ err: cleanupErr, tourId: createdTourId }, "tour import cleanup failed");

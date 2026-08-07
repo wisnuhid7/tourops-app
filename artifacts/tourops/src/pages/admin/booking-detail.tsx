@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES, SERVICE_TYPES, WORKFLOW_STATUSES, SERVICE_WORKFLOW_STEPS } from "@/lib/constants";
-import type { Booking, Traveler, BookingAssignment, BookingWorkflow, WorkflowStep, Document, Message, Payment, UserProfile } from "@workspace/db";
+import type { Booking, Traveler, BookingAssignment, BookingWorkflow, WorkflowStep, Document, Message, Payment, UserProfile, BookingServiceRequest, BookingPaymentSchedule } from "@workspace/db";
 import { useState } from "react";
 import { DocumentPreview } from "@/components/DocumentPreview";
 
@@ -89,6 +89,24 @@ export default function AdminBookingDetail() {
   const [invoiceForm, setInvoiceForm] = useState({ invoiceNumber: "", amount: "", currency: "USD", dueDate: "", notes: "" });
   const [showAddInvoice, setShowAddInvoice] = useState(false);
 
+  // Service request form
+  const [showCreateSR, setShowCreateSR] = useState(false);
+  const [srForm, setSrForm] = useState({
+    serviceType: "", supplierUserId: "", serviceDate: "", quantity: "1",
+    paxCount: "", agreedRate: "", location: "", notesForSupplier: "",
+  });
+
+  // Payment schedule
+  const [showGenerateSchedule, setShowGenerateSchedule] = useState(false);
+  const [scheduleInstallments, setScheduleInstallments] = useState([
+    { label: "Deposit", percentage: 20, dueDate: "" },
+    { label: "Second Payment", percentage: 30, dueDate: "" },
+    { label: "Third Payment", percentage: 30, dueDate: "" },
+    { label: "Final Payment", percentage: 20, dueDate: "" },
+  ]);
+  const [recordingPaymentId, setRecordingPaymentId] = useState<string | null>(null);
+  const [recordPaymentAmount, setRecordPaymentAmount] = useState("");
+
   const { data: booking, isLoading } = useQuery<Booking>({ queryKey: ["/api/bookings", bookingId] });
   const { data: travelers } = useQuery<Traveler[]>({ queryKey: ["/api/bookings", bookingId, "travelers"] });
   const { data: assignments } = useQuery<BookingAssignment[]>({ queryKey: ["/api/bookings", bookingId, "assignments"] });
@@ -96,6 +114,10 @@ export default function AdminBookingDetail() {
   const { data: documents } = useQuery<Document[]>({ queryKey: ["/api/bookings", bookingId, "documents"] });
   const { data: currentUserProfile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
   const isAdmin = currentUserProfile?.role === "admin" || currentUserProfile?.role === "super_admin";
+  const currentRole = currentUserProfile?.role;
+  const isOps = isAdmin || currentRole === "operations_manager";
+  const isFinanceOps = isOps || currentRole === "accounting";
+  const isScheduleViewer = isFinanceOps || currentRole === "support_agent";
 
   const { data: messages } = useQuery<Message[]>({ 
     queryKey: ["/api/bookings", bookingId, "messages"],
@@ -113,6 +135,14 @@ export default function AdminBookingDetail() {
   const { data: invoices } = useQuery<any[]>({ 
     queryKey: ["/api/bookings", bookingId, "invoices"],
     enabled: !!bookingId && isAdmin 
+  });
+  const { data: serviceRequests } = useQuery<BookingServiceRequest[]>({
+    queryKey: ["/api/bookings", bookingId, "service-requests"],
+    enabled: !!bookingId && isOps,
+  });
+  const { data: paymentSchedule } = useQuery<BookingPaymentSchedule[]>({
+    queryKey: ["/api/bookings", bookingId, "payment-schedule"],
+    enabled: !!bookingId && isScheduleViewer,
   });
 
   const updateBooking = useMutation({
@@ -229,6 +259,50 @@ export default function AdminBookingDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId] });
       toast({ title: t("payment_status_updated") });
     },
+  });
+
+  const createServiceRequest = useMutation({
+    mutationFn: (data: any) => apiRequest("POST", `/api/bookings/${bookingId}/service-requests`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "service-requests"] });
+      toast({ title: t("ops_sr_created") });
+      setShowCreateSR(false);
+      setSrForm({ serviceType: "", supplierUserId: "", serviceDate: "", quantity: "1", paxCount: "", agreedRate: "", location: "", notesForSupplier: "" });
+    },
+    onError: (e: any) => toast({ title: e?.message || "Error", variant: "destructive" }),
+  });
+
+  const patchSRStatus = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      apiRequest("PATCH", `/api/service-requests/${id}/status`, { status }),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "service-requests"] });
+      toast({ title: vars.status === "sent" ? t("ops_sr_sent") : t("ops_sr_cancelled") });
+    },
+    onError: (e: any) => toast({ title: e?.message || "Error", variant: "destructive" }),
+  });
+
+  const generateSchedule = useMutation({
+    mutationFn: (installments: any[]) =>
+      apiRequest("POST", `/api/bookings/${bookingId}/payment-schedule/generate`, { installments }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "payment-schedule"] });
+      toast({ title: t("ops_ps_generated") });
+      setShowGenerateSchedule(false);
+    },
+    onError: (e: any) => toast({ title: e?.message || "Error", variant: "destructive" }),
+  });
+
+  const recordPayment = useMutation({
+    mutationFn: ({ id, amount }: { id: string; amount: string }) =>
+      apiRequest("PATCH", `/api/payment-schedule/${id}/record-payment`, { amount }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "payment-schedule"] });
+      toast({ title: t("ops_ps_payment_recorded") });
+      setRecordingPaymentId(null);
+      setRecordPaymentAmount("");
+    },
+    onError: (e: any) => toast({ title: e?.message || "Error", variant: "destructive" }),
   });
 
   function resetTravelerForm() {
@@ -426,6 +500,8 @@ export default function AdminBookingDetail() {
           {isAdmin && <TabsTrigger value="messages" data-testid="tab-messages"><MessageSquare className="h-3.5 w-3.5 mr-1" />{t("messages")}</TabsTrigger>}
           {isAdmin && <TabsTrigger value="payments" data-testid="tab-payments"><CreditCard className="h-3.5 w-3.5 mr-1" />{t("payments")}</TabsTrigger>}
           {isAdmin && <TabsTrigger value="invoices" data-testid="tab-invoices"><FileText className="h-3.5 w-3.5 mr-1" />{t("invoices")}</TabsTrigger>}
+          {isOps && <TabsTrigger value="service-requests" data-testid="tab-service-requests"><Send className="h-3.5 w-3.5 mr-1" />{t("ops_sr_tab")}</TabsTrigger>}
+          {isScheduleViewer && <TabsTrigger value="payment-schedule" data-testid="tab-payment-schedule"><DollarSign className="h-3.5 w-3.5 mr-1" />{t("ops_ps_tab")}</TabsTrigger>}
           {isAdmin && <TabsTrigger value="history" data-testid="tab-history"><Clock className="h-3.5 w-3.5 mr-1" />{t("history")}</TabsTrigger>}
         </TabsList>
 
@@ -1335,6 +1411,315 @@ export default function AdminBookingDetail() {
             )}
           </TabsContent>
         )}
+        {/* TAB: Service Requests */}
+        {isOps && (
+          <TabsContent value="service-requests" className="mt-4 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-sm font-medium text-muted-foreground">
+                {serviceRequests?.length || 0} {t("ops_sr_tab").toLowerCase()}
+              </h3>
+              <Dialog open={showCreateSR} onOpenChange={setShowCreateSR}>
+                <DialogTrigger asChild>
+                  <Button data-testid="button-create-sr"><Plus className="h-4 w-4 mr-2" />{t("ops_sr_create")}</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>{t("ops_sr_create")}</DialogTitle></DialogHeader>
+                  <div className="space-y-3">
+                    <div>
+                      <Label>{t("ops_sr_service_type")}</Label>
+                      <Select value={srForm.serviceType} onValueChange={(v) => setSrForm({ ...srForm, serviceType: v })}>
+                        <SelectTrigger data-testid="select-sr-service-type"><SelectValue placeholder={t("select_label")} /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(SERVICE_TYPES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>{t("ops_sr_supplier")}</Label>
+                      <Select value={srForm.supplierUserId} onValueChange={(v) => setSrForm({ ...srForm, supplierUserId: v })}>
+                        <SelectTrigger data-testid="select-sr-supplier"><SelectValue placeholder={t("select_label")} /></SelectTrigger>
+                        <SelectContent>
+                          {allUsers?.filter(u => ["supplier","airline_supplier","hotel_manager","transport_manager","guide_manager","sights_manager"].includes(u.role ?? "")).map(u => (
+                            <SelectItem key={u.id} value={u.userId}>{u.companyName || u.userId}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label>{t("ops_sr_date")}</Label>
+                        <Input type="date" value={srForm.serviceDate} onChange={(e) => setSrForm({ ...srForm, serviceDate: e.target.value })} data-testid="input-sr-date" />
+                      </div>
+                      <div>
+                        <Label>{t("ops_sr_location")}</Label>
+                        <Input value={srForm.location} onChange={(e) => setSrForm({ ...srForm, location: e.target.value })} data-testid="input-sr-location" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <Label>{t("ops_sr_quantity")}</Label>
+                        <Input type="number" min="1" value={srForm.quantity} onChange={(e) => setSrForm({ ...srForm, quantity: e.target.value })} data-testid="input-sr-quantity" />
+                      </div>
+                      <div>
+                        <Label>{t("ops_sr_pax")}</Label>
+                        <Input type="number" min="0" value={srForm.paxCount} onChange={(e) => setSrForm({ ...srForm, paxCount: e.target.value })} data-testid="input-sr-pax" />
+                      </div>
+                      <div>
+                        <Label>{t("ops_sr_agreed_rate")}</Label>
+                        <Input type="number" min="0" step="0.01" value={srForm.agreedRate} onChange={(e) => setSrForm({ ...srForm, agreedRate: e.target.value })} data-testid="input-sr-rate" />
+                      </div>
+                    </div>
+                    <div>
+                      <Label>{t("ops_sr_notes")}</Label>
+                      <Textarea value={srForm.notesForSupplier} onChange={(e) => setSrForm({ ...srForm, notesForSupplier: e.target.value })} data-testid="input-sr-notes" />
+                    </div>
+                    <Button
+                      className="w-full"
+                      disabled={!srForm.serviceType || !srForm.supplierUserId || !srForm.serviceDate || !srForm.agreedRate || createServiceRequest.isPending}
+                      onClick={() => createServiceRequest.mutate({
+                        serviceType: srForm.serviceType,
+                        supplierUserId: srForm.supplierUserId,
+                        serviceDate: srForm.serviceDate,
+                        quantity: parseInt(srForm.quantity) || 1,
+                        paxCount: parseInt(srForm.paxCount) || 0,
+                        agreedRate: srForm.agreedRate,
+                        location: srForm.location || undefined,
+                        notesForSupplier: srForm.notesForSupplier || undefined,
+                      })}
+                      data-testid="button-submit-sr"
+                    >{t("ops_sr_create")}</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {serviceRequests && serviceRequests.length > 0 ? (
+              <div className="space-y-2">
+                {serviceRequests.map((sr) => {
+                  const Icon = serviceIcons[sr.serviceType] || ClipboardList;
+                  const statusColors: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+                    pending: "secondary", sent: "default", confirmed: "default",
+                    rejected: "destructive", changes_requested: "outline", cancelled: "outline",
+                  };
+                  const statusLabels: Record<string, string> = {
+                    pending: t("ops_sr_status_pending"), sent: t("ops_sr_status_sent"),
+                    confirmed: t("ops_sr_status_confirmed"), rejected: t("ops_sr_status_rejected"),
+                    changes_requested: t("ops_sr_status_changes_requested"), cancelled: t("ops_sr_status_cancelled"),
+                  };
+                  return (
+                    <Card key={sr.id} data-testid={`card-sr-${sr.id}`}>
+                      <CardContent className="p-4 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
+                              <Icon className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">{SERVICE_TYPES[sr.serviceType]}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {sr.serviceDate ? String(sr.serviceDate) : ""}{sr.location ? ` · ${sr.location}` : ""} · {t("ops_sr_pax")}: {sr.paxCount} · {sr.currency} {sr.agreedRate}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant={statusColors[sr.status] ?? "outline"} data-testid={`badge-sr-status-${sr.id}`}>
+                              {statusLabels[sr.status] ?? sr.status}
+                            </Badge>
+                            {(sr.status === "pending" || sr.status === "changes_requested") && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={patchSRStatus.isPending}
+                                onClick={() => patchSRStatus.mutate({ id: sr.id, status: "sent" })}
+                                data-testid={`button-sr-send-${sr.id}`}
+                              ><Send className="h-3 w-3 mr-1" />{t("ops_sr_send")}</Button>
+                            )}
+                            {(sr.status === "pending" || sr.status === "sent" || sr.status === "changes_requested") && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={patchSRStatus.isPending}
+                                onClick={() => { if (confirm(`${t("ops_sr_cancel_req")}?`)) patchSRStatus.mutate({ id: sr.id, status: "cancelled" }); }}
+                                data-testid={`button-sr-cancel-${sr.id}`}
+                              ><Trash2 className="h-3 w-3 mr-1" />{t("ops_sr_cancel_req")}</Button>
+                            )}
+                          </div>
+                        </div>
+                        {sr.notesForSupplier && (
+                          <p className="text-xs text-muted-foreground border-t pt-2">{t("ops_sr_notes")}: {sr.notesForSupplier}</p>
+                        )}
+                        {sr.supplierResponse && (
+                          <p className="text-xs border-t pt-2">
+                            <span className="font-medium text-muted-foreground">{t("ops_sr_response")}:</span> {sr.supplierResponse}
+                          </p>
+                        )}
+                        <p className="text-[10px] text-muted-foreground">{t("ops_sr_supplier")}: {getUserName(sr.supplierUserId)}</p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center py-12">
+                  <Send className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                  <p className="text-sm text-muted-foreground">{t("ops_sr_none")}</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        )}
+
+        {/* TAB: Payment Schedule */}
+        {isScheduleViewer && (
+          <TabsContent value="payment-schedule" className="mt-4 space-y-4">
+            {paymentSchedule && paymentSchedule.length > 0 ? (
+              <div className="space-y-2">
+                {paymentSchedule.map((inst) => {
+                  const psStatusLabels: Record<string, string> = {
+                    pending: t("ops_ps_status_pending"), paid: t("ops_ps_status_paid"),
+                    partially_paid: t("ops_ps_status_partially_paid"), cancelled: t("ops_ps_status_cancelled"),
+                  };
+                  const psStatusColors: Record<string, "default" | "secondary" | "outline"> = {
+                    pending: "secondary", paid: "default", partially_paid: "outline", cancelled: "outline",
+                  };
+                  return (
+                    <Card key={inst.id} data-testid={`card-ps-${inst.id}`}>
+                      <CardContent className="p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <p className="font-medium text-sm">{inst.label} <span className="text-muted-foreground font-normal">({inst.percentage}%)</span></p>
+                            <p className="text-xs text-muted-foreground">
+                              {inst.currency} {inst.amount} · {t("ops_ps_due_date")}: {inst.dueDate ? new Date(inst.dueDate).toLocaleDateString() : "—"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{t("ops_ps_paid")}: {inst.currency} {inst.paidAmount}</p>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant={psStatusColors[inst.status] ?? "secondary"} data-testid={`badge-ps-status-${inst.id}`}>
+                              {psStatusLabels[inst.status] ?? inst.status}
+                            </Badge>
+                            {isFinanceOps && inst.status !== "paid" && inst.status !== "cancelled" && (
+                              recordingPaymentId === inst.id ? (
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    className="w-24 h-8 text-xs"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    placeholder="0.00"
+                                    value={recordPaymentAmount}
+                                    onChange={(e) => setRecordPaymentAmount(e.target.value)}
+                                    data-testid={`input-ps-amount-${inst.id}`}
+                                  />
+                                  <Button
+                                    size="sm"
+                                    disabled={!recordPaymentAmount || recordPayment.isPending}
+                                    onClick={() => recordPayment.mutate({ id: inst.id, amount: recordPaymentAmount })}
+                                    data-testid={`button-ps-confirm-${inst.id}`}
+                                  ><CheckCircle className="h-3.5 w-3.5" /></Button>
+                                  <Button size="sm" variant="ghost" onClick={() => { setRecordingPaymentId(null); setRecordPaymentAmount(""); }}>✕</Button>
+                                </div>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => { setRecordingPaymentId(inst.id); setRecordPaymentAmount(""); }}
+                                  data-testid={`button-ps-record-${inst.id}`}
+                                ><DollarSign className="h-3 w-3 mr-1" />{t("ops_ps_record_payment")}</Button>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center py-8">
+                  <CreditCard className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                  <p className="text-sm text-muted-foreground">{t("ops_ps_none")}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {isFinanceOps && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">{t("ops_ps_generate")}</CardTitle>
+                    <Button variant="outline" size="sm" onClick={() => setShowGenerateSchedule(!showGenerateSchedule)}>
+                      {showGenerateSchedule ? t("cancel") : t("ops_ps_generate")}
+                    </Button>
+                  </div>
+                </CardHeader>
+                {showGenerateSchedule && (
+                  <CardContent className="space-y-3">
+                    {scheduleInstallments.map((inst, i) => (
+                      <div key={i} className="grid grid-cols-[1fr_72px_140px_32px] gap-2 items-end">
+                        <div>
+                          {i === 0 && <Label className="text-xs mb-1 block">{t("ops_ps_installment_label")}</Label>}
+                          <Input
+                            value={inst.label}
+                            onChange={(e) => { const n = [...scheduleInstallments]; n[i] = { ...n[i], label: e.target.value }; setScheduleInstallments(n); }}
+                            placeholder={`Installment ${i + 1}`}
+                            data-testid={`input-ps-label-${i}`}
+                          />
+                        </div>
+                        <div>
+                          {i === 0 && <Label className="text-xs mb-1 block">{t("ops_ps_percentage")}</Label>}
+                          <Input
+                            type="number" min="1" max="100"
+                            value={inst.percentage}
+                            onChange={(e) => { const n = [...scheduleInstallments]; n[i] = { ...n[i], percentage: parseFloat(e.target.value) || 0 }; setScheduleInstallments(n); }}
+                            data-testid={`input-ps-pct-${i}`}
+                          />
+                        </div>
+                        <div>
+                          {i === 0 && <Label className="text-xs mb-1 block">{t("ops_ps_due_date")}</Label>}
+                          <Input
+                            type="date"
+                            value={inst.dueDate}
+                            onChange={(e) => { const n = [...scheduleInstallments]; n[i] = { ...n[i], dueDate: e.target.value }; setScheduleInstallments(n); }}
+                            data-testid={`input-ps-due-${i}`}
+                          />
+                        </div>
+                        <Button
+                          variant="ghost" size="icon" className="h-9 w-8 mt-auto"
+                          onClick={() => setScheduleInstallments(scheduleInstallments.filter((_, j) => j !== i))}
+                          disabled={scheduleInstallments.length <= 1}
+                          data-testid={`button-ps-remove-${i}`}
+                        ><Trash2 className="h-3 w-3" /></Button>
+                      </div>
+                    ))}
+                    <div className="flex items-center justify-between pt-1">
+                      <Button
+                        variant="outline" size="sm"
+                        onClick={() => setScheduleInstallments([...scheduleInstallments, { label: "", percentage: 0, dueDate: "" }])}
+                        data-testid="button-ps-add-installment"
+                      ><Plus className="h-3 w-3 mr-1" />{t("ops_ps_add_installment")}</Button>
+                      <span className={`text-xs font-medium ${Math.abs(scheduleInstallments.reduce((a, i) => a + i.percentage, 0) - 100) > 0.001 ? "text-destructive" : "text-muted-foreground"}`}>
+                        Total: {scheduleInstallments.reduce((a, i) => a + i.percentage, 0).toFixed(1)}%
+                      </span>
+                    </div>
+                    <Button
+                      className="w-full"
+                      disabled={
+                        generateSchedule.isPending ||
+                        Math.abs(scheduleInstallments.reduce((a, i) => a + i.percentage, 0) - 100) > 0.001 ||
+                        scheduleInstallments.some(i => !i.label || !i.dueDate)
+                      }
+                      onClick={() => generateSchedule.mutate(scheduleInstallments.map(i => ({ label: i.label, percentage: i.percentage, dueDate: i.dueDate })))}
+                      data-testid="button-ps-generate"
+                    >{t("ops_ps_generate")}</Button>
+                  </CardContent>
+                )}
+              </Card>
+            )}
+          </TabsContent>
+        )}
+
         {isAdmin && (
           <TabsContent value="history" className="mt-4">
             <Card>

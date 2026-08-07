@@ -19,4 +19,5 @@
 - [Payments provider layer](payments-provider-layer.md) — gateway abstraction + webhook idempotency via unique (provider,event_id); session.regenerate() wipes per-request cookie downgrades (login 200 but cookie rejected).
 - [Staging test-data engine](staging-test-data.md) — reset deletes only provably-owned rows (createdBy/fixed IDs, never LIKE prefixes); prod-blocked endpoints; drizzle ANY(array) gotcha; $3,408 pricing anchor.
 - [Booking lifecycle conventions](booking-lifecycle.md) — status-transition map duplicated FE/BE (keep in sync); hashed single-use invite tokens; capacity changes need conditional atomic tx; CSV formula neutralization.
+- [Bulk master-data & scraped-tour imports](bulk-master-data-imports.md) — temp-table staging + natural keys; scraper tours marked in internal_notes; images under api-server uploads/; pg via lib/db/node_modules.
 - [Wide-read exclusion & subroute parity](wide-read-exclusion-pattern.md) — restricting a role via the wide-read filters is not enough; booking/workflow subroutes default to ALL_STAFF and re-leak by ID.

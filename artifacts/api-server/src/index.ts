@@ -4,6 +4,7 @@ import { logger } from "./lib/logger";
 import { registerRoutes } from "./routes/routes";
 import { runStartupMaintenance } from "./seed-core";
 import { initEmailSystem } from "./lib/email";
+import { startPaymentReminderScheduler } from "./lib/paymentReminderJob";
 import { runMigrations } from "./db-migrations";
 
 const rawPort = process.env["PORT"];
@@ -24,6 +25,7 @@ const httpServer = http.createServer(app);
 
 async function main() {
   initEmailSystem();
+  startPaymentReminderScheduler();
 
   // Apply any pending schema migrations before routes are registered.
   try {

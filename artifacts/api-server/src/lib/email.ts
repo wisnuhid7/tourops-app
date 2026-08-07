@@ -257,6 +257,70 @@ export function sendDocumentStatusNotification(
   );
 }
 
+export function sendPaymentReminderNotification(
+  customerEmail: string,
+  bookingCode: string,
+  installmentLabel: string,
+  amount: string,
+  currency: string,
+  dueDate: Date,
+  daysUntilDue: number
+): void {
+  const dueDateStr = dueDate.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const urgencyText = daysUntilDue <= 1 ? "TOMORROW" : `in ${daysUntilDue} days`;
+  const content = `
+    <p class="text">Halo,</p>
+    <p class="text">Pengingat bahwa installment pembayaran untuk booking <strong>${bookingCode}</strong> akan jatuh tempo <strong>${urgencyText}</strong>.</p>
+    <div class="info-box">
+      ${infoRow("Kode Booking", `<strong>${bookingCode}</strong>`)}
+      ${infoRow("Cicilan", installmentLabel)}
+      ${infoRow("Jumlah", `<strong>${currency} ${Number(amount).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</strong>`)}
+      ${infoRow("Jatuh Tempo", `<span class="badge badge-blue">${dueDateStr}</span>`)}
+    </div>
+    <p class="text">Pastikan pembayaran sudah dilakukan sebelum tanggal jatuh tempo untuk menghindari keterlambatan pemrosesan perjalanan Anda.</p>
+    <div class="btn-wrap">
+      <a href="${APP_URL()}/my-bookings" class="btn">Bayar Sekarang →</a>
+    </div>`;
+
+  const emoji = daysUntilDue <= 1 ? "🚨" : "⏰";
+  enqueueEmail(
+    customerEmail,
+    `${emoji} Pengingat Pembayaran: ${bookingCode} – ${installmentLabel} (jatuh tempo ${urgencyText})`,
+    buildLayout("Pengingat Pembayaran Jatuh Tempo", content)
+  );
+}
+
+export function sendPaymentOverdueNotification(
+  customerEmail: string,
+  bookingCode: string,
+  installmentLabel: string,
+  amount: string,
+  currency: string,
+  dueDate: Date
+): void {
+  const dueDateStr = dueDate.toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const content = `
+    <p class="text">Halo,</p>
+    <p class="text">Pembayaran installment untuk booking <strong>${bookingCode}</strong> telah <strong>melewati tanggal jatuh tempo</strong> dan berstatus <span class="badge badge-red">TERLAMBAT</span>.</p>
+    <div class="info-box">
+      ${infoRow("Kode Booking", `<strong>${bookingCode}</strong>`)}
+      ${infoRow("Cicilan", installmentLabel)}
+      ${infoRow("Jumlah", `<strong>${currency} ${Number(amount).toLocaleString("id-ID", { minimumFractionDigits: 2 })}</strong>`)}
+      ${infoRow("Jatuh Tempo", `<span class="badge badge-red">${dueDateStr}</span>`)}
+      ${infoRow("Status", '<span class="badge badge-red">TERLAMBAT / OVERDUE</span>')}
+    </div>
+    <p class="text" style="color:#b91c1c;">Mohon segera lakukan pembayaran melalui portal customer kami untuk menghindari pembatalan booking.</p>
+    <div class="btn-wrap">
+      <a href="${APP_URL()}/my-bookings" class="btn">Bayar Sekarang →</a>
+    </div>`;
+
+  enqueueEmail(
+    customerEmail,
+    `🔴 Pembayaran Terlambat: ${bookingCode} – ${installmentLabel}`,
+    buildLayout("⚠️ Pembayaran Melewati Jatuh Tempo", content)
+  );
+}
+
 export function sendPaymentStatusNotification(
   customerEmail: string,
   bookingCode: string,

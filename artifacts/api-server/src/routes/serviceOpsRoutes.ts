@@ -24,6 +24,7 @@ import { routeError } from "../lib/routeError";
 import { isAuthenticated } from "../replit_integrations/auth";
 import { getUserId, requireRole, canAccessBooking } from "./routes";
 import { runTestSeed, resetTestData, runValidationOnly, latestSeedRun, testSeedBlockedReason, isTestEnvironment } from "../test-seed";
+import { runPaymentReminderJob } from "../lib/paymentReminderJob";
 
 const OPS_ROLES = ["super_admin", "admin", "operations_manager"];
 const FINANCE_SCHEDULE_ROLES = ["super_admin", "admin", "accounting", "operations_manager"];
@@ -267,6 +268,22 @@ export function registerServiceOpsRoutes(app: Express): void {
         changedBy: getUserId(req), newValue: JSON.stringify({ amount: parsed.data.amount, status }),
       }).catch(() => {});
       res.json(row);
+    } catch (e) { routeError(res, e); }
+  });
+
+  // =========================================================================
+  // Payment reminder job – manual trigger (admin/super_admin only)
+  // =========================================================================
+
+  // POST /api/admin/payment-reminders/run
+  // Immediately executes the reminder job: marks overdue installments as `late`
+  // and sends any due notifications. Safe to call multiple times (idempotent
+  // via compare-and-swap + in-memory dedup).
+  app.post("/api/admin/payment-reminders/run", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ["super_admin", "admin", "accounting", "operations_manager"])) return;
+      const result = await runPaymentReminderJob();
+      res.json({ ok: true, ...result });
     } catch (e) { routeError(res, e); }
   });
 

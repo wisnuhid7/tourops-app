@@ -21,7 +21,7 @@ import {
 import { Link } from "wouter";
 import { useState } from "react";
 import { DocumentPreview } from "@/components/DocumentPreview";
-import type { Booking, Traveler, BookingWorkflow, Message, Document, Payment } from "@workspace/db";
+import type { Booking, Traveler, BookingWorkflow, Message, Document, Payment, BookingPaymentSchedule } from "@workspace/db";
 import { useLanguage } from "@/hooks/use-language";
 
 import * as XLSX from "xlsx";
@@ -48,6 +48,10 @@ export default function CustomerBookingDetail() {
   const { data: messages } = useQuery<Message[]>({ queryKey: ["/api/my-bookings", bookingId, "messages"] });
   const { data: docs } = useQuery<Document[]>({ queryKey: ["/api/my-bookings", bookingId, "documents"] });
   const { data: pmts } = useQuery<Payment[]>({ queryKey: ["/api/my-bookings", bookingId, "payments"] });
+  const { data: schedule } = useQuery<BookingPaymentSchedule[]>({
+    queryKey: ["/api/bookings", bookingId, "payment-schedule"],
+    enabled: !!bookingId,
+  });
   const { data: participants } = useQuery<Booking[]>({
     queryKey: ["/api/my-bookings", bookingId, "participants"],
     enabled: booking?.bookingType === "leader_group",
@@ -1068,6 +1072,69 @@ export default function CustomerBookingDetail() {
                   </Link>
                 </CardContent>
               </Card>
+            </div>
+          )}
+
+          {/* Payment Schedule (installments) */}
+          {Array.isArray(schedule) && schedule.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("payment_schedule_title")}</h3>
+              {schedule.map((inst) => {
+                const now = new Date();
+                const due = new Date(inst.dueDate);
+                const daysUntil = Math.ceil((due.getTime() - now.getTime()) / 86400000);
+                const isOverdue = inst.status === "late" || (inst.status !== "paid" && inst.status !== "cancelled" && due < now);
+                const isDueSoon = !isOverdue && inst.status !== "paid" && inst.status !== "cancelled" && daysUntil <= 7 && daysUntil >= 0;
+                const remaining = Math.max(0, parseFloat(inst.amount) - parseFloat(inst.paidAmount));
+                return (
+                  <Card
+                    key={inst.id}
+                    className={isOverdue ? "border-destructive/60 bg-destructive/5" : isDueSoon ? "border-amber-400/60 bg-amber-50/50 dark:bg-amber-900/10" : ""}
+                    data-testid={`card-schedule-${inst.id}`}
+                  >
+                    <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        {isOverdue ? (
+                          <AlertTriangle className="h-4 w-4 text-destructive flex-shrink-0" />
+                        ) : isDueSoon ? (
+                          <Clock className="h-4 w-4 text-amber-500 flex-shrink-0" />
+                        ) : (
+                          <CreditCard className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        )}
+                        <div>
+                          <p className="font-medium text-sm">{t("schedule_installment")} {inst.installmentNumber}: {inst.label}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {t("schedule_due_date")}: {due.toLocaleDateString()}
+                            {isOverdue && daysUntil < 0 && <span className="ml-2 text-destructive font-semibold">({Math.abs(daysUntil)} {t("schedule_days_overdue")})</span>}
+                            {isDueSoon && <span className="ml-2 text-amber-600 font-semibold">({daysUntil} {t("schedule_days_until_due")})</span>}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {t("schedule_amount_due")}: {inst.currency} {parseFloat(inst.amount).toFixed(2)}
+                            {parseFloat(inst.paidAmount) > 0 && (
+                              <> · {t("schedule_amount_paid")}: {inst.currency} {parseFloat(inst.paidAmount).toFixed(2)} · {t("schedule_remaining")}: {inst.currency} {remaining.toFixed(2)}</>
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                      <div>
+                        {isOverdue ? (
+                          <Badge variant="destructive" data-testid={`badge-schedule-status-${inst.id}`}>{t("schedule_overdue_flag")}</Badge>
+                        ) : isDueSoon ? (
+                          <Badge className="bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100">{t("schedule_due_soon")}</Badge>
+                        ) : inst.status === "paid" ? (
+                          <Badge variant="default" data-testid={`badge-schedule-status-${inst.id}`}><CheckCircle className="h-3 w-3 mr-1" />{t("schedule_status_paid")}</Badge>
+                        ) : inst.status === "partially_paid" ? (
+                          <Badge variant="secondary" data-testid={`badge-schedule-status-${inst.id}`}>{t("schedule_status_partially_paid")}</Badge>
+                        ) : inst.status === "cancelled" ? (
+                          <Badge variant="outline" data-testid={`badge-schedule-status-${inst.id}`}>{t("schedule_status_cancelled")}</Badge>
+                        ) : (
+                          <Badge variant="secondary" data-testid={`badge-schedule-status-${inst.id}`}>{t("schedule_status_pending")}</Badge>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
 

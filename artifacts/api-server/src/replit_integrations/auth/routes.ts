@@ -3,6 +3,7 @@ import { authStorage } from "./storage";
 import { isAuthenticated } from "./replitAuth";
 import { routeError } from "../../lib/routeError";
 import { runUserSeed, superAdminExists } from "../../seed-core";
+import { runScraperTourSeed } from "../../seed-scraper-tours";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { z } from "zod/v4";
@@ -561,6 +562,30 @@ export function registerAuthRoutes(app: Express): void {
       const accounts = await runUserSeed();
       // Do not return plaintext passwords; only report which accounts exist now.
       res.json({ ok: true, count: accounts.length, usernames: accounts.map(a => a.username) });
+    } catch (error) {
+      routeError(res, error);
+    }
+  });
+
+  // ---- Scraper-tour seeding (secret-guarded, idempotent) ----
+  // Upserts the 243 scraper-imported tours + their tour_days into the DB.
+  // Tours are inserted ON CONFLICT (slug) DO NOTHING — existing staff edits are
+  // never overwritten. Tour days are delete+reinserted only for tours that are
+  // new on this run. Safe to call multiple times; has no one-time gate because
+  // tour data carries no credential risk unlike the demo-user seed above.
+  // Endpoint is a no-op (404) when SEED_SECRET is unset.
+  app.post("/api/auth/seed-scraper-tours", async (req, res) => {
+    try {
+      const secret = process.env.SEED_SECRET;
+      if (!secret) {
+        return res.status(404).json({ message: "Not found" });
+      }
+      const provided = req.get("x-seed-secret") || "";
+      if (!safeEqual(provided, secret)) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      const result = await runScraperTourSeed();
+      res.json({ ok: true, ...result });
     } catch (error) {
       routeError(res, error);
     }

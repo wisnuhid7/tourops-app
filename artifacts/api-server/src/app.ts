@@ -2,6 +2,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import path from "path";
+import { fileURLToPath } from "url";
 import router from "./routes";
 import { logger } from "./lib/logger";
 
@@ -60,11 +61,21 @@ app.use((req, res, next) => {
 
 app.use("/api", router);
 
-// Serve uploaded images (multer writes to <cwd>/uploads/images).
+// Serve uploaded images (multer writes to <cwd>/uploads/images in dev;
+// git-tracked images live at artifacts/api-server/uploads/ in the repo).
 // Exposed under /api/uploads so the shared proxy routes browser requests here
 // (only /api/* reaches this server; bare /uploads is swallowed by the web app).
 // The bare /uploads mount is kept for direct/local access back-compat.
-const uploadsStatic = express.static(path.join(process.cwd(), "uploads"), {
+//
+// Path is resolved relative to THIS FILE via import.meta.url so it works in
+// both dev (tsx runs src/app.ts → ../uploads = artifacts/api-server/uploads/)
+// and prod (esbuild bundle is dist/index.mjs → ../uploads = same dir). This
+// avoids the process.cwd() trap: the production run command has no cwd set and
+// starts from the repo root, where /uploads/ does not exist.
+const uploadsDir = path.resolve(
+  fileURLToPath(new URL("../uploads", import.meta.url)),
+);
+const uploadsStatic = express.static(uploadsDir, {
   fallthrough: false,
   setHeaders: (res) => res.setHeader("X-Content-Type-Options", "nosniff"),
 });

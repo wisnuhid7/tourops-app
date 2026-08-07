@@ -21,3 +21,4 @@
 - [Booking lifecycle conventions](booking-lifecycle.md) — status-transition map duplicated FE/BE (keep in sync); hashed single-use invite tokens; capacity changes need conditional atomic tx; CSV formula neutralization.
 - [Bulk master-data & scraped-tour imports](bulk-master-data-imports.md) — temp-table staging + natural keys; scraper tours marked in internal_notes; images under api-server uploads/; pg via lib/db/node_modules.
 - [Wide-read exclusion & subroute parity](wide-read-exclusion-pattern.md) — restricting a role via the wide-read filters is not enough; booking/workflow subroutes default to ALL_STAFF and re-leak by ID.
+- [lib/db stale dist declarations](libdb-stale-declarations.md) — schema edits need a manual lib/db tsc rebuild or api-server typecheck fails with missing exports.

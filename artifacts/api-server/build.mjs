@@ -131,6 +131,17 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     await cp(srcMigrations, distMigrations, { recursive: true });
     console.log("Copied migrations → dist/migrations/");
   }
+
+  // Copy static seed-data files into dist/data/ so they are co-located with
+  // the bundle in production. The seed-scraper-tours module resolves this path
+  // relative to import.meta.url (= dist/index.mjs), so dist/data/ must exist.
+  const srcData = path.resolve(artifactDir, "src/data");
+  const distData = path.resolve(distDir, "data");
+  if (existsSync(srcData)) {
+    await mkdir(distData, { recursive: true });
+    await cp(srcData, distData, { recursive: true });
+    console.log("Copied src/data → dist/data/");
+  }
 }
 
 buildAll().catch((err) => {

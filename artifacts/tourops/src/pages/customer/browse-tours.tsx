@@ -10,6 +10,7 @@ import { Link, useLocation } from "wouter";
 import { Search, MapPin, Calendar, DollarSign, ArrowRight, Filter, Tag, X, Users, Bed } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { getFullImageUrl } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
 import { useState, useMemo } from "react";
 import { PublicHeader } from "@/components/public-header";
@@ -269,7 +270,7 @@ export default function BrowseTours() {
               <Card className="overflow-hidden hover-elevate cursor-pointer group h-full flex flex-col" data-testid={`card-public-tour-${tour.id}`}>
                 <div className="aspect-video overflow-hidden">
                   <img
-                    src={tour.imageUrl || "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=800"}
+                    src={tour.imageUrl ? getFullImageUrl(tour.imageUrl) : "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=800"}
                     alt={language === 'en' ? tour.title : ((tour as any).translations?.[language]?.title || tour.title)}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />

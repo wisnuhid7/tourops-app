@@ -452,7 +452,7 @@ export default function TourDetail() {
       </div>
 
       <div className="aspect-video overflow-hidden rounded-md">
-        <img src={tour.imageUrl || "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=1200"} alt={language === 'en' ? tour.title : ((tour as any).translations?.[language]?.title || tour.title)} className="w-full h-full object-cover" />
+        <img src={tour.imageUrl ? getFullImageUrl(tour.imageUrl) : "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&q=80&w=1200"} alt={language === 'en' ? tour.title : ((tour as any).translations?.[language]?.title || tour.title)} className="w-full h-full object-cover" />
       </div>
 
       <div className="space-y-4">
@@ -489,7 +489,7 @@ export default function TourDetail() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {tour.galleryUrls.map((url, i) => (
               <div key={i} className="aspect-square rounded-md overflow-hidden border shadow-sm">
-                <img src={url} alt={`${language === 'en' ? tour.title : ((tour as any).translations?.[language]?.title || tour.title)} gallery ${i+1}`} className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" />
+                <img src={getFullImageUrl(url)} alt={`${language === 'en' ? tour.title : ((tour as any).translations?.[language]?.title || tour.title)} gallery ${i+1}`} className="w-full h-full object-cover hover:scale-110 transition-transform duration-500" />
               </div>
             ))}
           </div>

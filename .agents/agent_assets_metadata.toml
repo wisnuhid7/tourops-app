@@ -35,3 +35,10 @@ uri = "file://docs/countries-list.xlsx"
 type = "table"
 title = "Countries List (182)"
 description = "All countries in your database, with how many cities each has (total, tourism cities, airport cities). Sorted alphabetically — use it as a checklist for building your sights list per country."
+
+[[outputs]]
+id = "YTIs4NpOUeQMDWsrYW-yj"
+uri = "file://docs/tourops-testing-accounts-and-role-guide.html"
+type = "text"
+title = "TourOps Testing Accounts and Role Guide"
+description = "Printable testing document with all 17 verified role accounts, shared test credentials, role abilities, transaction dependencies, and security checks."

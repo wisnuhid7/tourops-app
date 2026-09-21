@@ -1960,3 +1960,8 @@ export const patchPricingSeasonSchema = z.object({
 
 export type PatchPricingSeason = z.infer<typeof patchPricingSeasonSchema>;
 export type PricingSeason = typeof pricingSeasons.$inferSelect;
+
+export const schemaMigrations = pgTable("schema_migrations", {
+  version: text("version").primaryKey(),
+  appliedAt: timestamp("applied_at").defaultNow(),
+});

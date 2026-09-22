@@ -9,7 +9,8 @@
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "dev:api": "pnpm --filter @workspace/api-server run dev",
     "dev:web": "pnpm --filter @workspace/tourops run dev",
-    "test:ui": "node tools/test-suite/src/server.js"
+    "test:ui": "node tools/test-suite/src/server.js",
+    "test:e2e": "node tools/ui-tester/src/server.js"
   },
   "private": true,
   "dependencies": {

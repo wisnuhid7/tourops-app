@@ -1,0 +1,24 @@
+.vp-btn.active {
+  background: #4f46e5;
+  color: #ffffff;
+  box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+}
+
+/* Custom scrollbar for execution logs */
+#execution-logs::-webkit-scrollbar {
+  width: 6px;
+}
+
+#execution-logs::-webkit-scrollbar-track {
+  background: #020617;
+}
+
+#execution-logs::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 3px;
+}
+
+#execution-logs::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+

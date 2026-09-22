@@ -84,7 +84,7 @@ function regenerateSession(req: Request): Promise<void> {
 // don't count against the limit.
 const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 10, // max 10 failed attempts per IP per window
+  limit: process.env.NODE_ENV === "production" ? 10 : 500, // relaxed in dev/test to allow automated multi-role testing suites
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,

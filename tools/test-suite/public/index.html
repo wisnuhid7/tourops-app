@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TourOps Testing Suite & Role Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-blue-600 selection:text-white">
+
+  <!-- Header & Navigation -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="h-9 w-9 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
+          <i class="fa-solid fa-vial-circle-check text-white text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
+            TourOps Test Suite
+            <span class="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium">17 Roles • 12 Flows</span>
+          </h1>
+          <p class="text-xs text-slate-400">Automated E2E Verification & Interactive Role Impersonator</p>
+        </div>
+      </div>
+
+      <!-- System Health Indicator -->
+      <div class="flex items-center space-x-4">
+        <div id="backend-status" class="flex items-center space-x-2 text-xs px-3 py-1.5 rounded-md bg-slate-800 border border-slate-700">
+          <span class="h-2 w-2 rounded-full bg-amber-400 animate-pulse"></span>
+          <span class="text-slate-300">Connecting to API...</span>
+        </div>
+        <a href="http://localhost:5173" target="_blank" class="text-xs px-3 py-1.5 rounded-md bg-blue-600 hover:bg-blue-500 text-white font-medium flex items-center gap-1.5 transition">
+          <span>Open Tourops App</span>
+          <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+    <!-- Navigation Tabs -->
+    <div class="flex space-x-1 border-b border-slate-800 pb-3 mb-6 overflow-x-auto">
+      <button onclick="switchTab('roles')" id="tab-btn-roles" class="tab-btn active px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+        <i class="fa-solid fa-users-viewfinder"></i>
+        <span>17 Roles & Impersonator</span>
+      </button>
+      <button onclick="switchTab('flows')" id="tab-btn-flows" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+        <i class="fa-solid fa-diagram-project"></i>
+        <span>12 Domain Flows</span>
+      </button>
+      <button onclick="switchTab('matrix')" id="tab-btn-matrix" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span>RBAC Security Matrix</span>
+      </button>
+      <button onclick="switchTab('scenario')" id="tab-btn-scenario" class="tab-btn px-4 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+        <i class="fa-solid fa-route"></i>
+        <span>Full E2E Scenario</span>
+      </button>
+    </div>
+
+    <!-- TAB 1: 17 Roles & Impersonator -->
+    <section id="tab-roles" class="tab-content">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <div>
+          <h2 class="text-lg font-semibold text-white">All 17 Dedicated Testing Roles</h2>
+          <p class="text-sm text-slate-400">Click "Launch App as this Role" to immediately switch sessions and open Tourops as that persona.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="text" id="role-search" placeholder="Search roles..." oninput="filterRoles()" class="text-xs bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-200 focus:outline-none focus:border-blue-500 w-48">
+          <span class="text-xs text-slate-400 bg-slate-900 border border-slate-800 px-3 py-2 rounded-lg">Shared PWD: <code class="text-amber-400 font-mono">password123</code></span>
+        </div>
+      </div>
+
+      <div id="roles-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Injected via JavaScript -->
+      </div>
+    </section>
+
+    <!-- TAB 2: 12 Domain Flows -->
+    <section id="tab-flows" class="tab-content hidden">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+        <div>
+          <h2 class="text-lg font-semibold text-white">Automated Flow Test Runner</h2>
+          <p class="text-sm text-slate-400">Run individual flows or trigger the complete suite to verify system integrity.</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button onclick="runAllFlows()" id="btn-run-all" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-sm font-semibold rounded-lg shadow-lg shadow-blue-500/20 flex items-center gap-2 transition">
+            <i class="fa-solid fa-play"></i>
+            <span>Run All 12 Flows</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Overall Progress Bar -->
+      <div id="flows-progress-container" class="hidden mb-6 bg-slate-900 p-4 rounded-xl border border-slate-800">
+        <div class="flex justify-between text-xs text-slate-400 mb-2">
+          <span id="flows-progress-text">Executing test suites...</span>
+          <span id="flows-progress-percent">0%</span>
+        </div>
+        <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+          <div id="flows-progress-bar" class="bg-blue-500 h-full w-0 transition-all duration-300"></div>
+        </div>
+      </div>
+
+      <!-- Flows List Grid -->
+      <div id="flows-grid" class="grid grid-cols-1 gap-4">
+        <!-- Injected via JavaScript -->
+      </div>
+    </section>
+
+    <!-- TAB 3: RBAC Security Matrix -->
+    <section id="tab-matrix" class="tab-content hidden">
+      <div class="flex justify-between items-center mb-6 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+        <div>
+          <h2 class="text-lg font-semibold text-white">RBAC Security Permission Matrix</h2>
+          <p class="text-sm text-slate-400">Exhaustive authorization audit verifying access boundaries across all 17 roles against core API resources.</p>
+        </div>
+        <button onclick="runRbacMatrixTest()" id="btn-run-matrix" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-lg shadow-lg shadow-indigo-500/20 flex items-center gap-2 transition">
+          <i class="fa-solid fa-shield-halved"></i>
+          <span>Run Security Audit</span>
+        </button>
+      </div>
+
+      <!-- Legend -->
+      <div class="flex flex-wrap gap-4 mb-4 text-xs">
+        <div class="flex items-center gap-1.5">
+          <span class="h-3 w-3 rounded bg-emerald-500/20 border border-emerald-500/40"></span>
+          <span class="text-slate-300">Allowed (Expected 200/201)</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="h-3 w-3 rounded bg-blue-500/20 border border-blue-500/40"></span>
+          <span class="text-slate-300">Protected / Forbidden (Expected 401/403/404)</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="h-3 w-3 rounded bg-rose-500/20 border border-rose-500/40"></span>
+          <span class="text-rose-400 font-semibold">Security Violation / Data Leak!</span>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/40">
+        <table id="matrix-table" class="min-w-full divide-y divide-slate-800 text-xs">
+          <thead class="bg-slate-900/80 text-slate-300">
+            <tr>
+              <th class="px-3 py-3 text-left font-semibold">Role</th>
+              <th class="px-3 py-3 text-left font-semibold">User</th>
+              <th class="px-3 py-3 text-left font-semibold">Admin Users</th>
+              <th class="px-3 py-3 text-left font-semibold">Invoices</th>
+              <th class="px-3 py-3 text-left font-semibold">Workflows</th>
+              <th class="px-3 py-3 text-left font-semibold">Hotels</th>
+              <th class="px-3 py-3 text-left font-semibold">Pricing Rules</th>
+              <th class="px-3 py-3 text-left font-semibold">Tours</th>
+              <th class="px-3 py-3 text-left font-semibold">Countries</th>
+            </tr>
+          </thead>
+          <tbody id="matrix-tbody" class="divide-y divide-slate-800/60 font-mono">
+            <!-- Injected via JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 4: Full E2E Scenario Simulator -->
+    <section id="tab-scenario" class="tab-content hidden">
+      <div class="flex justify-between items-center mb-6 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+        <div>
+          <h2 class="text-lg font-semibold text-white">Complete Lifecycle Scenario</h2>
+          <p class="text-sm text-slate-400">Sequential multi-persona execution simulating an entire TourOps booking & fulfillment lifecycle.</p>
+        </div>
+        <button onclick="runScenario()" id="btn-run-scenario" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold rounded-lg shadow-lg shadow-emerald-500/20 flex items-center gap-2 transition">
+          <i class="fa-solid fa-circle-play"></i>
+          <span>Execute Full Scenario</span>
+        </button>
+      </div>
+
+      <div id="scenario-timeline" class="space-y-4">
+        <!-- Step 1 to 7 injected via JavaScript -->
+      </div>
+    </section>
+
+    <!-- Real-time Test Output Console -->
+    <div class="mt-8 bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-2xl">
+      <div class="px-4 py-2.5 bg-slate-950 border-b border-slate-800 flex justify-between items-center text-xs">
+        <div class="flex items-center space-x-2">
+          <span class="h-2.5 w-2.5 rounded-full bg-slate-700"></span>
+          <span class="font-mono text-slate-400">Live Execution Terminal</span>
+        </div>
+        <button onclick="clearConsole()" class="text-slate-400 hover:text-slate-200 transition">
+          <i class="fa-solid fa-trash-can mr-1"></i> Clear
+        </button>
+      </div>
+      <div id="console-logs" class="p-4 font-mono text-xs text-slate-300 h-52 overflow-y-auto space-y-1.5 bg-slate-950/60">
+        <div class="text-slate-500">// Ready to execute tests. Select a flow or run the full suite.</div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
+

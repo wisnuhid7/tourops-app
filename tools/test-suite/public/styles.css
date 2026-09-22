@@ -1,0 +1,34 @@
+/* TourOps Test Suite Custom Styles */
+.tab-btn {
+  color: #94a3b8;
+}
+
+.tab-btn:hover {
+  color: #f8fafc;
+  background-color: rgba(30, 41, 59, 0.5);
+}
+
+.tab-btn.active {
+  color: #38bdf8;
+  background-color: rgba(30, 41, 59, 1);
+  border-bottom: 2px solid #38bdf8;
+}
+
+/* Custom Scrollbar for Terminal */
+#console-logs::-webkit-scrollbar {
+  width: 6px;
+}
+
+#console-logs::-webkit-scrollbar-track {
+  background: #020617;
+}
+
+#console-logs::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 3px;
+}
+
+#console-logs::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+

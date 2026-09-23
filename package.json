@@ -9,6 +9,8 @@
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "dev:api": "pnpm --filter @workspace/api-server run dev",
     "dev:web": "pnpm --filter @workspace/tourops run dev",
+    "db:seed": "pnpm --filter @workspace/api-server exec tsx --env-file=.env src/seed-all.ts",
+    "db:seed:users": "pnpm --filter @workspace/api-server exec tsx --env-file=.env src/seed-users.ts",
     "test:ui": "node tools/test-suite/src/server.js",
     "test:e2e": "node tools/ui-tester/src/server.js"
   },

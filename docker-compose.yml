@@ -23,8 +23,8 @@ services:
 
   api-server:
     build:
-      context: ./artifacts/api-server
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./artifacts/api-server/Dockerfile
     restart: unless-stopped
     env_file: .env
     ports:
@@ -39,8 +39,8 @@ services:
 
   web:
     build:
-      context: ./artifacts/tourops
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./artifacts/tourops/Dockerfile
     restart: unless-stopped
     ports:
       - "80:80"

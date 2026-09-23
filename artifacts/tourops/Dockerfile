@@ -1,9 +1,9 @@
 FROM node:20-alpine AS build
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json tsconfig.json ./
+COPY .npmrc package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json tsconfig.json ./
 COPY artifacts/tourops ./artifacts/tourops
-RUN npm i -g pnpm
+RUN npm i -g pnpm@10.33.4
 RUN pnpm install --frozen-lockfile
 RUN cd /app/artifacts/tourops && pnpm run build
 

@@ -2,6 +2,7 @@ import { db } from "@workspace/db";
 import { userProfiles } from "@workspace/db";
 import { transportCompanies } from "@workspace/db";
 import { countries } from "@workspace/db";
+import { cities } from "@workspace/db";
 import { authStorage } from "./replit_integrations/auth/storage";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -171,21 +172,29 @@ export async function runUserSeed(password = "password123"): Promise<SeededAccou
     }
   }
 
-  // city_manager needs a countryCode to scope which cities it can manage.
+  // city_manager needs a countryCode and cityId to manage their assigned city.
   const cityManagerProfile = await db
     .select()
     .from(userProfiles)
     .where(eq(userProfiles.userId, "user-city_manager-1"));
-  if (cityManagerProfile.length > 0 && !cityManagerProfile[0].countryCode) {
-    const [country] = await db.select().from(countries).limit(1);
-    if (country) {
+  if (cityManagerProfile.length > 0) {
+    const updates: Record<string, any> = {};
+    if (!cityManagerProfile[0].countryCode) {
+      const [country] = await db.select().from(countries).limit(1);
+      if (country) updates.countryCode = country.code;
+    }
+    if (!cityManagerProfile[0].cityId) {
+      const [city] = await db.select().from(cities).limit(1);
+      if (city) {
+        updates.cityId = city.id;
+        console.log(`Linked citymanager1 -> city "${city.name}"`);
+      }
+    }
+    if (Object.keys(updates).length > 0) {
       await db
         .update(userProfiles)
-        .set({ countryCode: country.code })
+        .set(updates)
         .where(eq(userProfiles.userId, "user-city_manager-1"));
-      console.log(`Linked citymanager1 -> country "${country.name}"`);
-    } else {
-      console.warn("⚠️  No country found to link citymanager1 to.");
     }
   }
 

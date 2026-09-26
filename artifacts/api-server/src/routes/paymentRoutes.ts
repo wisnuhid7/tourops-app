@@ -39,10 +39,19 @@ function paidCoverage(rows: Payment[]): number {
 }
 
 export function registerPaymentRoutes(app: Express): void {
+  // ---- Config endpoint for frontend Stripe Elements & provider status ----
+  app.get("/api/checkout/config", (req: Request, res: Response) => {
+    const provider = getPaymentProvider();
+    res.json({
+      provider: provider.name,
+      publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || "",
+    });
+  });
+
   // ---- Webhook (raw body; express.raw is mounted for this path in app.ts) ----
   app.post("/api/payments/webhook", async (req: Request, res: Response) => {
     try {
-      const signature = req.headers["x-payment-signature"];
+      const signature = req.headers["stripe-signature"] || req.headers["x-payment-signature"];
       const sig = Array.isArray(signature) ? signature[0] : signature;
       if (!sig) return res.status(400).json({ message: "Missing signature" });
       if (!Buffer.isBuffer(req.body)) return res.status(400).json({ message: "Raw body required" });
@@ -115,7 +124,12 @@ export function registerPaymentRoutes(app: Express): void {
         // Session recovery: reuse an open online payment instead of stacking intents.
         const open = rows.find((p) => p.provider !== "manual" && p.status === "pending" && p.paymentIntentId);
         if (open) {
-          return { payment: open, intentId: open.paymentIntentId!, resumed: true };
+          return {
+            payment: open,
+            intentId: open.paymentIntentId!,
+            clientSecret: (open.metadata as any)?.clientSecret || null,
+            resumed: true,
+          };
         }
         const intent = await provider.createIntent({
           amount: summary.total,
@@ -137,18 +151,18 @@ export function registerPaymentRoutes(app: Express): void {
           currency: summary.currency,
           method: "card",
           status: "pending",
-          metadata: { taxRate: summary.taxRate },
+          metadata: { taxRate: summary.taxRate, clientSecret: intent.clientSecret },
           createdBy: userId,
         }).returning();
-        return { payment, intentId: intent.intentId, resumed: false };
+        return { payment, intentId: intent.intentId, clientSecret: intent.clientSecret, resumed: false };
       });
       if ("conflict" in result) return res.status(409).json({ message: result.conflict });
-      const { payment, intentId, resumed } = result;
+      const { payment, intentId, clientSecret, resumed } = result;
       if (resumed) {
-        return res.json({ paymentId: payment.id, intentId, status: payment.status, amount: payment.amount, currency: payment.currency, resumed: true });
+        return res.json({ paymentId: payment.id, intentId, clientSecret, status: payment.status, amount: payment.amount, currency: payment.currency, resumed: true });
       }
       await storage.createAuditLog({ entityType: "payment", entityId: payment.id, action: "created", changedBy: userId, previousValue: null, newValue: `intent ${intentId} for ${(summary.total / 100).toFixed(2)} ${summary.currency}`, note: `booking ${booking.bookingCode}` } as any);
-      res.json({ paymentId: payment.id, intentId, status: payment.status, amount: payment.amount, currency: payment.currency, resumed: false });
+      res.json({ paymentId: payment.id, intentId, clientSecret, status: payment.status, amount: payment.amount, currency: payment.currency, resumed: false });
     } catch (e: any) { routeError(res, e); }
   });
 

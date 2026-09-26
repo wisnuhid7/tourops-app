@@ -5,12 +5,14 @@ import { logger } from "../logger";
 import { storage } from "../../storage";
 import { sendPaymentStatusNotification } from "../email";
 import { offlineProvider } from "./offlineProvider";
+import { stripeProvider } from "./stripeProvider";
 import type { PaymentProvider, PaymentWebhookEvent } from "./provider";
 
 /** Provider registry. PAYMENT_PROVIDER env selects the active gateway;
- *  a future Stripe implementation registers here without touching callers. */
+ *  Stripe and offline providers are registered here. */
 const providers: Record<string, PaymentProvider> = {
   [offlineProvider.name]: offlineProvider,
+  [stripeProvider.name]: stripeProvider,
 };
 
 export function getPaymentProvider(): PaymentProvider {

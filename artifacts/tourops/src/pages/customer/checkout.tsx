@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, CreditCard, CheckCircle2, XCircle, Loader2, Clock } from "lucide-react";
+import { Elements } from "@stripe/react-stripe-js";
+import { loadStripe, Stripe } from "@stripe/stripe-js";
+import { StripeCheckoutForm } from "@/components/StripeCheckoutForm";
 
 interface CheckoutData {
   booking: { id: string; bookingCode: string | null; status: string | null; tourId: string };
@@ -18,8 +21,25 @@ interface CheckoutData {
   openPayment: { id: string; status: string; amount: number; currency: string } | null;
 }
 
+interface CheckoutConfig {
+  provider: string;
+  publishableKey: string;
+}
+
 const fmt = (cents: number, currency: string) =>
   `$${(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+
+let cachedStripePromise: Promise<Stripe | null> | null = null;
+let cachedKey = "";
+
+function getStripePromise(key: string) {
+  if (!key) return null;
+  if (!cachedStripePromise || cachedKey !== key) {
+    cachedKey = key;
+    cachedStripePromise = loadStripe(key);
+  }
+  return cachedStripePromise;
+}
 
 export default function Checkout() {
   const { bookingId } = useParams<{ bookingId: string }>();
@@ -30,14 +50,45 @@ export default function Checkout() {
   const [expiry, setExpiry] = useState("12/28");
   const [cvc, setCvc] = useState("123");
   const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
+  const [isInitializingIntent, setIsInitializingIntent] = useState(false);
   const [phase, setPhase] = useState<"form" | "processing" | "success" | "failed">("form");
   const [failureReason, setFailureReason] = useState<string | null>(null);
+
+  const { data: config } = useQuery<CheckoutConfig>({
+    queryKey: ["/api/checkout/config"],
+    queryFn: async () => (await apiRequest("GET", "/api/checkout/config")).json(),
+  });
 
   const { data, isLoading, error } = useQuery<CheckoutData>({
     queryKey: ["/api/checkout", bookingId],
     queryFn: async () => (await apiRequest("GET", `/api/checkout/${bookingId}`)).json(),
     enabled: !!bookingId,
   });
+
+  const isStripe = config?.provider === "stripe" && !!config.publishableKey;
+  const stripePromise = useMemo(() => {
+    return isStripe && config?.publishableKey ? getStripePromise(config.publishableKey) : null;
+  }, [isStripe, config?.publishableKey]);
+
+  // For Stripe: automatically prepare PaymentIntent on mount once checkout data is ready
+  useEffect(() => {
+    if (!isStripe || !data || data.fullyPaid || stripeClientSecret || isInitializingIntent || !bookingId) return;
+
+    setIsInitializingIntent(true);
+    apiRequest("POST", `/api/checkout/${bookingId}/intent`)
+      .then((res) => res.json())
+      .then((intent) => {
+        if (intent.paymentId) setPaymentId(intent.paymentId);
+        if (intent.clientSecret) setStripeClientSecret(intent.clientSecret);
+      })
+      .catch((err) => {
+        console.error("Failed to initialize Stripe PaymentIntent:", err);
+      })
+      .finally(() => {
+        setIsInitializingIntent(false);
+      });
+  }, [isStripe, data, bookingId, stripeClientSecret, isInitializingIntent]);
 
   // Session recovery: if an online payment is already processing, resume it.
   useEffect(() => {
@@ -145,6 +196,58 @@ export default function Checkout() {
             <Clock className="h-14 w-14 text-amber-600 mx-auto animate-pulse" />
             <h2 className="text-xl font-bold" data-testid="text-payment-processing">{t("payment_processing_title")}</h2>
             <p className="text-sm text-muted-foreground">{t("payment_processing_desc")}</p>
+          </CardContent>
+        </Card>
+      ) : isStripe ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              {t("pay_with_card")} (Stripe)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {phase === "failed" && (
+              <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive" data-testid="text-payment-failed">
+                <XCircle className="h-4 w-4 shrink-0" />
+                <span>{t("payment_failed")}{failureReason ? `: ${failureReason}` : ""}. {t("try_again_or_other_card")}</span>
+              </div>
+            )}
+            {isInitializingIntent || !stripeClientSecret ? (
+              <div className="py-8 flex flex-col items-center justify-center space-y-3">
+                <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+                <p className="text-sm text-muted-foreground">Preparing secure checkout...</p>
+              </div>
+            ) : (
+              <Elements
+                stripe={stripePromise}
+                options={{
+                  clientSecret: stripeClientSecret,
+                  appearance: {
+                    theme: "stripe",
+                  },
+                }}
+              >
+                <StripeCheckoutForm
+                  bookingId={booking.id}
+                  paymentId={paymentId || ""}
+                  totalCents={summary.total}
+                  currency={summary.currency}
+                  onSuccess={() => {
+                    qc.invalidateQueries({ queryKey: ["/api/checkout", bookingId] });
+                    qc.invalidateQueries({ queryKey: ["/api/my-bookings", bookingId, "payments"] });
+                    setPhase("success");
+                  }}
+                  onProcessing={() => {
+                    setPhase("processing");
+                  }}
+                  onFailed={(reason) => {
+                    setFailureReason(reason);
+                    setPhase("failed");
+                  }}
+                />
+              </Elements>
+            )}
           </CardContent>
         </Card>
       ) : (

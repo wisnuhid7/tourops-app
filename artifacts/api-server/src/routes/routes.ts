@@ -56,7 +56,7 @@ import { registerGeoImportRoutes } from "./geoImportRoutes";
 import { registerAuthRoutes, passwordSchema } from "../replit_integrations/auth";
 import { authStorage } from "../replit_integrations/auth/storage";
 import { db } from "@workspace/db";
-import { countries, cities, tours, tourDays, tourDayItems, tourDepartures } from "@workspace/db";
+import { countries, cities, tours, tourDays, tourDayItems, tourDepartures, users, userProfiles, authTokens, notifications } from "@workspace/db";
 import { eq, and, sql, isNull, desc, inArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
@@ -428,6 +428,102 @@ export async function registerRoutes(
       if (!user) return res.status(404).json({ message: "User not found" });
       await authStorage.upsertUser({ ...user, passwordHash, updatedAt: new Date() });
       res.json({ success: true });
+    } catch (e: any) { routeError(res, e); }
+  });
+
+  app.patch("/api/admin/users/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const editSchema = z.object({
+        username: z.string().min(3).max(50).optional(),
+        firstName: z.string().min(1).optional(),
+        lastName: z.string().nullable().optional(),
+        email: z.string().email().nullable().optional(),
+        role: z.enum(userRoleEnum.enumValues).optional(),
+        phone: z.string().nullable().optional(),
+        companyName: z.string().nullable().optional(),
+        countryCode: z.string().nullable().optional(),
+        cityId: z.string().nullable().optional(),
+        isActive: z.boolean().optional(),
+        isTourLeader: z.boolean().optional(),
+      });
+      const parsed = editSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+
+      const userId = req.params.id as string;
+      const user = await authStorage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      if (parsed.data.username && parsed.data.username !== user.username) {
+        const existingUsername = await authStorage.getUserByUsername(parsed.data.username);
+        if (existingUsername && existingUsername.id !== userId) {
+          return res.status(409).json({ message: "Username already taken" });
+        }
+      }
+
+      if (parsed.data.email && parsed.data.email !== user.email) {
+        const existingEmail = await authStorage.getUserByEmail(parsed.data.email);
+        if (existingEmail && existingEmail.id !== userId) {
+          return res.status(409).json({ message: "Email already taken" });
+        }
+      }
+
+      const userPatch: Partial<typeof users.$inferInsert> = {};
+      if (parsed.data.username !== undefined) userPatch.username = parsed.data.username;
+      if (parsed.data.firstName !== undefined) userPatch.firstName = parsed.data.firstName;
+      if (parsed.data.lastName !== undefined) userPatch.lastName = parsed.data.lastName;
+      if (parsed.data.email !== undefined) userPatch.email = parsed.data.email;
+
+      let updatedUser = user;
+      if (Object.keys(userPatch).length > 0) {
+        updatedUser = (await authStorage.updateUser(userId, userPatch)) ?? user;
+      }
+
+      let profile = await authStorage.getProfileByUserId(userId);
+      if (!profile) {
+        profile = await authStorage.ensureProfile(userId);
+      }
+
+      const profilePatch: Partial<typeof userProfiles.$inferInsert> = {};
+      if (parsed.data.role !== undefined) profilePatch.role = parsed.data.role;
+      if (parsed.data.phone !== undefined) profilePatch.phone = parsed.data.phone;
+      if (parsed.data.companyName !== undefined) profilePatch.companyName = parsed.data.companyName;
+      if (parsed.data.countryCode !== undefined) profilePatch.countryCode = parsed.data.countryCode;
+      if (parsed.data.cityId !== undefined) profilePatch.cityId = parsed.data.cityId;
+      if (parsed.data.isActive !== undefined) profilePatch.isActive = parsed.data.isActive;
+      if (parsed.data.isTourLeader !== undefined) profilePatch.isTourLeader = parsed.data.isTourLeader;
+
+      let updatedProfile = profile;
+      if (Object.keys(profilePatch).length > 0) {
+        updatedProfile = (await storage.updateProfile(profile.id, profilePatch)) ?? profile;
+      }
+
+      res.json({ user: updatedUser, profile: updatedProfile });
+    } catch (e: any) { routeError(res, e); }
+  });
+
+  app.delete("/api/admin/users/:id", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, ADMIN_ROLES)) return;
+      const userId = req.params.id as string;
+
+      if ((req as any).user?.id === userId) {
+        return res.status(400).json({ message: "Cannot delete your own logged-in account" });
+      }
+
+      const user = await authStorage.getUser(userId);
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      if (user.username === "superadmin1" || userId === "user-super_admin-1") {
+        return res.status(403).json({ message: "Cannot delete primary super administrator" });
+      }
+
+      await db.delete(authTokens).where(eq(authTokens.userId, userId));
+      await db.delete(notifications).where(eq(notifications.userId, userId));
+      await db.delete(userProfiles).where(eq(userProfiles.userId, userId));
+      await db.delete(users).where(eq(users.id, userId));
+
+      res.json({ success: true, message: "User deleted successfully" });
     } catch (e: any) { routeError(res, e); }
   });
 

@@ -373,7 +373,7 @@ function generateFallbackItinerary(params: TourGenerationParams, verifiedSights:
           startTime: "09:00",
           title: sight.name,
           description: sight.description || "Sightseeing tour",
-          cost: sight.cost || 0,
+          cost: String(sight.cost || 0),
           sightId: sight.id,
           needsConfirmation: false
         },
@@ -382,7 +382,7 @@ function generateFallbackItinerary(params: TourGenerationParams, verifiedSights:
           startTime: "13:00",
           title: "Local Lunch",
           description: "Enjoy local cuisine",
-          cost: 25,
+          cost: "25",
           needsConfirmation: true
         },
         {
@@ -390,7 +390,7 @@ function generateFallbackItinerary(params: TourGenerationParams, verifiedSights:
           startTime: "18:00",
           title: hotel.name,
           description: "Check-in for the night",
-          cost: hotel.cost,
+          cost: String(hotel.cost || 150),
           hotelId: hotel.id,
           needsConfirmation: false
         }

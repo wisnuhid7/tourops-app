@@ -867,19 +867,57 @@ export async function registerRoutes(
         
         const payload = { ...tour };
         if (!payload.slug && payload.title) {
-          payload.slug = payload.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '-' + Date.now();
+          const baseSlug = payload.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+          payload.slug = (baseSlug || 'tour') + '-' + Date.now();
+        }
+
+        // Normalize text fields that may arrive as arrays from AI generation
+        if (Array.isArray(payload.highlights)) payload.highlights = payload.highlights.join("\n");
+        if (Array.isArray(payload.inclusions)) payload.inclusions = payload.inclusions.join(", ");
+        if (Array.isArray(payload.exclusions)) payload.exclusions = payload.exclusions.join(", ");
+        if (Array.isArray(payload.internalNotes)) payload.internalNotes = payload.internalNotes.join("\n");
+        if (typeof payload.tags === "string") payload.tags = payload.tags.split(",").map((t: string) => t.trim()).filter(Boolean);
+        if (typeof payload.galleryUrls === "string") payload.galleryUrls = payload.galleryUrls.split(",").map((t: string) => t.trim()).filter(Boolean);
+
+        // Normalize price fields to non-negative decimal strings
+        const sanitizePrice = (val: any) => {
+          if (val == null) return "0";
+          const str = String(val).replace(/[^0-9.]/g, "").trim();
+          return str && !isNaN(Number(str)) ? str : "0";
+        };
+        if (payload.basePrice != null) payload.basePrice = sanitizePrice(payload.basePrice);
+        if (payload.childPrice != null) payload.childPrice = sanitizePrice(payload.childPrice);
+        if (payload.singleSupplement != null) payload.singleSupplement = sanitizePrice(payload.singleSupplement);
+
+        // Ensure child price never exceeds base price
+        if (payload.basePrice && payload.childPrice && parseFloat(payload.childPrice) > parseFloat(payload.basePrice)) {
+          payload.childPrice = payload.basePrice;
         }
         
         const parsedTour = insertTourSchema.safeParse(payload);
-        if (!parsedTour.success) return res.status(400).json({ message: parsedTour.error.message });
+        if (!parsedTour.success) {
+          console.error("PUT /api/tours/:id/full tour validation failed:", parsedTour.error.message);
+          return res.status(400).json({ message: parsedTour.error.message });
+        }
         
         // Validation for days
         const itemSchema = insertTourDayItemSchema.omit({ tourDayId: true });
         const parsedDays = [];
         for (const d of days || []) {
           const { items, ...dayFields } = d;
+
+          // Normalize activities if array from AI
+          if (Array.isArray(dayFields.activities)) {
+            dayFields.activities = dayFields.activities.join(", ");
+          } else if (dayFields.activities != null && typeof dayFields.activities !== "string") {
+            dayFields.activities = String(dayFields.activities);
+          }
+
           const parsed = insertTourDaySchema.safeParse({ ...dayFields, tourId: req.params.id }); // tourId is overridden later but needed for schema
-          if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+          if (!parsed.success) {
+            console.error("PUT /api/tours/:id/full day validation failed:", parsed.error.message);
+            return res.status(400).json({ message: parsed.error.message });
+          }
 
           if (parsed.data.city) {
             await ensureCityExists(parsed.data.city, parsed.data.countryCode);
@@ -889,8 +927,17 @@ export async function registerRoutes(
 
           const parsedItems = [];
           for (const it of items || []) {
-            const parsedItem = itemSchema.safeParse(it);
-            if (!parsedItem.success) return res.status(400).json({ message: parsedItem.error.message });
+            const normalizedItem = {
+              ...it,
+              itemType: it.itemType || "custom",
+              title: it.title || "Activity",
+              cost: it.cost != null ? String(it.cost) : "0",
+            };
+            const parsedItem = itemSchema.safeParse(normalizedItem);
+            if (!parsedItem.success) {
+              console.error("PUT /api/tours/:id/full item validation failed:", parsedItem.error.message);
+              return res.status(400).json({ message: parsedItem.error.message });
+            }
             if (it.id) (parsedItem.data as any).id = it.id;
             parsedItems.push(parsedItem.data);
           }

@@ -186,7 +186,9 @@ export const tourDayItems = pgTable("tour_day_items", {
   dayIdIdx: index("tour_day_items_day_id_idx").on(table.tourDayId),
 }));
 
-export const insertTourDayItemSchema = createInsertSchema(tourDayItems).omit({ id: true });
+export const insertTourDayItemSchema = createInsertSchema(tourDayItems, {
+  cost: () => z.union([z.string(), z.number()]).transform((v) => String(v)),
+}).omit({ id: true });
 export type InsertTourDayItem = z.infer<typeof insertTourDayItemSchema>;
 export type TourDayItem = typeof tourDayItems.$inferSelect;
 

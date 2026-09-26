@@ -252,22 +252,54 @@ function TourGeneratorInner() {
     hasDraft
   ]);
 
+const cleanPriceValue = (val: any): number => {
+  if (typeof val === "number" && !isNaN(val)) return Math.max(0, val);
+  if (typeof val === "string") {
+    const parsed = parseFloat(val.replace(/[^0-9.]/g, ""));
+    return isNaN(parsed) ? 0 : Math.max(0, parsed);
+  }
+  return 0;
+};
+
+const toCleanText = (val: any, sep = "\n"): string => {
+  if (!val) return "";
+  if (Array.isArray(val)) return val.filter(Boolean).join(sep);
+  return String(val);
+};
+
   // Mutations
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const numBase = cleanPriceValue(basePrice);
+      const rawChild = cleanPriceValue(childPrice);
+      const numChild = Math.min(numBase, rawChild);
+      const numSingle = cleanPriceValue(singleSupplement);
+
       const baseTourData = { 
-        title, description, duration, category, translations,
-        highlights, inclusions, exclusions, internalNotes,
-        basePrice: String(basePrice), childPrice: String(childPrice), singleSupplement: String(singleSupplement),
+        title, description, duration: Number(duration) || 1, category, translations,
+        highlights: toCleanText(highlights),
+        inclusions: toCleanText(inclusions, ", "),
+        exclusions: toCleanText(exclusions, ", "),
+        internalNotes: toCleanText(internalNotes),
+        basePrice: String(numBase),
+        childPrice: String(numChild),
+        singleSupplement: String(numSingle),
         countries: selectedCountries,
-        tags: tags.split(",").map((t) => t.trim()).filter(Boolean),
-        galleryUrls: galleryUrls.split(",").map((t) => t.trim()).filter(Boolean),
+        tags: typeof tags === "string" ? tags.split(",").map((t) => t.trim()).filter(Boolean) : (Array.isArray(tags) ? tags : []),
+        galleryUrls: typeof galleryUrls === "string" ? galleryUrls.split(",").map((t) => t.trim()).filter(Boolean) : (Array.isArray(galleryUrls) ? galleryUrls : []),
         imageUrl
       };
       
       const payload = {
         tour: baseTourData,
-        days: days
+        days: days.map((d) => ({
+          ...d,
+          activities: toCleanText(d.activities, ", "),
+          items: (d.items || []).map((it: any) => ({
+            ...it,
+            cost: it.cost != null ? String(it.cost) : "0",
+          }))
+        }))
       };
 
       const res = await apiRequest("PUT", `/api/tours/${selectedTourId}/full`, payload);
@@ -350,13 +382,18 @@ function TourGeneratorInner() {
       setDescription(data.description || "");
       setCategory(typeof data.category === "string" ? data.category : "cultural");
       
-      if (data.highlights) setHighlights(data.highlights);
-      if (data.inclusions) setInclusions(data.inclusions);
-      if (data.exclusions) setExclusions(data.exclusions);
-      if (data.internalNotes) setInternalNotes(data.internalNotes);
-      if (data.basePrice) setBasePrice(Number(data.basePrice));
-      if (data.childPrice) setChildPrice(Number(data.childPrice));
-      if (data.singleSupplement) setSingleSupplement(Number(data.singleSupplement));
+      if (data.highlights) setHighlights(toCleanText(data.highlights));
+      if (data.inclusions) setInclusions(toCleanText(data.inclusions, ", "));
+      if (data.exclusions) setExclusions(toCleanText(data.exclusions, ", "));
+      if (data.internalNotes) setInternalNotes(toCleanText(data.internalNotes));
+      
+      const parsedBase = cleanPriceValue(data.basePrice);
+      const parsedChild = Math.min(parsedBase, cleanPriceValue(data.childPrice));
+      const parsedSingle = cleanPriceValue(data.singleSupplement);
+      setBasePrice(parsedBase);
+      setChildPrice(parsedChild);
+      setSingleSupplement(parsedSingle);
+
       if (data.tags && Array.isArray(data.tags)) setTags(data.tags.join(", "));
       if (data.countryCode) {
         const c = countries?.find(c => c.code === data.countryCode);
@@ -374,7 +411,12 @@ function TourGeneratorInner() {
         return {
           ...d,
           dayNumber: i + 1,
-          imageUrl: dayImageUrl || ""
+          activities: toCleanText(d.activities, ", "),
+          imageUrl: dayImageUrl || "",
+          items: (d.items || []).map((it: any) => ({
+            ...it,
+            cost: it.cost != null ? String(it.cost) : "0",
+          }))
         };
       }) || [];
 

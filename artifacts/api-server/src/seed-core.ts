@@ -200,3 +200,18 @@ export async function runUserSeed(password = "password123"): Promise<SeededAccou
 
   return generatedAccounts;
 }
+
+// Allow direct execution: tsx --env-file=.env src/seed-core.ts
+if (process.argv[1]?.endsWith("seed-core.ts") || process.argv[1]?.endsWith("seed-core.js")) {
+  console.log("🌱 Starting user seeder via seed-core.ts...");
+  runUserSeed()
+    .then((accounts) => {
+      console.log("✅ Seeding complete! Here are the accounts:");
+      console.table(accounts);
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error("❌ Seeding failed:", err);
+      process.exit(1);
+    });
+}

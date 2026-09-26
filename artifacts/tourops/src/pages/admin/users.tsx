@@ -11,9 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
-import { Users, Search, Shield, Plus, KeyRound } from "lucide-react";
+import { Users, Search, Shield, Plus, KeyRound, MapPin } from "lucide-react";
 import { USER_ROLES } from "@/lib/constants";
-import type { UserProfile } from "@workspace/db";
+import type { UserProfile, City } from "@workspace/db";
 import type { User } from "@workspace/db";
 
 export default function AdminUsers() {
@@ -22,13 +22,14 @@ export default function AdminUsers() {
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState<string | null>(null);
-  const [newUser, setNewUser] = useState({ username: "", password: "", firstName: "", lastName: "", email: "", role: "customer", phone: "", companyName: "", countryCode: "" });
+  const [newUser, setNewUser] = useState({ username: "", password: "", firstName: "", lastName: "", email: "", role: "customer", phone: "", companyName: "", countryCode: "", cityId: "" });
   const [newPassword, setNewPassword] = useState("");
 
   const { data: currentUserProfile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
   const isAdmin = currentUserProfile?.role === "admin" || currentUserProfile?.role === "super_admin";
 
   const { data: profiles, isLoading } = useQuery<(UserProfile & { user?: User })[]>({ queryKey: ["/api/user-profiles"] });
+  const { data: cities } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
 
   const updateRole = useMutation({
     mutationFn: ({ profileId, role }: { profileId: string; role: string }) =>
@@ -39,13 +40,25 @@ export default function AdminUsers() {
     },
   });
 
+  const updateCity = useMutation({
+    mutationFn: ({ profileId, cityId }: { profileId: string; cityId: string | null }) =>
+      apiRequest("PATCH", `/api/user-profiles/${profileId}`, { cityId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user-profiles"] });
+      toast({ title: t("city_updated") });
+    },
+    onError: (err: any) => {
+      toast({ title: err.message, variant: "destructive" });
+    },
+  });
+
   const createUser = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/admin/users", newUser),
+    mutationFn: () => apiRequest("POST", "/api/admin/users", { ...newUser, cityId: newUser.cityId || undefined }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user-profiles"] });
       toast({ title: t("user_created_successfully") });
       setCreateOpen(false);
-      setNewUser({ username: "", password: "", firstName: "", lastName: "", email: "", role: "customer", phone: "", companyName: "", countryCode: "" });
+      setNewUser({ username: "", password: "", firstName: "", lastName: "", email: "", role: "customer", phone: "", companyName: "", countryCode: "", cityId: "" });
     },
     onError: (err: any) => {
       toast({ title: t("failed_to_create_user"), description: err.message, variant: "destructive" });
@@ -126,6 +139,18 @@ export default function AdminUsers() {
                   </SelectContent>
                 </Select>
               </div>
+              {newUser.role === "city_manager" && (
+                <div className="space-y-2">
+                  <Label htmlFor="cu-city">{t("city") || "Assigned City"}</Label>
+                  <Select value={newUser.cityId || "none"} onValueChange={(v) => setNewUser({ ...newUser, cityId: v === "none" ? "" : v })}>
+                    <SelectTrigger id="cu-city" data-testid="select-create-city"><SelectValue placeholder="Select a city to assign..." /></SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      <SelectItem value="none">— Select a city —</SelectItem>
+                      {cities?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="cu-phone">{t("phone")}</Label>
@@ -172,11 +197,36 @@ export default function AdminUsers() {
                       {profile.user?.email ? ` | ${profile.user.email}` : ""}
                       {profile.phone ? ` | ${profile.phone}` : ""}
                       {profile.countryCode ? ` | ${profile.countryCode}` : ""}
+                      {profile.cityId && cities?.find((c) => c.id === profile.cityId) ? ` | City: ${cities.find((c) => c.id === profile.cityId)?.name}` : ""}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   {profile.isTourLeader && <Badge variant="outline">{t("tour_leader")}</Badge>}
+
+                  {profile.role === "city_manager" && (
+                    <div className="flex items-center gap-1.5 bg-slate-100/80 dark:bg-slate-800/80 border rounded-md px-2 py-1">
+                      <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <Select
+                        value={profile.cityId || "unassigned"}
+                        onValueChange={(val) => updateCity.mutate({ profileId: profile.id, cityId: val === "unassigned" ? null : val })}
+                        disabled={!isAdmin || updateCity.isPending}
+                      >
+                        <SelectTrigger className="h-7 w-[160px] text-xs border-0 bg-transparent p-0 focus:ring-0" data-testid={`select-city-${profile.id}`}>
+                          <SelectValue placeholder="Assign City..." />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-60">
+                          <SelectItem value="unassigned">— Unassigned —</SelectItem>
+                          {cities?.map((city) => (
+                            <SelectItem key={city.id} value={city.id}>
+                              {city.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   <Select
                     value={profile.role}
                     onValueChange={(v) => updateRole.mutate({ profileId: profile.id, role: v })}

@@ -384,6 +384,7 @@ export async function registerRoutes(
         phone: z.string().optional(),
         companyName: z.string().optional(),
         countryCode: z.string().optional(),
+        cityId: z.string().nullable().optional(),
       });
       const parsed = createSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
@@ -408,6 +409,7 @@ export async function registerRoutes(
           phone: parsed.data.phone || null,
           companyName: parsed.data.companyName || null,
           countryCode: parsed.data.countryCode || null,
+          cityId: parsed.data.cityId || null,
         })) ?? profile;
       }
 

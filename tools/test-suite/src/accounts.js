@@ -16,6 +16,16 @@ export const ACCOUNTS = [
     allowedPrefixes: ["/api/admin", "/api/tours", "/api/pricing", "/api/reports", "/api/users"],
   },
   {
+    id: "admin1",
+    username: "admin1",
+    role: "admin",
+    name: "HQ Administrator",
+    category: "Admin",
+    portal: "/admin/login",
+    description: "Daily business operations management, tour approvals, assignments, and sales reports.",
+    allowedPrefixes: ["/api/admin", "/api/tours", "/api/pricing", "/api/reports", "/api/users"],
+  },
+  {
     id: "customer1",
     username: "customer1",
     role: "customer",

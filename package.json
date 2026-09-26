@@ -12,7 +12,8 @@
     "db:seed": "pnpm --filter @workspace/api-server exec tsx --env-file=.env src/seed-all.ts",
     "db:seed:users": "pnpm --filter @workspace/api-server exec tsx --env-file=.env src/seed-users.ts",
     "test:ui": "node tools/test-suite/src/server.js",
-    "test:e2e": "node tools/ui-tester/src/server.js"
+    "test:e2e": "node tools/ui-tester/src/server.js",
+    "test:dom": "node tools/ui-tester/src/run-18-roles-dom.js"
   },
   "private": true,
   "dependencies": {

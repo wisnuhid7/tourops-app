@@ -19,6 +19,7 @@ import { testTourLeaderManifest } from "./scenarios/06_tour_leader_manifest.ui.j
 import { testSupplierPortalRates } from "./scenarios/07_supplier_portal_rates.ui.js";
 import { testAccountingPayments } from "./scenarios/08_accounting_payments.ui.js";
 import { testRbacUiNavigationAudit } from "./scenarios/09_rbac_ui_navigation_audit.ui.js";
+import { testAll18RolesDom } from "./scenarios/10_all_18_roles_dom_test.ui.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -93,6 +94,13 @@ const UI_FLOWS = [
     category: "Security & Access",
     description: "Tests client-side routing redirections for customer, supplier, and admin.",
     runner: testRbacUiNavigationAudit,
+  },
+  {
+    id: "10_all_18_roles_dom_test",
+    name: "10. All 18 Roles Comprehensive DOM Audit",
+    category: "Security & RBAC",
+    description: "Full DOM tree, username, role badges, and client-side route barriers for all 18 roles.",
+    runner: testAll18RolesDom,
   },
 ];
 

@@ -114,13 +114,24 @@ function AuthenticatedLayout() {
     return <Redirect to="/tours" />;
   }
 
+  // Supplier Isolation: Supplier roles are strictly confined to /supplier (blocked from /ops and /admin)
+  const isSupplierRole = SUPPLIER_ROLES.includes(role || "");
+  if (isSupplierRole && (location.startsWith("/ops") || location.startsWith("/admin"))) {
+    return <Redirect to="/supplier" />;
+  }
+
+  // Financial Privacy Wall: Tour Leader and other non-finance staff blocked from /ops/accounting
+  if (location.startsWith("/ops/accounting") && role !== "accounting" && !isAdmin && !isOpsManager) {
+    return <Redirect to={opsRoleHome(role)} />;
+  }
+
   if (!isAdmin && location.startsWith("/admin")) {
     if (isCountryManager && location === "/admin/master-data") {
       // Allowed — country_manager can access master data
     } else if (isOpsManager && (location === "/admin/pricing-engine" || location === "/admin/group-quotes")) {
       // Allowed — operations_manager is part of the internal pricing roles
     } else {
-      if (SUPPLIER_ROLES.includes(role || "")) {
+      if (isSupplierRole) {
         return <Redirect to="/supplier" />;
       }
       return <Redirect to={opsRoleHome(role)} />;

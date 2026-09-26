@@ -74,6 +74,10 @@ export class BrowserController {
     const account = ACCOUNTS.find((a) => a.username === username);
     if (!account) throw new Error(`Unknown account username: ${username}`);
 
+    if (this.context) {
+      await this.context.clearCookies();
+    }
+
     const loginRes = await fetch(`${this.apiUrl}/api/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -84,21 +88,24 @@ export class BrowserController {
       throw new Error(`Login failed for ${username} (HTTP ${loginRes.status})`);
     }
 
-    const setCookie = loginRes.headers.get("set-cookie");
-    if (setCookie) {
-      const parsedCookies = setCookie.split(",").map((c) => {
-        const parts = c.split(";")[0].trim().split("=");
-        return {
-          name: parts[0],
-          value: parts.slice(1).join("="),
-          domain: "localhost",
-          path: "/",
-          httpOnly: true,
-          sameSite: "Lax",
-        };
-      });
+    const setCookies = loginRes.headers.getSetCookie 
+      ? loginRes.headers.getSetCookie() 
+      : [loginRes.headers.get("set-cookie")].filter(Boolean);
 
-      await this.context.addCookies(parsedCookies);
+    for (const rawCookie of setCookies) {
+      const parts = rawCookie.split(";")[0].trim().split("=");
+      if (parts[0] && parts[1]) {
+        await this.context.addCookies([
+          {
+            name: parts[0],
+            value: parts.slice(1).join("="),
+            domain: "localhost",
+            path: "/",
+            httpOnly: true,
+            sameSite: "Lax",
+          },
+        ]);
+      }
     }
 
     return account;

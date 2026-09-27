@@ -20,7 +20,7 @@ import {
   LayoutDashboard, Globe, BookOpen, Users, 
   BarChart3, Settings, LogOut, Plane, 
   Hotel, Bus, UserCheck, Ticket, Database, Headset,
-  UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart, Wand2, Percent, DollarSign, Building2, Flag, Landmark, CalendarDays, Calculator
+  UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart, Wand2, Percent, DollarSign, Building2, Flag, Landmark, CalendarDays, Calculator, Clock, Receipt
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -114,9 +114,15 @@ export function AppSidebar() {
     if (role === "flight_agent") return [{ title: t("flight_dashboard"), url: home, icon: Plane }];
     if (role === "tour_builder") return [{ title: t("builder_dashboard"), url: home, icon: Wand2 }];
     if (role === "supplier") return [{ title: t("supplier_dashboard"), url: home, icon: Database }];
-    if (role === "tour_leader") return [{ title: t("agent_dashboard"), url: home, icon: Users }];
-    if (role === "accounting") return [{ title: t("finance_dashboard"), url: home, icon: DollarSign }];
-    if (role === "support_agent") return [{ title: t("support_dashboard"), url: home, icon: Headset }];
+    if (role === "accounting") return [
+      { title: t("finance_dashboard"), url: "/ops/accounting", icon: DollarSign },
+      { title: t("transfer_verification"), url: "/ops/accounting?tab=verification", icon: Clock },
+      { title: t("nav_payments"), url: "/ops/accounting?tab=payments", icon: CreditCard },
+      { title: t("payment_schedule_title"), url: "/ops/accounting?tab=schedules", icon: CalendarDays },
+      { title: t("invoices_heading"), url: "/ops/accounting?tab=invoices", icon: FileText },
+      { title: t("booking_recap"), url: "/ops/accounting?tab=bookings", icon: Receipt },
+      { title: t("reports"), url: "/admin/reports", icon: BarChart3 },
+    ];
     if (role === "operations_manager") return [
       { title: t("dashboard"), url: home, icon: LayoutDashboard },
       { title: t("nav_assignments"), url: "/ops/assignments", icon: UserCheck },

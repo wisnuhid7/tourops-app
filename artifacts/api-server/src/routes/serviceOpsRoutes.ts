@@ -18,7 +18,7 @@ import {
   db, bookings, bookingServiceRequests, bookingPaymentSchedules,
   userProfiles, insertBookingServiceRequestSchema,
 } from "@workspace/db";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, asc } from "drizzle-orm";
 import { storage } from "../storage";
 import { routeError } from "../lib/routeError";
 import { isAuthenticated } from "../replit_integrations/auth";
@@ -187,6 +187,16 @@ export function registerServiceOpsRoutes(app: Express): void {
       const rows = await db.select().from(bookingPaymentSchedules)
         .where(eq(bookingPaymentSchedules.bookingId, bookingId))
         .orderBy(bookingPaymentSchedules.installmentNumber);
+      res.json(rows);
+    } catch (e) { routeError(res, e); }
+  });
+
+  // Read all payment schedules across bookings (finance staff only)
+  app.get("/api/payment-schedules", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, FINANCE_SCHEDULE_ROLES)) return;
+      const rows = await db.select().from(bookingPaymentSchedules)
+        .orderBy(asc(bookingPaymentSchedules.dueDate));
       res.json(rows);
     } catch (e) { routeError(res, e); }
   });

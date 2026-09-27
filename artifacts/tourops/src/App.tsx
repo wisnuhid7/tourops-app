@@ -130,6 +130,8 @@ function AuthenticatedLayout() {
       // Allowed — country_manager can access master data
     } else if (isOpsManager && (location === "/admin/pricing-engine" || location === "/admin/group-quotes")) {
       // Allowed — operations_manager is part of the internal pricing roles
+    } else if (role === "accounting" && (location.startsWith("/admin/payments") || location.startsWith("/admin/bookings/") || location === "/admin/reports")) {
+      // Allowed — accounting can access payments, booking details, and financial reports
     } else {
       if (isSupplierRole) {
         return <Redirect to="/supplier" />;

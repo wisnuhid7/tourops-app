@@ -3001,6 +3001,13 @@ export async function registerRoutes(
     } catch (e: any) { routeError(res, e); }
   });
 
+  app.get("/api/invoices", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, [...FINANCE_ROLES, "support_agent"])) return;
+      res.json(await storage.getInvoices());
+    } catch (e: any) { routeError(res, e); }
+  });
+
   app.get("/api/bookings/:id/invoices", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, [...FINANCE_ROLES, "support_agent"])) return;

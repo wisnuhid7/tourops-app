@@ -20,7 +20,7 @@ import {
   LayoutDashboard, Globe, BookOpen, Users, 
   BarChart3, Settings, LogOut, Plane, 
   Hotel, Bus, UserCheck, Ticket, Database, Headset,
-  UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart, Wand2, Percent, DollarSign, Building2, Flag, Landmark, CalendarDays, Calculator
+  UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart, Wand2, Percent, DollarSign, Building2, Flag, Landmark, CalendarDays, Calculator, Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -112,7 +112,9 @@ export function AppSidebar() {
     if (role === "city_manager") return [{ title: t("city_dashboard"), url: home, icon: Globe }];
     if (role === "content_editor") return [{ title: t("editor_dashboard"), url: home, icon: FileText }];
     if (role === "flight_agent") return [{ title: t("flight_dashboard"), url: home, icon: Plane }];
-    if (role === "tour_builder") return [{ title: t("builder_dashboard"), url: home, icon: Wand2 }];
+    if (role === "tour_builder") return [
+      { title: t("builder_dashboard"), url: home, icon: Wand2 },
+    ];
     if (role === "supplier") return [{ title: t("supplier_dashboard"), url: home, icon: Database }];
     if (role === "tour_leader") return [{ title: t("agent_dashboard"), url: home, icon: Users }];
     if (role === "accounting") return [{ title: t("finance_dashboard"), url: home, icon: DollarSign }];

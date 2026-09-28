@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { getFullImageUrl } from "@/lib/utils";
@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { Plus, Search, MapPin, Pencil, Trash2, X, Clock, Utensils, Plane, Hotel, Activity, Loader2, UserCheck, Languages } from "lucide-react";
-import type { TourDay, TourDayItem } from "@workspace/db";
+import type { Tour, TourDay, TourDayItem } from "@workspace/db";
 
 export interface City {
   id: string;
@@ -22,12 +22,72 @@ export interface City {
   isActive: boolean | null;
 }
 
-export function ItineraryEditor({ tourId, duration }: { tourId: string; duration: number }) {
+export function ItineraryEditor({ tourId, duration, tour }: { tourId: string; duration: number; tour?: Tour }) {
   const { toast } = useToast();
   const { t } = useLanguage();
   const { data: days, isLoading } = useQuery<TourDay[]>({ queryKey: ["/api/tours", tourId, "days"] });
   const { data: citiesList } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
   const { data: countries } = useQuery<any[]>({ queryKey: ["/api/master/countries"] });
+  const { data: fetchedTour } = useQuery<Tour>({ 
+    queryKey: ["/api/tours", tourId],
+    enabled: !tour,
+  });
+  const currentTour = tour || fetchedTour;
+
+  const activeCountries = useMemo(() => {
+    if (!countries) return [];
+    return [...countries]
+      .filter((c: any) => c.isActive !== false)
+      .sort((a: any, b: any) => (a.name || "").localeCompare(b.name || ""));
+  }, [countries]);
+
+  // Determine default country code from tour or existing days
+  const defaultCountryCode = useMemo(() => {
+    if (!countries || countries.length === 0) return "";
+    const rawTourCountry = currentTour?.countries?.[0];
+    if (rawTourCountry) {
+      const matched = countries.find((c: any) =>
+        c.code?.toUpperCase() === rawTourCountry.toUpperCase() ||
+        c.name?.toLowerCase() === rawTourCountry.toLowerCase() ||
+        c.id === rawTourCountry
+      );
+      if (matched?.code) return matched.code;
+    }
+    const dayWithCountry = days?.find((d) => d.countryCode);
+    if (dayWithCountry?.countryCode) return dayWithCountry.countryCode;
+    return "";
+  }, [countries, currentTour, days]);
+
+  // Determine default city from days, tour title, or master cities
+  const defaultCity = useMemo(() => {
+    if (!citiesList || citiesList.length === 0) return "";
+
+    // 1. If any existing day has a city, pick the last day's city
+    const lastDayWithCity = [...(days || [])].reverse().find((d) => d.city);
+    if (lastDayWithCity?.city) {
+      return lastDayWithCity.city;
+    }
+
+    // 2. Check if a city is mentioned in tour's title
+    if (currentTour?.title) {
+      const titleLower = currentTour.title.toLowerCase();
+      const targetCountryId = countries?.find((c: any) => c.code === defaultCountryCode)?.id;
+      const matchedCityInTitle = citiesList.find((c) => {
+        if (targetCountryId && c.countryId !== targetCountryId) return false;
+        return titleLower.includes(c.name.toLowerCase());
+      });
+      if (matchedCityInTitle) return matchedCityInTitle.name;
+    }
+
+    // 3. First active city for the default country
+    if (defaultCountryCode) {
+      const targetCountryId = countries?.find((c: any) => c.code === defaultCountryCode)?.id;
+      const firstCityInCountry = citiesList.find((c) => c.countryId === targetCountryId && c.isActive !== false);
+      if (firstCityInCountry) return firstCityInCountry.name;
+    }
+
+    return "";
+  }, [citiesList, countries, defaultCountryCode, currentTour, days]);
 
   const [dayNumber, setDayNumber] = useState(1);
   const [title, setTitle] = useState("");
@@ -38,6 +98,40 @@ export function ItineraryEditor({ tourId, duration }: { tourId: string; duration
   const [imageUrl, setImageUrl] = useState("");
   const [editDay, setEditDay] = useState<TourDay | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isNewCityOpen, setIsNewCityOpen] = useState(false);
+  const [newCityName, setNewCityName] = useState("");
+
+  // Automatically pre-populate default country code and city
+  useEffect(() => {
+    if (defaultCountryCode && !countryCode) {
+      setCountryCode(defaultCountryCode);
+    }
+  }, [defaultCountryCode]);
+
+  useEffect(() => {
+    if (defaultCity && !city) {
+      setCity(defaultCity);
+    }
+  }, [defaultCity]);
+
+  // Automatically advance dayNumber when existing days are loaded
+  useEffect(() => {
+    if (days && days.length > 0) {
+      const maxDay = Math.max(...days.map((d) => d.dayNumber), 0);
+      setDayNumber(maxDay + 1);
+    }
+  }, [days]);
+
+  const filteredCities = useMemo(() => {
+    if (!citiesList) return [];
+    const active = citiesList.filter(c => c.isActive !== false);
+    if (!countryCode) return active.sort((a, b) => a.name.localeCompare(b.name));
+    const matchedCountry = countries?.find(c => c.code === countryCode);
+    if (!matchedCountry) return active.sort((a, b) => a.name.localeCompare(b.name));
+    return active
+      .filter(c => c.countryId === matchedCountry.id)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [citiesList, countries, countryCode]);
 
   const addCityMutation = useMutation({
     mutationFn: async ({ name, countryCode }: { name: string; countryCode?: string }) => {
@@ -73,10 +167,6 @@ export function ItineraryEditor({ tourId, duration }: { tourId: string; duration
     }
   });
 
-  const typedCity = city.trim();
-  const cityExists = citiesList?.some(c => c.name.toLowerCase() === typedCity.toLowerCase());
-  const showAddCityButton = typedCity && !cityExists && countries && countries.length > 0;
-
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -106,7 +196,12 @@ export function ItineraryEditor({ tourId, duration }: { tourId: string; duration
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/tours", tourId, "days"] });
       queryClient.invalidateQueries({ queryKey: ["/api/master/cities"] });
-      setTitle(""); setDescription(""); setCountryCode(""); setCity(""); setActivities(""); setImageUrl("");
+      setTitle("");
+      setDescription("");
+      setCountryCode(countryCode || defaultCountryCode);
+      setCity(city || defaultCity);
+      setActivities("");
+      setImageUrl("");
       setDayNumber((prev) => prev + 1);
       toast({ title: t("day_added") });
     },
@@ -146,7 +241,30 @@ export function ItineraryEditor({ tourId, duration }: { tourId: string; duration
           </div>
           <div>
             <Label>{t("country_code")}</Label>
-            <Input value={countryCode} onChange={(e) => setCountryCode(e.target.value)} placeholder="GR" data-testid="input-day-country" />
+            <Select 
+              value={countryCode || "__none__"} 
+              onValueChange={(val) => {
+                const nextCode = val === "__none__" ? "" : val;
+                setCountryCode(nextCode);
+                if (nextCode && city) {
+                  const matchedCountry = countries?.find(c => c.code === nextCode);
+                  const cityBelongs = citiesList?.some(c => c.name.toLowerCase() === city.toLowerCase() && c.countryId === matchedCountry?.id);
+                  if (!cityBelongs) setCity("");
+                }
+              }}
+            >
+              <SelectTrigger data-testid="select-day-country">
+                <SelectValue placeholder={t("select_country_placeholder")} />
+              </SelectTrigger>
+              <SelectContent className="max-h-60">
+                <SelectItem value="__none__">-- {t("select_country_placeholder")} --</SelectItem>
+                {activeCountries.map((c: any) => (
+                  <SelectItem key={c.id} value={c.code}>
+                    {c.name} ({c.code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <div>
@@ -155,28 +273,76 @@ export function ItineraryEditor({ tourId, duration }: { tourId: string; duration
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label>{t("city")}</Label>
-            <Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Athens" list="cities-datalist" />
-            {showAddCityButton && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={async () => {
-                  try {
-                    const newCity = await addCityMutation.mutateAsync({ name: typedCity, countryCode });
-                    setCity(newCity.name);
-                    const matchedCountry = countries?.find(c => c.id === newCity.countryId);
-                    if (matchedCountry) {
-                      setCountryCode(matchedCountry.code);
-                    }
-                  } catch (e) {}
-                }}
-                disabled={addCityMutation.isPending}
-                className="mt-1.5 h-7 px-2 text-[10px] text-primary bg-primary/10 hover:bg-primary/20 flex items-center gap-1 w-full justify-start rounded border border-primary/20 transition-all"
+            <div className="flex items-center justify-between">
+              <Label>{t("city")}</Label>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                className="h-5 px-1 text-[10px] text-primary hover:underline hover:bg-transparent"
+                onClick={() => setIsNewCityOpen(!isNewCityOpen)}
               >
-                <Plus className="h-3 w-3" />
-                {t("add_open_quote")}{typedCity}{t("close_quote_new_city")}
+                {isNewCityOpen ? t("cancel") : `+ ${t("city")}`}
               </Button>
+            </div>
+            {isNewCityOpen ? (
+              <div className="flex gap-1.5 mt-1">
+                <Input 
+                  value={newCityName} 
+                  onChange={(e) => setNewCityName(e.target.value)} 
+                  placeholder="New city name" 
+                  className="h-9 text-xs" 
+                  data-testid="input-new-city-name"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  className="h-9 text-xs shrink-0"
+                  disabled={!newCityName.trim() || addCityMutation.isPending}
+                  onClick={async () => {
+                    try {
+                      const added = await addCityMutation.mutateAsync({ name: newCityName.trim(), countryCode });
+                      setCity(added.name);
+                      const matchedCountry = countries?.find(c => c.id === added.countryId);
+                      if (matchedCountry) setCountryCode(matchedCountry.code);
+                      setNewCityName("");
+                      setIsNewCityOpen(false);
+                    } catch (e) {}
+                  }}
+                >
+                  {addCityMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("save")}
+                </Button>
+              </div>
+            ) : (
+              <Select
+                value={city || "__none__"}
+                onValueChange={(val) => {
+                  if (val === "__none__") {
+                    setCity("");
+                    return;
+                  }
+                  setCity(val);
+                  if (!countryCode) {
+                    const found = citiesList?.find(c => c.name === val);
+                    if (found) {
+                      const matchedCountry = countries?.find(c => c.id === found.countryId);
+                      if (matchedCountry) setCountryCode(matchedCountry.code);
+                    }
+                  }
+                }}
+              >
+                <SelectTrigger data-testid="select-day-city">
+                  <SelectValue placeholder={t("select_city_placeholder")} />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  <SelectItem value="__none__">-- {t("select_city_placeholder")} --</SelectItem>
+                  {filteredCities.map((c) => (
+                    <SelectItem key={c.id} value={c.name}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
           </div>
           <div>
@@ -220,7 +386,14 @@ export function ItineraryEditor({ tourId, duration }: { tourId: string; duration
             <Card key={day.id} data-testid={`card-day-${day.id}`}>
               <CardContent className="p-4">
                 {editDay?.id === day.id ? (
-                  <EditDayForm day={editDay} onSave={(data) => updateDay.mutate({ id: day.id, ...data })} onCancel={() => setEditDay(null)} isPending={updateDay.isPending} />
+                  <EditDayForm 
+                    day={editDay} 
+                    defaultCountryCode={defaultCountryCode}
+                    defaultCity={defaultCity}
+                    onSave={(data) => updateDay.mutate({ id: day.id, ...data })} 
+                    onCancel={() => setEditDay(null)} 
+                    isPending={updateDay.isPending} 
+                  />
                 ) : (
                   <div className="space-y-4">
                     <div className="flex flex-wrap items-start justify-between gap-4">
@@ -259,17 +432,14 @@ export function ItineraryEditor({ tourId, duration }: { tourId: string; duration
           ))}
         </div>
       )}
-      <datalist id="cities-datalist">
-        {citiesList?.map((c) => (
-          <option key={c.id} value={c.name} />
-        ))}
-      </datalist>
+
     </div>
   );
 }
 
 function DayItemsEditor({ dayId }: { dayId: string }) {
   const { t } = useLanguage();
+  const { toast } = useToast();
   const { data: items, isLoading } = useQuery<TourDayItem[]>({ queryKey: [`/api/tour-days/${dayId}/items`] });
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -284,6 +454,27 @@ function DayItemsEditor({ dayId }: { dayId: string }) {
   const [cost, setCost] = useState("0");
   const [time, setTime] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  // Edit item state
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editType, setEditType] = useState("custom");
+  const [editTitle, setEditTitle] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+  const [editCost, setEditCost] = useState("0");
+  const [editTime, setEditTime] = useState("");
+
+  const startEdit = (item: TourDayItem) => {
+    setEditingItemId(item.id);
+    setEditType(item.itemType || "custom");
+    setEditTitle(item.title);
+    setEditDesc(item.description || "");
+    setEditCost(item.cost ? String(item.cost) : "0");
+    setEditTime(item.startTime || "");
+  };
+
+  const cancelEdit = () => {
+    setEditingItemId(null);
+  };
 
   const filteredResults = useMemo(() => {
     if (!searchQuery || searchQuery.length < 2) return [];
@@ -307,13 +498,30 @@ function DayItemsEditor({ dayId }: { dayId: string }) {
     mutationFn: (data: any) => apiRequest("POST", `/api/tour-days/${dayId}/items`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/tour-days/${dayId}/items`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tours"] });
       setShowAdd(false); setTitle(""); setDesc(""); setCost("0"); setTime(""); setSelectedId(null);
+      toast({ title: t("day_added") });
     },
+  });
+
+  const updateItem = useMutation({
+    mutationFn: ({ id, ...data }: any) => apiRequest("PATCH", `/api/tour-day-items/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tour-days/${dayId}/items`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tours"] });
+      setEditingItemId(null);
+      toast({ title: t("day_updated") });
+    },
+    onError: () => toast({ title: t("failed_to_save"), variant: "destructive" }),
   });
 
   const deleteItem = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/tour-day-items/${id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [`/api/tour-days/${dayId}/items`] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/tour-days/${dayId}/items`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tours"] });
+      toast({ title: t("day_removed") || "Item removed" });
+    },
   });
 
   const getItemIcon = (type: string) => {
@@ -335,28 +543,96 @@ function DayItemsEditor({ dayId }: { dayId: string }) {
   return (
     <div className="space-y-2">
       {items?.map((item) => (
-        <div key={item.id} className="flex items-center justify-between gap-3 p-2 bg-white rounded border border-dashed text-xs">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-muted rounded-full">{getItemIcon(item.itemType)}</div>
-            <div>
-              <div className="flex items-center gap-2">
-                {item.startTime && <span className="font-mono text-muted-foreground">{item.startTime}</span>}
-                <span className="font-medium">{item.title}</span>
+        editingItemId === item.id ? (
+          <div key={item.id} className="p-3 bg-muted/60 rounded-md space-y-2 border border-primary/30 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-[11px] text-primary">{t("edit") || "Edit"} Schedule Item</span>
+              <Button size="icon" variant="ghost" className="h-5 w-5" onClick={cancelEdit}>
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-[10px]">{t("type_label")}</Label>
+                <select
+                  value={editType}
+                  onChange={(e) => setEditType(e.target.value)}
+                  className="w-full text-xs p-1 rounded border bg-white"
+                >
+                  <option value="sight">{t("sight")}</option>
+                  <option value="meal">{t("meal")}</option>
+                  <option value="hotel">{t("hotel")}</option>
+                  <option value="guide">{t("guide")}</option>
+                  <option value="transport">{t("transport")}</option>
+                  <option value="flight">{t("flight")}</option>
+                  <option value="custom">{t("custom")}</option>
+                </select>
               </div>
-              {item.description && <p className="text-muted-foreground truncate max-w-[200px]">{item.description}</p>}
+              <div>
+                <Label className="text-[10px]">{t("time")}</Label>
+                <Input value={editTime} onChange={(e) => setEditTime(e.target.value)} placeholder="09:00" className="h-7 text-xs" />
+              </div>
+            </div>
+            <div>
+              <Label className="text-[10px]">{t("title_required")}</Label>
+              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="h-7 text-xs" />
+            </div>
+            <div>
+              <Label className="text-[10px]">{t("description")}</Label>
+              <Input value={editDesc} onChange={(e) => setEditDesc(e.target.value)} className="h-7 text-xs" />
+            </div>
+            <div>
+              <Label className="text-[10px]">{t("base_cost")}</Label>
+              <Input type="number" value={editCost} onChange={(e) => setEditCost(e.target.value)} className="h-7 text-xs" />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button
+                size="sm"
+                className="h-7 text-[10px]"
+                disabled={!editTitle || updateItem.isPending}
+                onClick={() => updateItem.mutate({
+                  id: item.id,
+                  itemType: editType,
+                  title: editTitle,
+                  description: editDesc,
+                  cost: parseFloat(editCost) || 0,
+                  startTime: editTime,
+                })}
+              >
+                {updateItem.isPending ? t("saving") : t("save")}
+              </Button>
+              <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={cancelEdit}>
+                {t("cancel")}
+              </Button>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            {parseFloat(item.cost.toString()) > 0 && (
-              <Badge variant="outline" className="font-mono font-normal">
-                ${item.cost}
-              </Badge>
-            )}
-            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => deleteItem.mutate(item.id)}>
-              <X className="h-3 w-3" />
-            </Button>
+        ) : (
+          <div key={item.id} className="flex items-center justify-between gap-3 p-2 bg-white rounded border border-dashed text-xs">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-muted rounded-full">{getItemIcon(item.itemType)}</div>
+              <div>
+                <div className="flex items-center gap-2">
+                  {item.startTime && <span className="font-mono text-muted-foreground">{item.startTime}</span>}
+                  <span className="font-medium">{item.title}</span>
+                </div>
+                {item.description && <p className="text-muted-foreground truncate max-w-[200px]">{item.description}</p>}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {parseFloat(item.cost.toString()) > 0 && (
+                <Badge variant="outline" className="font-mono font-normal">
+                  ${item.cost}
+                </Badge>
+              )}
+              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => startEdit(item)} data-testid={`button-edit-item-${item.id}`}>
+                <Pencil className="h-3 w-3 text-muted-foreground" />
+              </Button>
+              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => deleteItem.mutate(item.id)} data-testid={`button-delete-item-${item.id}`}>
+                <X className="h-3 w-3 text-destructive" />
+              </Button>
+            </div>
           </div>
-        </div>
+        )
       ))}
 
       {showAdd ? (
@@ -483,13 +759,27 @@ function DayItemsEditor({ dayId }: { dayId: string }) {
   );
 }
 
-function EditDayForm({ day, onSave, onCancel, isPending }: { day: TourDay; onSave: (data: any) => void; onCancel: () => void; isPending: boolean }) {
+function EditDayForm({ 
+  day, 
+  onSave, 
+  onCancel, 
+  isPending,
+  defaultCountryCode,
+  defaultCity,
+}: { 
+  day: TourDay; 
+  onSave: (data: any) => void; 
+  onCancel: () => void; 
+  isPending: boolean;
+  defaultCountryCode?: string;
+  defaultCity?: string;
+}) {
   const { toast } = useToast();
   const { t } = useLanguage();
   const [title, setTitle] = useState(day.title);
   const [description, setDescription] = useState(day.description || "");
-  const [countryCode, setCountryCode] = useState(day.countryCode || "");
-  const [city, setCity] = useState(day.city || "");
+  const [countryCode, setCountryCode] = useState(day.countryCode || defaultCountryCode || "");
+  const [city, setCity] = useState(day.city || defaultCity || "");
   const [activities, setActivities] = useState(day.activities || "");
   const [imageUrl, setImageUrl] = useState(day.imageUrl || "");
   const [dayNumber, setDayNumber] = useState(day.dayNumber);
@@ -506,6 +796,26 @@ function EditDayForm({ day, onSave, onCancel, isPending }: { day: TourDay; onSav
 
   const { data: citiesList } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
   const { data: countries } = useQuery<any[]>({ queryKey: ["/api/master/countries"] });
+  const [isNewCityOpen, setIsNewCityOpen] = useState(false);
+  const [newCityName, setNewCityName] = useState("");
+
+  const activeCountries = useMemo(() => {
+    if (!countries) return [];
+    return [...countries]
+      .filter((c: any) => c.isActive !== false)
+      .sort((a: any, b: any) => (a.name || "").localeCompare(b.name || ""));
+  }, [countries]);
+
+  const filteredCities = useMemo(() => {
+    if (!citiesList) return [];
+    const active = citiesList.filter(c => c.isActive !== false);
+    if (!countryCode) return active.sort((a, b) => a.name.localeCompare(b.name));
+    const matchedCountry = countries?.find(c => c.code === countryCode);
+    if (!matchedCountry) return active.sort((a, b) => a.name.localeCompare(b.name));
+    return active
+      .filter(c => c.countryId === matchedCountry.id)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [citiesList, countries, countryCode]);
 
   const addCityMutation = useMutation({
     mutationFn: async ({ name, countryCode }: { name: string; countryCode?: string }) => {
@@ -541,9 +851,6 @@ function EditDayForm({ day, onSave, onCancel, isPending }: { day: TourDay; onSav
     }
   });
 
-  const typedCity = city.trim();
-  const cityExists = citiesList?.some(c => c.name.toLowerCase() === typedCity.toLowerCase());
-  const showAddCityButton = typedCity && !cityExists && countries && countries.length > 0;
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -572,33 +879,113 @@ function EditDayForm({ day, onSave, onCancel, isPending }: { day: TourDay; onSav
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
-        <div><Label>{t("day_number")}</Label><Input type="number" value={dayNumber} onChange={(e) => setDayNumber(parseInt(e.target.value) || 1)} /></div>
-        <div><Label>{t("country")}</Label><Input value={countryCode} onChange={(e) => setCountryCode(e.target.value)} /></div>
-      </div>
-      <div><Label>{t("title")}</Label><Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
-      <div>
-        <Label>{t("city")}</Label>
-        <Input value={city} onChange={(e) => setCity(e.target.value)} list="cities-datalist" />
-        {showAddCityButton && (
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={async () => {
-              try {
-                const newCity = await addCityMutation.mutateAsync({ name: typedCity, countryCode });
-                setCity(newCity.name);
-                const matchedCountry = countries?.find(c => c.id === newCity.countryId);
-                if (matchedCountry) {
-                  setCountryCode(matchedCountry.code);
-                }
-              } catch (e) {}
+        <div>
+          <Label>{t("day_number")}</Label>
+          <Input type="number" value={dayNumber} onChange={(e) => setDayNumber(parseInt(e.target.value) || 1)} />
+        </div>
+        <div>
+          <Label>{t("country_code")}</Label>
+          <Select 
+            value={countryCode || "__none__"} 
+            onValueChange={(val) => {
+              const nextCode = val === "__none__" ? "" : val;
+              setCountryCode(nextCode);
+              if (nextCode && city) {
+                const matchedCountry = countries?.find(c => c.code === nextCode);
+                const cityBelongs = citiesList?.some(c => c.name.toLowerCase() === city.toLowerCase() && c.countryId === matchedCountry?.id);
+                if (!cityBelongs) setCity("");
+              }
             }}
-            disabled={addCityMutation.isPending}
-            className="mt-1.5 h-7 px-2 text-[10px] text-primary bg-primary/10 hover:bg-primary/20 flex items-center gap-1 w-full justify-start rounded border border-primary/20 transition-all"
           >
-            <Plus className="h-3 w-3" />
-            {t("add_open_quote")}{typedCity}{t("close_quote_new_city")}
+            <SelectTrigger data-testid="select-edit-day-country">
+              <SelectValue placeholder={t("select_country_placeholder")} />
+            </SelectTrigger>
+            <SelectContent className="max-h-60">
+              <SelectItem value="__none__">-- {t("select_country_placeholder")} --</SelectItem>
+              {activeCountries.map((c: any) => (
+                <SelectItem key={c.id} value={c.code}>
+                  {c.name} ({c.code})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div>
+        <Label>{t("title")}</Label>
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+      </div>
+      <div>
+        <div className="flex items-center justify-between">
+          <Label>{t("city")}</Label>
+          <Button 
+            type="button" 
+            variant="ghost" 
+            size="sm" 
+            className="h-5 px-1 text-[10px] text-primary hover:underline hover:bg-transparent"
+            onClick={() => setIsNewCityOpen(!isNewCityOpen)}
+          >
+            {isNewCityOpen ? t("cancel") : `+ ${t("city")}`}
           </Button>
+        </div>
+        {isNewCityOpen ? (
+          <div className="flex gap-1.5 mt-1">
+            <Input 
+              value={newCityName} 
+              onChange={(e) => setNewCityName(e.target.value)} 
+              placeholder="New city name" 
+              className="h-9 text-xs" 
+              data-testid="input-edit-new-city-name"
+            />
+            <Button
+              type="button"
+              size="sm"
+              className="h-9 text-xs shrink-0"
+              disabled={!newCityName.trim() || addCityMutation.isPending}
+              onClick={async () => {
+                try {
+                  const added = await addCityMutation.mutateAsync({ name: newCityName.trim(), countryCode });
+                  setCity(added.name);
+                  const matchedCountry = countries?.find(c => c.id === added.countryId);
+                  if (matchedCountry) setCountryCode(matchedCountry.code);
+                  setNewCityName("");
+                  setIsNewCityOpen(false);
+                } catch (e) {}
+              }}
+            >
+              {addCityMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("save")}
+            </Button>
+          </div>
+        ) : (
+          <Select
+            value={city || "__none__"}
+            onValueChange={(val) => {
+              if (val === "__none__") {
+                setCity("");
+                return;
+              }
+              setCity(val);
+              if (!countryCode) {
+                const found = citiesList?.find(c => c.name === val);
+                if (found) {
+                  const matchedCountry = countries?.find(c => c.id === found.countryId);
+                  if (matchedCountry) setCountryCode(matchedCountry.code);
+                }
+              }
+            }}
+          >
+            <SelectTrigger data-testid="select-edit-day-city">
+              <SelectValue placeholder={t("select_city_placeholder")} />
+            </SelectTrigger>
+            <SelectContent className="max-h-60">
+              <SelectItem value="__none__">-- {t("select_city_placeholder")} --</SelectItem>
+              {filteredCities.map((c) => (
+                <SelectItem key={c.id} value={c.name}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
       </div>
       <div>

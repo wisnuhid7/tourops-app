@@ -34,6 +34,12 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:tour_ops_2026@postgres:5432/tourops
       - REDIS_URL=redis://redis:6379
+      - SESSION_SECRET=c1e7e8030218fdc02cde24181d0eb51d5c6a5981209ee6bc
+      - SEED_SECRET=c1e7e8030218fdc02cde24181d0eb51d5c6a5981209ee6bc
+      - PAYMENT_PROVIDER=stripe
+      - STRIPE_SECRET_KEY=rk_test_51UGg0aEP0iRGQbxg7BeV4lDCxLyR4GGCRhPfsZ31zSTZWzn7DyVrN5D6Gd4BekjovcaiLy7gVOdBbZCXum9FVEx400IIEzWnrK
+      - STRIPE_PUBLISHABLE_KEY=pk_test_51UGg0aEP0iRGQbxg3GhWLBmDwjlRQvVOw3yQYDrpmZS0XmRGA34be2NWL0D9atUl0xvN0oSog1DnT0Q6Z6QN922Q00bTxqEoj4
+      - STRIPE_WEBHOOK_SECRET=sk_test_51UGg0aEP0iRGQbxgFaIRpI0sziR0uUq7oWVCm0l7W0d9tcly4fDVms3IBnIlenShdu7AkRMxnFiHohzSTRUMfghb00ZVgHwh5N
 
   web:
     build:

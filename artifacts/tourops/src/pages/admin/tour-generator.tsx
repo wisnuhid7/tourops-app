@@ -36,6 +36,10 @@ function TourGeneratorInner() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { data: profile } = useQuery<{ role?: string }>({ queryKey: ["/api/users/profile"] });
+  const isTourBuilder = profile?.role === "tour_builder";
+  const defaultReturnUrl = isTourBuilder ? "/ops/tour-builder" : "/admin/tours";
+
   const [selectedTourId, setSelectedTourId] = useState<string>(() => {
     return new URLSearchParams(window.location.search).get("id") || "new-tour";
   });
@@ -270,13 +274,22 @@ const toCleanText = (val: any, sep = "\n"): string => {
   // Mutations
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const trimmedTitle = (title || "").trim();
+      if (!trimmedTitle) {
+        throw new Error(t("tour_title_required") || "Tour title is required");
+      }
+
       const numBase = cleanPriceValue(basePrice);
       const rawChild = cleanPriceValue(childPrice);
       const numChild = Math.min(numBase, rawChild);
       const numSingle = cleanPriceValue(singleSupplement);
 
       const baseTourData = { 
-        title, description, duration: Number(duration) || 1, category, translations,
+        title: trimmedTitle,
+        description: (description || "").trim(),
+        duration: Math.max(1, Math.round(Number(duration) || 1)),
+        category: category || "cultural",
+        translations,
         highlights: toCleanText(highlights),
         inclusions: toCleanText(inclusions, ", "),
         exclusions: toCleanText(exclusions, ", "),
@@ -292,14 +305,21 @@ const toCleanText = (val: any, sep = "\n"): string => {
       
       const payload = {
         tour: baseTourData,
-        days: days.map((d) => ({
-          ...d,
-          activities: toCleanText(d.activities, ", "),
-          items: (d.items || []).map((it: any) => ({
-            ...it,
-            cost: it.cost != null ? String(it.cost) : "0",
-          }))
-        }))
+        days: days.map((d, dIdx) => {
+          const dayNumber = Number(d.dayNumber) > 0 ? Number(d.dayNumber) : dIdx + 1;
+          const dayTitle = (d.title && String(d.title).trim()) ? String(d.title).trim() : `Day ${dayNumber}`;
+          return {
+            ...d,
+            dayNumber,
+            title: dayTitle,
+            activities: toCleanText(d.activities, ", "),
+            items: (d.items || []).map((it: any, itIdx: number) => ({
+              ...it,
+              sortOrder: Number(it.sortOrder) >= 0 ? Number(it.sortOrder) : itIdx,
+              cost: it.cost != null ? String(it.cost) : "0",
+            }))
+          };
+        })
       };
 
       const res = await apiRequest("PUT", `/api/tours/${selectedTourId}/full`, payload);
@@ -313,9 +333,21 @@ const toCleanText = (val: any, sep = "\n"): string => {
       queryClient.invalidateQueries({ queryKey: [`/api/tours/${selectedTourId}/day-items`] });
       queryClient.invalidateQueries({ queryKey: ["/api/master/cities"] });
       toast({ title: t("tour_saved_successfully") });
-      setLocation("/admin");
+      setLocation(defaultReturnUrl);
     },
-    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+    onError: (e: Error) => {
+      let msg = e.message || "Failed to save tour";
+      if (msg.startsWith("400: ") || msg.startsWith("409: ") || msg.startsWith("500: ")) {
+        const bodyText = msg.substring(5).trim();
+        try {
+          const parsed = JSON.parse(bodyText);
+          msg = parsed.message || parsed.error || bodyText;
+        } catch {
+          msg = bodyText;
+        }
+      }
+      toast({ title: t("error_title") || "Error", description: msg, variant: "destructive" });
+    },
   });
 
   const addCityMutation = useMutation({
@@ -506,7 +538,7 @@ const toCleanText = (val: any, sep = "\n"): string => {
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => setLocation("/admin")}>
+            <Button variant="ghost" size="icon" onClick={() => setLocation(defaultReturnUrl)}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
@@ -650,7 +682,21 @@ const toCleanText = (val: any, sep = "\n"): string => {
             </DialogContent>
           </Dialog>
 
-          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="gap-2 shadow-md">
+          <Button 
+            onClick={() => {
+              if (!title?.trim()) {
+                toast({ 
+                  title: t("error_title") || "Error", 
+                  description: t("tour_title_required") || "Tour title is required", 
+                  variant: "destructive" 
+                });
+                return;
+              }
+              saveMutation.mutate();
+            }} 
+            disabled={saveMutation.isPending || !title?.trim()} 
+            className="gap-2 shadow-md"
+          >
             <Save className="h-4 w-4" />
             {saveMutation.isPending ? t("saving") : t("save_tour")}
           </Button>

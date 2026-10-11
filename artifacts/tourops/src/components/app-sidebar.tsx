@@ -113,7 +113,8 @@ export function AppSidebar() {
     if (role === "content_editor") return [{ title: t("editor_dashboard"), url: home, icon: FileText }];
     if (role === "flight_agent") return [{ title: t("flight_dashboard"), url: home, icon: Plane }];
     if (role === "tour_builder") return [
-      { title: t("builder_dashboard"), url: home, icon: Wand2 },
+      { title: t("builder_dashboard"), url: home, icon: LayoutDashboard },
+      { title: t("tour_generator"), url: "/admin/tour-generator", icon: Wand2 },
     ];
     if (role === "supplier") return [{ title: t("supplier_dashboard"), url: home, icon: Database }];
     if (role === "tour_leader") return [{ title: t("agent_dashboard"), url: home, icon: Users }];

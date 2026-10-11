@@ -963,11 +963,37 @@ export async function registerRoutes(
         if (!await requireRole(req, res, TOUR_BUILDER_ROLES)) return;
         const { tour, days } = req.body;
         
-        const payload = { ...tour };
-        if (!payload.slug && payload.title) {
-          const baseSlug = payload.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-          payload.slug = (baseSlug || 'tour') + '-' + Date.now();
+        if (!tour || typeof tour !== "object") {
+          return res.status(400).json({ message: "Tour data is required" });
         }
+
+        const payload = { ...tour };
+
+        // Ensure title is present and trimmed
+        const rawTitle = (payload.title && typeof payload.title === "string") ? payload.title.trim() : "";
+        if (!rawTitle) {
+          return res.status(400).json({ message: "Tour title is required" });
+        }
+        payload.title = rawTitle;
+
+        // Preserve existing slug when editing, or generate a clean slug for new tour
+        const isNew = !req.params.id || req.params.id === "new-tour";
+        let existingTour: any = null;
+        if (!isNew) {
+          existingTour = await storage.getTour(req.params.id as string);
+        }
+
+        if (!payload.slug) {
+          if (existingTour?.slug) {
+            payload.slug = existingTour.slug;
+          } else {
+            const baseSlug = rawTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+            payload.slug = (baseSlug || 'tour') + '-' + Date.now();
+          }
+        }
+
+        payload.duration = Number(payload.duration) > 0 ? Number(payload.duration) : Math.max(1, (days || []).length);
+        payload.category = payload.category || "cultural";
 
         // Normalize text fields that may arrive as arrays from AI generation
         if (Array.isArray(payload.highlights)) payload.highlights = payload.highlights.join("\n");
@@ -976,6 +1002,7 @@ export async function registerRoutes(
         if (Array.isArray(payload.internalNotes)) payload.internalNotes = payload.internalNotes.join("\n");
         if (typeof payload.tags === "string") payload.tags = payload.tags.split(",").map((t: string) => t.trim()).filter(Boolean);
         if (typeof payload.galleryUrls === "string") payload.galleryUrls = payload.galleryUrls.split(",").map((t: string) => t.trim()).filter(Boolean);
+        if (!Array.isArray(payload.countries)) payload.countries = payload.countries ? [payload.countries] : [];
 
         // Normalize price fields to non-negative decimal strings
         const sanitizePrice = (val: any) => {
@@ -983,26 +1010,32 @@ export async function registerRoutes(
           const str = String(val).replace(/[^0-9.]/g, "").trim();
           return str && !isNaN(Number(str)) ? str : "0";
         };
-        if (payload.basePrice != null) payload.basePrice = sanitizePrice(payload.basePrice);
-        if (payload.childPrice != null) payload.childPrice = sanitizePrice(payload.childPrice);
-        if (payload.singleSupplement != null) payload.singleSupplement = sanitizePrice(payload.singleSupplement);
+        payload.basePrice = sanitizePrice(payload.basePrice);
+        payload.childPrice = sanitizePrice(payload.childPrice);
+        payload.singleSupplement = sanitizePrice(payload.singleSupplement);
+        payload.markupAmount = sanitizePrice(payload.markupAmount);
+        payload.totalPrice = sanitizePrice(payload.totalPrice);
 
         // Ensure child price never exceeds base price
-        if (payload.basePrice && payload.childPrice && parseFloat(payload.childPrice) > parseFloat(payload.basePrice)) {
+        if (parseFloat(payload.childPrice) > parseFloat(payload.basePrice)) {
           payload.childPrice = payload.basePrice;
         }
         
         const parsedTour = insertTourSchema.safeParse(payload);
         if (!parsedTour.success) {
           console.error("PUT /api/tours/:id/full tour validation failed:", parsedTour.error.message);
-          return res.status(400).json({ message: parsedTour.error.message });
+          const first = parsedTour.error.issues?.[0];
+          const field = first?.path?.join(".") || "Validation";
+          return res.status(400).json({ message: `${field}: ${first?.message || parsedTour.error.message}` });
         }
         
         // Validation for days
         const itemSchema = insertTourDayItemSchema.omit({ tourDayId: true });
         const parsedDays = [];
-        for (const d of days || []) {
-          const { items, ...dayFields } = d;
+        const daysList = Array.isArray(days) ? days : [];
+        for (let i = 0; i < daysList.length; i++) {
+          const d = daysList[i];
+          const { items, ...dayFields } = d || {};
 
           // Normalize activities if array from AI
           if (Array.isArray(dayFields.activities)) {
@@ -1011,30 +1044,54 @@ export async function registerRoutes(
             dayFields.activities = String(dayFields.activities);
           }
 
-          const parsed = insertTourDaySchema.safeParse({ ...dayFields, tourId: req.params.id }); // tourId is overridden later but needed for schema
+          const dayNumber = Number(dayFields.dayNumber) > 0 ? Number(dayFields.dayNumber) : i + 1;
+          const dayTitle = (dayFields.title && typeof dayFields.title === "string" && dayFields.title.trim())
+            ? dayFields.title.trim()
+            : `Day ${dayNumber}`;
+
+          const dayPayload = {
+            ...dayFields,
+            tourId: req.params.id || "new-tour",
+            dayNumber,
+            title: dayTitle,
+            city: dayFields.city ? String(dayFields.city).trim() : undefined,
+            countryCode: dayFields.countryCode ? String(dayFields.countryCode).trim().toUpperCase() : undefined,
+          };
+
+          const parsed = insertTourDaySchema.safeParse(dayPayload);
           if (!parsed.success) {
             console.error("PUT /api/tours/:id/full day validation failed:", parsed.error.message);
-            return res.status(400).json({ message: parsed.error.message });
+            const first = parsed.error.issues?.[0];
+            return res.status(400).json({ message: `Day ${dayNumber}: ${first?.message || parsed.error.message}` });
           }
 
           if (parsed.data.city) {
-            await ensureCityExists(parsed.data.city, parsed.data.countryCode);
+            try {
+              await ensureCityExists(parsed.data.city, parsed.data.countryCode);
+            } catch (cityErr) {
+              console.warn("ensureCityExists warning:", cityErr);
+            }
           }
-          // Restore ID if it existed, schema omitted it
           if (d.id) (parsed.data as any).id = d.id;
 
           const parsedItems = [];
-          for (const it of items || []) {
+          const itemsList = Array.isArray(items) ? items : [];
+          for (let j = 0; j < itemsList.length; j++) {
+            const it = itemsList[j];
             const normalizedItem = {
               ...it,
-              itemType: it.itemType || "custom",
-              title: it.title || "Activity",
-              cost: it.cost != null ? String(it.cost) : "0",
+              itemType: (it.itemType && String(it.itemType).trim()) ? String(it.itemType).trim() : "custom",
+              title: (it.title && String(it.title).trim()) ? String(it.title).trim() : `Activity ${j + 1}`,
+              cost: sanitizePrice(it.cost),
+              sortOrder: Number(it.sortOrder) >= 0 ? Number(it.sortOrder) : j,
+              isOptional: Boolean(it.isOptional),
+              bookingRequired: Boolean(it.bookingRequired),
             };
             const parsedItem = itemSchema.safeParse(normalizedItem);
             if (!parsedItem.success) {
               console.error("PUT /api/tours/:id/full item validation failed:", parsedItem.error.message);
-              return res.status(400).json({ message: parsedItem.error.message });
+              const first = parsedItem.error.issues?.[0];
+              return res.status(400).json({ message: `Item on Day ${dayNumber}: ${first?.message || parsedItem.error.message}` });
             }
             if (it.id) (parsedItem.data as any).id = it.id;
             parsedItems.push(parsedItem.data);

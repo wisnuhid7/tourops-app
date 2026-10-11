@@ -600,8 +600,7 @@ export class DatabaseStorage implements IStorage {
       }
 
       for (const d of daysData) {
-        const { items, ...dayFields } = d as any;
-        const dayId = dayFields.id;
+        const { items, id: dayId, ...dayFields } = d as any;
         let resolvedDayId: string;
 
         if (dayId && existingDays.some(ex => ex.id === dayId)) {

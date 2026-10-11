@@ -75,4 +75,35 @@ describe("Tour Generator AI Save validation", () => {
     const dayResult = insertTourDaySchema.safeParse(dayData);
     expect(dayResult.success).toBe(true);
   });
+
+  it("ensures child price does not exceed adult base price", () => {
+    const invalidPayload = {
+      title: "Luxury Paris Getaway",
+      slug: "luxury-paris-getaway",
+      basePrice: "1000",
+      childPrice: "1500", // exceeds base
+      duration: 3,
+    };
+    const result = insertTourSchema.safeParse(invalidPayload);
+    expect(result.success).toBe(false);
+
+    // Normalizing child price to min(basePrice, childPrice) fixes it:
+    const normalized = {
+      ...invalidPayload,
+      childPrice: String(Math.min(Number(invalidPayload.basePrice), Number(invalidPayload.childPrice))),
+    };
+    const normalizedResult = insertTourSchema.safeParse(normalized);
+    expect(normalizedResult.success).toBe(true);
+  });
+
+  it("verifies slug generation and title requirement", () => {
+    const emptyTitle = "   ";
+    expect(!emptyTitle.trim()).toBe(true);
+
+    const rawTitle = "Explore Ancient Rome & Vatican City!";
+    const baseSlug = rawTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const generatedSlug = (baseSlug || 'tour') + '-' + 123456789;
+    expect(generatedSlug).toBe("explore-ancient-rome-vatican-city-123456789");
+  });
 });
+

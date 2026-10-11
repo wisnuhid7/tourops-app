@@ -20,11 +20,11 @@ const AI_ENABLED = !!(
 
 export interface TourGenerationParams {
   destination: string;
-  duration: number;
-  travelerType: string;
-  interests: string[];
-  budget: string;
-  pace: string;
+  duration?: number;
+  travelerType?: string;
+  interests?: string[];
+  budget?: string;
+  pace?: string;
 }
 
 export class AIService {
@@ -33,19 +33,36 @@ export class AIService {
    * Now includes verified context from our database.
    */
   async generateItinerary(params: TourGenerationParams) {
-    const { destination, duration, travelerType, interests, budget, pace } = params;
+    const destination = params?.destination || "Scenic Tour";
+    const duration = Number(params?.duration) > 0 ? Math.min(Math.max(1, Number(params.duration)), 30) : 3;
+    const travelerType = params?.travelerType || "solo";
+    const interests = Array.isArray(params?.interests) ? params.interests : [];
+    const budget = params?.budget || "medium";
+    const pace = params?.pace || "normal";
 
-    // Fetch verified context from DB (Top 10 sights and hotels for the destination)
-    // For now we search by destination name in city/country
+    // Fetch verified context from DB (sights and hotels matching destination or matching city)
+    const allCities = await storage.getAllCities();
+    const destLower = (destination || "").toLowerCase();
+    const matchingCity = allCities.find(c =>
+      (c.name && destLower.includes(c.name.toLowerCase())) ||
+      (c.name && c.name.toLowerCase().includes(destLower))
+    );
+
     const allSights = await storage.getAllSights();
     const verifiedSights = allSights
-      .filter(s => s.name.toLowerCase().includes(destination.toLowerCase()))
+      .filter(s =>
+        (matchingCity && s.cityId === matchingCity.id) ||
+        (s.name && s.name.toLowerCase().includes(destLower))
+      )
       .slice(0, 15)
       .map(s => ({ id: s.id, name: s.name, description: s.description, cost: s.individualTicketCost }));
 
     const allHotels = await storage.getAllHotels();
     const verifiedHotels = allHotels
-      .filter(h => h.name.toLowerCase().includes(destination.toLowerCase()))
+      .filter(h =>
+        (matchingCity && h.cityId === matchingCity.id) ||
+        (h.name && h.name.toLowerCase().includes(destLower))
+      )
       .slice(0, 10)
       .map(h => ({ id: h.id, name: h.name, cost: h.basePrice }));
 
@@ -351,22 +368,35 @@ export class AIService {
   }
 }
 
-function generateFallbackItinerary(params: TourGenerationParams, verifiedSights: any[], verifiedHotels: any[]) {
-  const { destination, duration, travelerType } = params;
+function generateFallbackItinerary(params: Partial<TourGenerationParams>, verifiedSights: any[], verifiedHotels: any[]) {
+  const destination = params?.destination || "Scenic Destination";
+  const duration = Number(params?.duration) > 0 ? Math.min(Math.max(1, Number(params.duration)), 30) : 3;
+  const travelerType = params?.travelerType || "solo";
   
+  // Sanitize destination and travelerType to prevent raw prompt injection marker reflection
+  const safeDest = destination.split(/[\n\r\[;]/)[0].trim() || "Scenic Destination";
+  const safeTraveler = travelerType.split(/[\n\r\[;.]/)[0].trim().slice(0, 30) || "traveler";
+
   const days = [];
   for (let i = 1; i <= duration; i++) {
-    const sight = verifiedSights[(i - 1) % Math.max(1, verifiedSights.length)] || { id: "s-1", name: `Sightseeing in ${destination}`, description: "Local highlights", cost: 0 };
-    const hotel = verifiedHotels[(i - 1) % Math.max(1, verifiedHotels.length)] || { id: "h-1", name: `Hotel in ${destination}`, cost: 150 };
+    const hasSights = Array.isArray(verifiedSights) && verifiedSights.length > 0;
+    const sight = hasSights
+      ? verifiedSights[(i - 1) % verifiedSights.length]
+      : { id: undefined, name: `Sightseeing in ${safeDest}`, description: "Local highlights", cost: 0 };
+
+    const hasHotels = Array.isArray(verifiedHotels) && verifiedHotels.length > 0;
+    const hotel = hasHotels
+      ? verifiedHotels[(i - 1) % verifiedHotels.length]
+      : { id: undefined, name: `Hotel in ${safeDest}`, cost: 150 };
     
     days.push({
       dayNumber: i,
-      title: `Day ${i} in ${destination}`,
-      city: destination,
+      title: `Day ${i} in ${safeDest}`,
+      city: safeDest,
       countryCode: "ID",
-      description: `Exploring the highlights of ${destination}.`,
+      description: `Exploring the highlights of ${safeDest}.`,
       activities: `${sight.name}, Local exploring`,
-      imageUrl: `A beautiful travel photo of ${sight.name} in ${destination}`,
+      imageUrl: `A beautiful travel photo of ${sight.name} in ${safeDest}`,
       items: [
         {
           itemType: "sight",
@@ -375,7 +405,7 @@ function generateFallbackItinerary(params: TourGenerationParams, verifiedSights:
           description: sight.description || "Sightseeing tour",
           cost: String(sight.cost || 0),
           sightId: sight.id,
-          needsConfirmation: false
+          needsConfirmation: !sight.id
         },
         {
           itemType: "meal",
@@ -392,26 +422,26 @@ function generateFallbackItinerary(params: TourGenerationParams, verifiedSights:
           description: "Check-in for the night",
           cost: String(hotel.cost || 150),
           hotelId: hotel.id,
-          needsConfirmation: false
+          needsConfirmation: !hotel.id
         }
       ]
     });
   }
 
   return {
-    title: `${duration} Days in ${destination} for ${travelerType}`,
-    description: `A generated itinerary for ${destination}.`,
+    title: `${duration} Days in ${safeDest} for ${safeTraveler}`,
+    description: `A customized travel itinerary exploring the best of ${safeDest}.`,
     category: "leisure",
-    highlights: `Experience the best of ${destination}. Enjoy the local culture and attractions.`,
+    highlights: `Experience the best of ${safeDest}. Enjoy the local culture and attractions.`,
     inclusions: "Accommodation, Breakfast, Transport",
     exclusions: "Flights, Personal expenses, Insurance",
     internalNotes: "Standard package",
     basePrice: 500 * duration,
     childPrice: 400 * duration,
     singleSupplement: 150 * duration,
-    tags: ["leisure", "sightseeing", destination.toLowerCase()],
+    tags: ["leisure", "sightseeing", safeDest.toLowerCase().replace(/[^a-z0-9]/g, "-")],
     countryCode: "ID",
-    imageUrl: `A stunning wide-angle travel photography shot of ${destination}`,
+    imageUrl: `A stunning wide-angle travel photography shot of ${safeDest}`,
     days
   };
 }

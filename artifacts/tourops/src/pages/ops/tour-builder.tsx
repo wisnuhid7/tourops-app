@@ -21,7 +21,7 @@ import type { Tour } from "@workspace/db";
 import { ItineraryEditor } from "@/components/itinerary-editor";
 import { TourImportDialog } from "@/components/tour-import-dialog";
 import { TourExportButton } from "@/components/tour-export-button";
-import { FinancialAnalytics, TourHistory, TourMarginBadge } from "@/components/tour-analytics";
+import { FinancialAnalytics, TourHistory } from "@/components/tour-analytics";
 
 export default function TourBuilderDashboard() {
   const [, setLocation] = useLocation();
@@ -62,6 +62,15 @@ export default function TourBuilderDashboard() {
         <div className="flex flex-wrap items-center gap-2">
           <TourExportButton ids={filtered.map((t) => t.id)} />
           <TourImportDialog />
+          <Button 
+            onClick={() => setLocation("/admin/tour-generator")} 
+            variant="outline" 
+            className="gap-2 border-primary/40 text-primary hover:bg-primary/10" 
+            data-testid="button-ai-tour-generator"
+          >
+            <Wand2 className="h-4 w-4" />
+            {t("ai_tour_generator") || "AI Tour Generator"}
+          </Button>
           <Button onClick={() => setCreating(true)} data-testid="button-create-tour">
             <Plus className="h-4 w-4 mr-2" />{t("create_tour")}
           </Button>
@@ -89,7 +98,6 @@ export default function TourBuilderDashboard() {
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="font-semibold leading-tight line-clamp-1">{tour.title}</h3>
                   <div className="flex items-center gap-1 shrink-0">
-                    <TourMarginBadge tourId={tour.id} />
                     <Badge variant={tour.isPublished ? "default" : "secondary"}>
                       {tour.isPublished ? t("published") : t("draft")}
                     </Badge>
@@ -132,6 +140,15 @@ export default function TourBuilderDashboard() {
                       data-testid={`button-itinerary-${tour.id}`}
                     >
                       <ListOrdered className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      size="icon" 
+                      variant="ghost" 
+                      title={t("tour_generator")}
+                      onClick={() => setLocation(`/admin/tour-generator?id=${tour.id}`)} 
+                      data-testid={`button-generator-${tour.id}`}
+                    >
+                      <Pencil className="h-4 w-4" />
                     </Button>
                     <BasicFieldsButton tour={tour} />
                   </div>

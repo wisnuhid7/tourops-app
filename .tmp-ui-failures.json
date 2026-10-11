@@ -1,0 +1,1827 @@
+{
+  "results": [
+    {
+      "flowId": "01_landing_and_auth",
+      "name": "1. Landing, Catalog & Auth UI",
+      "steps": [
+        {
+          "name": "1.1 Render Landing Page & Hero Section",
+          "passed": true,
+          "screenshot": "/screenshots/01_landing_and_auth_1791490358720_1_landing_view.png",
+          "details": "Page rendered with title: \"TourOps - Modern Tour Booking Platform\""
+        },
+        {
+          "name": "1.2 Browse Public Tour Packages",
+          "passed": true,
+          "screenshot": "/screenshots/01_landing_and_auth_1791490362423_2_public_tours_catalog.png",
+          "details": "Discovered tour elements/cards on page"
+        },
+        {
+          "name": "1.3 Staff Login Portal Interface",
+          "passed": true,
+          "screenshot": "/screenshots/01_landing_and_auth_1791490363486_3_staff_login_form.png",
+          "details": "Login inputs present (Username & Password fields verified)"
+        },
+        {
+          "name": "1.4 Invalid Credentials Feedback Validation",
+          "passed": true,
+          "screenshot": "/screenshots/01_landing_and_auth_1791490365564_4_invalid_credentials_feedback.png",
+          "details": "Form handled invalid login smoothly without unhandled frontend crash"
+        }
+      ],
+      "passed": true,
+      "consoleErrors": [
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        }
+      ],
+      "duration": "9.76",
+      "id": "01_landing_and_auth"
+    },
+    {
+      "flowId": "02_customer_booking_flow",
+      "name": "2. Customer Booking & Traveler Portal UI",
+      "steps": [
+        {
+          "name": "2.1 Customer Tours Marketplace & Filters",
+          "passed": true,
+          "screenshot": "/screenshots/02_customer_booking_flow_1791490368140_1_customer_tours_catalog.png",
+          "details": "Customer authenticated and browsing tour packages"
+        },
+        {
+          "name": "2.2 Tour Detail Inspection & Available Departures",
+          "passed": true,
+          "screenshot": "/screenshots/02_customer_booking_flow_1791490368702_2_customer_tour_detail.png",
+          "details": "Navigated to tour detail: \"Secrets of Ancient Egypt and Pyramids\""
+        },
+        {
+          "name": "2.3 Customer Create Booking & Confirmation Flow",
+          "passed": true,
+          "screenshot": "/screenshots/02_customer_booking_flow_1791490370043_4_booking_created_confirmed.png",
+          "details": "Customer successfully submitted booking and redirected to My Bookings"
+        },
+        {
+          "name": "2.4 Customer Booking Management History",
+          "passed": true,
+          "screenshot": "/screenshots/02_customer_booking_flow_1791490371166_5_customer_my_bookings.png",
+          "details": "Rendered customer bookings list and status badges"
+        },
+        {
+          "name": "2.5 Passenger Manifest & Group Joining Portals",
+          "passed": true,
+          "screenshot": "/screenshots/02_customer_booking_flow_1791490374070_7_customer_join_groups_portal.png",
+          "details": "Rendered group join codes and passenger management interfaces"
+        }
+      ],
+      "passed": true,
+      "consoleErrors": [
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        }
+      ],
+      "duration": "8.51",
+      "id": "02_customer_booking_flow"
+    },
+    {
+      "flowId": "03_tour_builder_assembly",
+      "name": "3. Tour Builder & Assembly UI",
+      "steps": [
+        {
+          "name": "3.1 Tour Builder Workspace & Itinerary List",
+          "passed": true,
+          "screenshot": "/screenshots/03_tour_builder_assembly_1791490376287_1_tour_builder_dashboard.png",
+          "details": "Tour Builder workspace rendered with active itinerary packages"
+        },
+        {
+          "name": "3.2 Tour Builder Role-Specific Navigation Sidebar",
+          "passed": true,
+          "screenshot": "/screenshots/03_tour_builder_assembly_1791490376407_2_tour_builder_sidebar_scope.png",
+          "details": "Verified role-tailored sidebar menu items"
+        }
+      ],
+      "passed": true,
+      "consoleErrors": [
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        }
+      ],
+      "duration": "2.36",
+      "id": "03_tour_builder_assembly"
+    },
+    {
+      "flowId": "04_pricing_engine_overrides",
+      "name": "4. Pricing Engine & Quotes UI",
+      "steps": [
+        {
+          "name": "4.1 Dynamic Pricing Engine & Margin Tables",
+          "passed": true,
+          "screenshot": "/screenshots/04_pricing_engine_overrides_1791490378655_1_admin_pricing_engine.png",
+          "details": "Rendered quotes backlog and pax pricing calculator"
+        },
+        {
+          "name": "4.2 Group Quotes Operational Backlog",
+          "passed": true,
+          "screenshot": "/screenshots/04_pricing_engine_overrides_1791490379803_2_group_quotes_backlog.png",
+          "details": "Group quotes management workspace rendered"
+        },
+        {
+          "name": "4.3 Pricing Adjustment Rules & Settings",
+          "passed": true,
+          "screenshot": "/screenshots/04_pricing_engine_overrides_1791490381331_3_pricing_rules_settings.png",
+          "details": "Rendered markup configurations and season rules"
+        }
+      ],
+      "passed": true,
+      "consoleErrors": [
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        }
+      ],
+      "duration": "4.95",
+      "id": "04_pricing_engine_overrides"
+    },
+    {
+      "flowId": "05_operations_workflow_checklist",
+      "name": "5. Operations & 5-Step Fulfillment UI",
+      "steps": [
+        {
+          "name": "5.1 Operations Manager Operational Command Center",
+          "passed": true,
+          "screenshot": "/screenshots/05_operations_workflow_checklist_1791490383381_1_ops_manager_dashboard.png",
+          "details": "Operations dashboard and workflow pipeline cards loaded"
+        },
+        {
+          "name": "5.2 Resource & Guide Staff Assignments View",
+          "passed": true,
+          "screenshot": "/screenshots/05_operations_workflow_checklist_1791490384885_2_ops_staff_assignments.png",
+          "details": "Resource allocations and staff assignment view rendered"
+        }
+      ],
+      "passed": true,
+      "consoleErrors": [
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        }
+      ],
+      "duration": "3.54",
+      "id": "05_operations_workflow_checklist"
+    },
+    {
+      "flowId": "06_tour_leader_manifest",
+      "name": "6. Tour Leader & Manifest Privacy UI",
+      "steps": [
+        {
+          "name": "6.1 Tour Leader Field Operations Portal",
+          "passed": true,
+          "screenshot": "/screenshots/06_tour_leader_manifest_1791490386878_1_tour_leader_dashboard.png",
+          "details": "Rendered Tour Leader field overview and tour runs"
+        },
+        {
+          "name": "6.2 Manifest Readiness & Financial Privacy Isolation",
+          "passed": true,
+          "screenshot": "/screenshots/06_tour_leader_manifest_1791490388436_2_tour_leader_manifest_privacy.png",
+          "details": "Passenger manifest active with strict financial data isolation"
+        }
+      ],
+      "passed": true,
+      "consoleErrors": [
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        }
+      ],
+      "duration": "3.52",
+      "id": "06_tour_leader_manifest"
+    },
+    {
+      "flowId": "07_supplier_portal_rates",
+      "name": "7. Supplier Portals & Rate Cards UI",
+      "steps": [
+        {
+          "name": "7.1 Hotel Manager Supplier Portal & Inventory",
+          "passed": true,
+          "screenshot": "/screenshots/07_supplier_portal_rates_1791490390737_1_hotel_manager_supplier_portal.png",
+          "details": "Supplier dashboard rendered with hotel room inventory tabs"
+        },
+        {
+          "name": "7.2 Transport Fleet & Route Dispatch Portal",
+          "passed": true,
+          "screenshot": "/screenshots/07_supplier_portal_rates_1791490392469_2_transport_manager_portal.png",
+          "details": "Rendered transport bus types, companies, and route rates"
+        }
+      ],
+      "passed": true,
+      "consoleErrors": [
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/sights",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/airline",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/guide",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        }
+      ],
+      "duration": "4.17",
+      "id": "07_supplier_portal_rates"
+    },
+    {
+      "flowId": "08_accounting_payments",
+      "name": "8. Accounting & Financial Audit UI",
+      "steps": [
+        {
+          "name": "8.1 Accounting Operational Ledger & Receivables",
+          "passed": true,
+          "screenshot": "/screenshots/08_accounting_payments_1791490394650_1_accounting_ops_dashboard.png",
+          "details": "Finance command center and payment records loaded"
+        },
+        {
+          "name": "8.2 Client-Side Route Protection (Support Agent Blocked)",
+          "passed": true,
+          "screenshot": "/screenshots/08_accounting_payments_1791490396270_2_unauthorized_finance_redirection.png",
+          "details": "Safely navigated/redirected away from finance workspace (http://localhost:5173/ops/support)"
+        }
+      ],
+      "passed": true,
+      "consoleErrors": [
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/sights",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/airline",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/guide",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        }
+      ],
+      "duration": "3.68",
+      "id": "08_accounting_payments"
+    },
+    {
+      "flowId": "09_rbac_ui_navigation_audit",
+      "name": "9. RBAC UI Navigation & Route Guards",
+      "steps": [
+        {
+          "name": "9.1 Customer Route Guard: Blocked from /admin",
+          "passed": true,
+          "screenshot": "/screenshots/09_rbac_ui_navigation_audit_1791490399466_1_customer_blocked_from_admin.png",
+          "details": "Customer redirected to: http://localhost:5173/tours"
+        },
+        {
+          "name": "9.2 Supplier Route Guard: Blocked from /admin/users",
+          "passed": true,
+          "screenshot": "/screenshots/09_rbac_ui_navigation_audit_1791490401456_2_supplier_blocked_from_users.png",
+          "details": "Supplier redirected to: http://localhost:5173/supplier"
+        },
+        {
+          "name": "9.3 Super Admin Full Workspace Shell & Navigation",
+          "passed": true,
+          "screenshot": "/screenshots/09_rbac_ui_navigation_audit_1791490402638_3_super_admin_full_workspace.png",
+          "details": "Super Admin workspace fully accessible without redirect"
+        }
+      ],
+      "passed": true,
+      "consoleErrors": [
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/sights",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/airline",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/guide",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/hotel",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/airline",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/sights",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/guide",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/hotel",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/airline",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/sights",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/guide",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        }
+      ],
+      "duration": "6.39",
+      "id": "09_rbac_ui_navigation_audit"
+    },
+    {
+      "flowId": "10_all_18_roles_dom_test",
+      "name": "10. All 18 Roles Comprehensive DOM Audit",
+      "steps": [
+        {
+          "name": "Role [super_admin] DOM Test (superadmin1)",
+          "role": "super_admin",
+          "username": "superadmin1",
+          "landing": "/admin",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490405373_role_super_admin.png",
+          "details": "URL: http://localhost:5173/admin | Username in DOM: true | Role in DOM: true | Exemption check: allowed at http://localhost:5173/admin/test-data"
+        },
+        {
+          "name": "Role [admin] DOM Test (admin1)",
+          "role": "admin",
+          "username": "admin1",
+          "landing": "/admin",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490407203_role_admin.png",
+          "details": "URL: http://localhost:5173/admin | Username in DOM: true | Role in DOM: true | Exemption check: allowed at http://localhost:5173/admin/tours"
+        },
+        {
+          "name": "Role [tour_builder] DOM Test (tourbuilder1)",
+          "role": "tour_builder",
+          "username": "tourbuilder1",
+          "landing": "/ops/tour-builder",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490409095_role_tour_builder.png",
+          "details": "URL: http://localhost:5173/ops/tour-builder | Username in DOM: true | Role in DOM: true | Barrier check: guarded and redirected to http://localhost:5173/ops/tour-builder"
+        },
+        {
+          "name": "Role [content_editor] DOM Test (contenteditor1)",
+          "role": "content_editor",
+          "username": "contenteditor1",
+          "landing": "/ops/content-editor",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490410935_role_content_editor.png",
+          "details": "URL: http://localhost:5173/ops/content-editor | Username in DOM: true | Role in DOM: true | Barrier check: guarded and redirected to http://localhost:5173/ops/content-editor"
+        },
+        {
+          "name": "Role [country_manager] DOM Test (countrymanager1)",
+          "role": "country_manager",
+          "username": "countrymanager1",
+          "landing": "/ops",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490412796_role_country_manager.png",
+          "details": "URL: http://localhost:5173/ops | Username in DOM: true | Role in DOM: true | Exemption check: allowed at http://localhost:5173/admin/master-data"
+        },
+        {
+          "name": "Role [city_manager] DOM Test (citymanager1)",
+          "role": "city_manager",
+          "username": "citymanager1",
+          "landing": "/ops/city-manager",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490414628_role_city_manager.png",
+          "details": "URL: http://localhost:5173/ops/city-manager | Username in DOM: true | Role in DOM: true | Barrier check: guarded and redirected to http://localhost:5173/ops/city-manager"
+        },
+        {
+          "name": "Role [hotel_manager] DOM Test (hotelmanager1)",
+          "role": "hotel_manager",
+          "username": "hotelmanager1",
+          "landing": "/supplier",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490416394_role_hotel_manager.png",
+          "details": "URL: http://localhost:5173/supplier | Username in DOM: true | Role in DOM: true | Barrier check: guarded and redirected to http://localhost:5173/supplier"
+        },
+        {
+          "name": "Role [transport_manager] DOM Test (transportmanager1)",
+          "role": "transport_manager",
+          "username": "transportmanager1",
+          "landing": "/ops/transport",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490418261_role_transport_manager.png",
+          "details": "URL: http://localhost:5173/ops/transport | Username in DOM: true | Role in DOM: true | Barrier check: guarded and redirected to http://localhost:5173/ops/transport"
+        },
+        {
+          "name": "Role [guide_manager] DOM Test (guidemanager1)",
+          "role": "guide_manager",
+          "username": "guidemanager1",
+          "landing": "/supplier",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490420045_role_guide_manager.png",
+          "details": "URL: http://localhost:5173/supplier | Username in DOM: true | Role in DOM: true | Barrier check: guarded and redirected to http://localhost:5173/supplier"
+        },
+        {
+          "name": "Role [sights_manager] DOM Test (sightsmanager1)",
+          "role": "sights_manager",
+          "username": "sightsmanager1",
+          "landing": "/supplier",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490421951_role_sights_manager.png",
+          "details": "URL: http://localhost:5173/supplier | Username in DOM: true | Role in DOM: true | Barrier check: guarded and redirected to http://localhost:5173/supplier"
+        },
+        {
+          "name": "Role [airline_supplier] DOM Test (airlinesupplier1)",
+          "role": "airline_supplier",
+          "username": "airlinesupplier1",
+          "landing": "/supplier",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490423783_role_airline_supplier.png",
+          "details": "URL: http://localhost:5173/supplier | Username in DOM: true | Role in DOM: true | Barrier check: guarded and redirected to http://localhost:5173/supplier"
+        },
+        {
+          "name": "Role [supplier] DOM Test (supplier1)",
+          "role": "supplier",
+          "username": "supplier1",
+          "landing": "/supplier",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490425641_role_supplier.png",
+          "details": "URL: http://localhost:5173/supplier | Username in DOM: true | Role in DOM: true | Barrier check: guarded and redirected to http://localhost:5173/supplier"
+        },
+        {
+          "name": "Role [operations_manager] DOM Test (operationsmanager1)",
+          "role": "operations_manager",
+          "username": "operationsmanager1",
+          "landing": "/ops",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490427411_role_operations_manager.png",
+          "details": "URL: http://localhost:5173/ops | Username in DOM: true | Role in DOM: true | Exemption check: allowed at http://localhost:5173/admin/pricing-engine"
+        },
+        {
+          "name": "Role [flight_agent] DOM Test (flightagent1)",
+          "role": "flight_agent",
+          "username": "flightagent1",
+          "landing": "/ops/flight-agent",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490429278_role_flight_agent.png",
+          "details": "URL: http://localhost:5173/ops/flight-agent | Username in DOM: true | Role in DOM: true | Barrier check: guarded and redirected to http://localhost:5173/ops/flight-agent"
+        },
+        {
+          "name": "Role [tour_leader] DOM Test (tourleader1)",
+          "role": "tour_leader",
+          "username": "tourleader1",
+          "landing": "/ops/tour-leader",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490431083_role_tour_leader.png",
+          "details": "URL: http://localhost:5173/ops/tour-leader | Username in DOM: true | Role in DOM: true | Barrier check: guarded and redirected to http://localhost:5173/ops/tour-leader"
+        },
+        {
+          "name": "Role [support_agent] DOM Test (supportagent1)",
+          "role": "support_agent",
+          "username": "supportagent1",
+          "landing": "/ops/support",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490432835_role_support_agent.png",
+          "details": "URL: http://localhost:5173/ops/support | Username in DOM: true | Role in DOM: true | Barrier check: guarded and redirected to http://localhost:5173/ops/support"
+        },
+        {
+          "name": "Role [accounting] DOM Test (accounting1)",
+          "role": "accounting",
+          "username": "accounting1",
+          "landing": "/ops/accounting",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490434648_role_accounting.png",
+          "details": "URL: http://localhost:5173/ops/accounting | Username in DOM: true | Role in DOM: true | Barrier check: guarded and redirected to http://localhost:5173/ops/accounting"
+        },
+        {
+          "name": "Role [customer] DOM Test (customer1)",
+          "role": "customer",
+          "username": "customer1",
+          "landing": "/tours",
+          "passed": true,
+          "screenshot": "/screenshots/10_all_18_roles_dom_test_1791490436546_role_customer.png",
+          "details": "URL: http://localhost:5173/tours | Username in DOM: true | Role in DOM: true | Barrier check: guarded and redirected to http://localhost:5173/tours"
+        }
+      ],
+      "passed": true,
+      "consoleErrors": [
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/user",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+          "location": {
+            "url": "http://localhost:5173/api/auth/login",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/sights",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/airline",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/guide",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/hotel",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/airline",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/sights",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/guide",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/hotel",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/airline",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/sights",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/guide",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/guide",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/sights",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/airline",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/guide",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/sights",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/airline",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/hotel",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/airline",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/sights",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/hotel",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/airline",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/sights",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/hotel",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/airline",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/guide",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/hotel",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/guide",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/airline",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/hotel",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/sights",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/guide",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/hotel",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/guide",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/sights",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/hotel",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/guide",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/sights",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/airline",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/hotel",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/guide",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/airline",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        },
+        {
+          "text": "Failed to load resource: the server responded with a status of 403 (Forbidden)",
+          "location": {
+            "url": "http://localhost:5173/api/rates/sights",
+            "line": 0,
+            "column": 0,
+            "lineNumber": 0,
+            "columnNumber": 0
+          }
+        }
+      ],
+      "duration": "34.00",
+      "id": "10_all_18_roles_dom_test"
+    }
+  ],
+  "failures": []
+}

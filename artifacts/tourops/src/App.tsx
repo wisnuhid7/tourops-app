@@ -130,6 +130,8 @@ function AuthenticatedLayout() {
       // Allowed — country_manager can access master data
     } else if (isOpsManager && (location === "/admin/pricing-engine" || location === "/admin/group-quotes")) {
       // Allowed — operations_manager is part of the internal pricing roles
+    } else if (role === "tour_builder" && location.startsWith("/admin/tour-generator")) {
+      // Allowed — tour_builder uses the tour generator & AI itinerary builder
     } else {
       if (isSupplierRole) {
         return <Redirect to="/supplier" />;
@@ -198,6 +200,7 @@ function AuthenticatedLayout() {
             <Route path="/ops/transport" component={AdminTransport} />
             <Route path="/ops/role" component={GenericRoleDashboard} />
             <Route path="/ops/tour-builder" component={TourBuilderDashboard} />
+            <Route path="/ops/tour-generator" component={TourGenerator} />
             <Route path="/ops/content-editor" component={ContentEditorDashboard} />
             <Route path="/ops/city-manager" component={CityManagerDashboard} />
             <Route path="/ops/flight-agent" component={FlightAgentDashboard} />

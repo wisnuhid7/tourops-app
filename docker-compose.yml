@@ -41,7 +41,7 @@ services:
       dockerfile: ./artifacts/tourops/Dockerfile
     restart: unless-stopped
     ports:
-      - "80:80"
+      - "5173:80"
     depends_on:
       - api-server
     environment:

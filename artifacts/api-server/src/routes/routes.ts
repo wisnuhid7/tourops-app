@@ -180,6 +180,8 @@ const HOTEL_REGISTER_ROLES = [...ADMIN_ROLES, "hotel_manager"];
 // (Approval status changes remain admin-only — enforced in the PATCH handler.)
 const HOTEL_EDIT_ROLES = [...ADMIN_ROLES, "hotel_manager"];
 const GUIDE_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "guide_manager"];
+// Tour builders and operations staff can read guide rates to assign guides to itineraries
+const GUIDE_READ_ROLES = [...GUIDE_MANAGE_ROLES, "tour_builder", "operations_manager"];
 const SIGHTS_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "sights_manager"];
 const AIRLINE_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "airline_supplier"];
 const TRANSPORT_COMPANY_MANAGE_ROLES = [...CATALOG_BASE_ROLES, "transport_manager"];
@@ -4032,7 +4034,7 @@ export async function registerRoutes(
   // ---- Rate Cards: Guide Rates ----
   app.get("/api/rates/guide", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, GUIDE_MANAGE_ROLES)) return;
+      if (!await requireRole(req, res, GUIDE_READ_ROLES)) return;
       const { ownerId } = await ownerScope(req, []);
       let rows = await storage.getGuideRates();
       if (ownerId) rows = rows.filter(r => r.createdBy === ownerId);

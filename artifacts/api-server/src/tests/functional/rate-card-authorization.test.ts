@@ -172,6 +172,7 @@ describe("supplier rate cards are gated away from non-staff users", () => {
     mockState.profilesStore.push({ id: "p-admin", userId: "owner-123", role: "admin" });
     mockState.profilesStore.push({ id: "p-customer", userId: "customer-user", role: "customer" });
     mockState.profilesStore.push({ id: "p-cmgr", userId: "cmgr-user", role: "country_manager" });
+    mockState.profilesStore.push({ id: "p-tb", userId: "tourbuilder-user", role: "tour_builder" });
 
     app = express();
     app.use(express.json());
@@ -215,6 +216,18 @@ describe("supplier rate cards are gated away from non-staff users", () => {
     // passing because every request is blanket-denied.
     it.each(RATE_PATHS)("is NOT forbidden from reading %s", async (path) => {
       const res = await request(app).get(path);
+      expect(res.status).not.toBe(403);
+      expect(res.status).not.toBe(401);
+    });
+  });
+
+  describe("a tour_builder assembling itineraries", () => {
+    beforeEach(() => {
+      mockState.session.current = { userId: "tourbuilder-user" };
+    });
+
+    it("can READ /api/rates/guide to assign guides in itinerary", async () => {
+      const res = await request(app).get("/api/rates/guide");
       expect(res.status).not.toBe(403);
       expect(res.status).not.toBe(401);
     });

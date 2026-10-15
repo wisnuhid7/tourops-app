@@ -10,7 +10,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -33,6 +32,8 @@ interface PaginatedTransportResponse<T> {
 const surfaceShadow = "border-transparent shadow-[0px_0px_0px_1px_oklch(0_0_0_/_0.06),0px_1px_2px_-1px_oklch(0_0_0_/_0.06),0px_2px_4px_0px_oklch(0_0_0_/_0.04)] dark:shadow-[0_0_0_1px_oklch(1_0_0_/_0.08)]";
 const pressFeedback = "transition-[scale] duration-150 ease-out active:scale-[0.96]";
 const allCompaniesValue = "__all_companies__";
+const allRoutesValue = "__all_routes__";
+const allCountriesValue = "__all_countries__";
 
 function CompanySelector({
   value,
@@ -105,6 +106,8 @@ function CompaniesTab() {
   const [editItem, setEditItem] = useState<TransportCompany | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [countryFilter, setCountryFilter] = useState("");
+  const [search, setSearch] = useState("");
 
   const [name, setName] = useState("");
   const [countryId, setCountryId] = useState("");
@@ -198,51 +201,94 @@ function CompaniesTab() {
 
   const getCountryName = (cId: string | null) => countriesList?.find((c) => c.id === cId)?.name || "-";
 
-  if (isLoading) return <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-20" />)}</div>;
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredCompanies = companies?.filter((company) => {
+    const matchesCountry = !countryFilter || company.countryId === countryFilter;
+    const haystack = [
+      company.name,
+      company.contactName,
+      company.contactEmail,
+      company.contactPhone,
+      company.city,
+      company.state,
+      getCountryName(company.countryId),
+      ...(company.vehicleTypes || []),
+    ].filter(Boolean).join(" ").toLowerCase();
+    return matchesCountry && (!normalizedSearch || haystack.includes(normalizedSearch));
+  }) ?? [];
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="w-64">
+          <Label>{t("country_label")}</Label>
+          <Select value={countryFilter || allCountriesValue} onValueChange={(v) => setCountryFilter(v === allCountriesValue ? "" : v)}>
+            <SelectTrigger data-testid="select-company-country-filter"><SelectValue placeholder={t("country_label")} /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={allCountriesValue}>{t("all_countries")}</SelectItem>
+              {countriesList?.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("search_companies_placeholder")} className="pl-9" data-testid="input-search-companies" />
+        </div>
         <Button className={pressFeedback} onClick={() => { setEditItem(null); resetForm(); setShowForm(true); }} data-testid="button-add-company">
           <Plus className="h-4 w-4" />{t("add_company")}
         </Button>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {companies?.map((company) => (
-          <Card className={surfaceShadow} key={company.id} data-testid={`card-company-${company.id}`}>
-            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
-              <CardTitle className="text-base">{company.name}</CardTitle>
-              <div className="flex items-center gap-1">
-                <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => openEdit(company)} data-testid={`button-edit-company-${company.id}`}>
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => setDeleteId(company.id)} data-testid={`button-delete-company-${company.id}`}>
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-1 text-sm">
-              <p className="text-muted-foreground" data-testid={`text-company-country-${company.id}`}>
-                {t("country_prefix")} {getCountryName(company.countryId)}
-              </p>
-              {company.contactName && <p className="text-muted-foreground">{t("contact_prefix")} {company.contactName}</p>}
-              {company.contactPhone && <p className="text-muted-foreground">{t("phone_prefix")} {company.contactPhone}</p>}
-              {company.contactEmail && <p className="text-muted-foreground">{t("email_prefix")} {company.contactEmail}</p>}
-              {company.city && <p className="text-muted-foreground">{t("city_prefix")} {company.city}{company.state ? `, ${company.state}` : ""}</p>}
-              {company.vehicleTypes && company.vehicleTypes.length > 0 && (
-                <div className="flex flex-wrap gap-1 pt-1">
-                  {company.vehicleTypes.map((vt) => (
-                    <Badge key={vt} variant="secondary">{vt}</Badge>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-        {(!companies || companies.length === 0) && (
-          <p className="text-muted-foreground col-span-full text-center py-8">{t("no_transport_companies_found")}</p>
-        )}
-      </div>
+      {isLoading && <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>}
+      {!isLoading && (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t("name_label")}</TableHead>
+              <TableHead>{t("country_label")}</TableHead>
+              <TableHead>{t("contact_name_label")}</TableHead>
+              <TableHead>{t("contact_phone_label")}</TableHead>
+              <TableHead>{t("contact_email_label")}</TableHead>
+              <TableHead>{t("city_label")}</TableHead>
+              <TableHead>{t("vehicle_types_label")}</TableHead>
+              <TableHead>{t("actions")}</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredCompanies.map((company) => (
+              <TableRow key={company.id} data-testid={`row-company-${company.id}`}>
+                <TableCell className="font-medium" data-testid={`text-company-name-${company.id}`}>{company.name}</TableCell>
+                <TableCell className="text-muted-foreground" data-testid={`text-company-country-${company.id}`}>{getCountryName(company.countryId)}</TableCell>
+                <TableCell className="text-muted-foreground">{company.contactName || "-"}</TableCell>
+                <TableCell className="text-muted-foreground">{company.contactPhone || "-"}</TableCell>
+                <TableCell className="text-muted-foreground">{company.contactEmail || "-"}</TableCell>
+                <TableCell className="text-muted-foreground">{company.city ? `${company.city}${company.state ? `, ${company.state}` : ""}` : "-"}</TableCell>
+                <TableCell>
+                  {company.vehicleTypes && company.vehicleTypes.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {company.vehicleTypes.map((vt) => (
+                        <Badge key={vt} variant="secondary">{vt}</Badge>
+                      ))}
+                    </div>
+                  ) : "-"}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => openEdit(company)} data-testid={`button-edit-company-${company.id}`}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => setDeleteId(company.id)} data-testid={`button-delete-company-${company.id}`}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+            {filteredCompanies.length === 0 && (
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{t("no_transport_companies_found")}</TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      )}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) { setEditItem(null); resetForm(); } }}>
         <DialogContent className={`${surfaceShadow} max-w-2xl max-h-[85vh] overflow-y-auto`}>
@@ -446,6 +492,8 @@ function RoutesTab() {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState("");
+  const [search, setSearch] = useState("");
+  const [formCompanyId, setFormCompanyId] = useState("");
   const [editItem, setEditItem] = useState<TransportRoute | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -457,17 +505,19 @@ function RoutesTab() {
   const [distanceMiles, setDistanceMiles] = useState("");
 
   const { data: routes, isLoading } = useQuery<TransportRoute[]>({
-    queryKey: ["/api/transport/routes", companyId ? `?companyId=${companyId}` : ""],
-    enabled: !!companyId,
+    queryKey: ["/api/transport/routes"],
   });
 
-  const resetForm = () => { setRtName(""); setRtDescription(""); setFromCity(""); setToCity(""); setDistanceMiles(""); };
+  const { data: companies } = useQuery<TransportCompany[]>({ queryKey: ["/api/master/transport-companies"] });
+  const getCompanyName = (id: string) => companies?.find((c) => c.id === id)?.name || id;
+
+  const resetForm = () => { setRtName(""); setRtDescription(""); setFromCity(""); setToCity(""); setDistanceMiles(""); setFormCompanyId(""); };
 
   const openCreate = () => { setEditItem(null); resetForm(); setShowForm(true); };
   const openEdit = (item: TransportRoute) => {
     setEditItem(item); setRtName(item.name); setRtDescription(item.description || "");
     setFromCity(item.fromCity || ""); setToCity(item.toCity || "");
-    setDistanceMiles(item.distanceMiles || ""); setShowForm(true);
+    setDistanceMiles(item.distanceMiles || ""); setFormCompanyId(item.companyId); setShowForm(true);
   };
 
   const createMutation = useMutation({
@@ -499,7 +549,7 @@ function RoutesTab() {
 
   const handleSubmit = () => {
     const data = {
-      companyId, name: rtName, description: rtDescription || undefined,
+      companyId: formCompanyId, name: rtName, description: rtDescription || undefined,
       fromCity: fromCity || undefined, toCity: toCity || undefined,
       distanceMiles: distanceMiles || undefined,
     };
@@ -507,26 +557,32 @@ function RoutesTab() {
     else createMutation.mutate(data);
   };
 
+  const filteredRoutes = routes?.filter((rt) =>
+    (!companyId || rt.companyId === companyId) &&
+    (!search || rt.name.toLowerCase().includes(search.toLowerCase()) || (rt.fromCity || "").toLowerCase().includes(search.toLowerCase()) || (rt.toCity || "").toLowerCase().includes(search.toLowerCase()) || (rt.description || "").toLowerCase().includes(search.toLowerCase()))
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-64">
           <Label>{t("filter_by_company")}</Label>
-          <CompanySelector value={companyId} onChange={setCompanyId} testId="select-route-company" />
+          <CompanySelector value={companyId} onChange={setCompanyId} allowAll testId="select-route-company" />
         </div>
-        {companyId && (
-          <Button className={pressFeedback} onClick={openCreate} data-testid="button-add-route"><Plus className="h-4 w-4" />{t("add_route")}</Button>
-        )}
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("search_routes_placeholder")} className="pl-9" data-testid="input-search-routes" />
+        </div>
+        <Button className={pressFeedback} onClick={openCreate} data-testid="button-add-route"><Plus className="h-4 w-4" />{t("add_route")}</Button>
       </div>
 
-      {!companyId && <p className="text-muted-foreground text-center py-8">{t("select_company_to_view_routes")}</p>}
+      {isLoading && <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>}
 
-      {companyId && isLoading && <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>}
-
-      {companyId && !isLoading && (
+      {!isLoading && (
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>{t("company_label")}</TableHead>
               <TableHead>{t("name_label")}</TableHead>
               <TableHead>{t("from_label")}</TableHead>
               <TableHead>{t("to_label")}</TableHead>
@@ -536,8 +592,9 @@ function RoutesTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {routes?.map((rt) => (
+            {filteredRoutes?.map((rt) => (
               <TableRow key={rt.id} data-testid={`row-route-${rt.id}`}>
+                <TableCell data-testid={`text-route-company-${rt.id}`}>{getCompanyName(rt.companyId)}</TableCell>
                 <TableCell className="font-medium" data-testid={`text-route-name-${rt.id}`}>{rt.name}</TableCell>
                 <TableCell data-testid={`text-route-from-${rt.id}`}>{rt.fromCity || "-"}</TableCell>
                 <TableCell data-testid={`text-route-to-${rt.id}`}>{rt.toCity || "-"}</TableCell>
@@ -551,8 +608,8 @@ function RoutesTab() {
                 </TableCell>
               </TableRow>
             ))}
-            {(!routes || routes.length === 0) && (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{t("no_routes_found")}</TableCell></TableRow>
+            {(!filteredRoutes || filteredRoutes.length === 0) && (
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("no_routes_found")}</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -562,6 +619,10 @@ function RoutesTab() {
         <DialogContent className={`${surfaceShadow} max-h-[85vh] overflow-y-auto`}>
           <DialogHeader><DialogTitle>{editItem ? t("edit_route") : t("add_route")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
+            <div>
+              <Label>{t("company_label")} *</Label>
+              <CompanySelector value={formCompanyId} onChange={setFormCompanyId} testId="select-route-form-company" />
+            </div>
             <div><Label>{t("name_label")} *</Label><Input value={rtName} onChange={(e) => setRtName(e.target.value)} data-testid="input-route-name" /></div>
             <div><Label>{t("from_city")}</Label><Input value={fromCity} onChange={(e) => setFromCity(e.target.value)} data-testid="input-route-from" /></div>
             <div><Label>{t("to_city")}</Label><Input value={toCity} onChange={(e) => setToCity(e.target.value)} data-testid="input-route-to" /></div>
@@ -570,7 +631,7 @@ function RoutesTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowForm(false)} data-testid="button-cancel-route">{t("cancel")}</Button>
-            <Button onClick={handleSubmit} disabled={!rtName || createMutation.isPending || updateMutation.isPending} data-testid="button-save-route">
+            <Button onClick={handleSubmit} disabled={!formCompanyId || !rtName || createMutation.isPending || updateMutation.isPending} data-testid="button-save-route">
               {(createMutation.isPending || updateMutation.isPending) ? t("saving") : t("save")}
             </Button>
           </DialogFooter>
@@ -587,34 +648,46 @@ function RoutePricingTab() {
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState("");
   const [routeId, setRouteId] = useState("");
+  const [search, setSearch] = useState("");
   const [editItem, setEditItem] = useState<TransportRoutePricing | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  const [formCompanyId, setFormCompanyId] = useState("");
+  const [formRouteId, setFormRouteId] = useState("");
   const [busTypeId, setBusTypeId] = useState("");
   const [costPerTrip, setCostPerTrip] = useState("");
   const [pricingNotes, setPricingNotes] = useState("");
 
-  const { data: routes } = useQuery<TransportRoute[]>({
-    queryKey: ["/api/transport/routes", companyId ? `?companyId=${companyId}` : ""],
-    enabled: !!companyId,
-  });
-
-  const { data: busTypes } = useQuery<BusType[]>({
-    queryKey: ["/api/transport/bus-types", companyId ? `?companyId=${companyId}` : ""],
-    enabled: !!companyId,
-  });
+  const { data: companies } = useQuery<TransportCompany[]>({ queryKey: ["/api/master/transport-companies"] });
+  const { data: routes } = useQuery<TransportRoute[]>({ queryKey: ["/api/transport/routes"] });
+  const { data: busTypes } = useQuery<BusType[]>({ queryKey: ["/api/transport/bus-types"] });
 
   const { data: pricing, isLoading } = useQuery<TransportRoutePricing[]>({
-    queryKey: ["/api/transport/route-pricing", routeId ? `?routeId=${routeId}` : ""],
-    enabled: !!routeId,
+    queryKey: ["/api/transport/route-pricing"],
   });
 
-  const resetForm = () => { setBusTypeId(""); setCostPerTrip(""); setPricingNotes(""); };
+  const routeOf = (id: string) => routes?.find((r) => r.id === id);
+  const getCompanyName = (id?: string) => (id ? companies?.find((c) => c.id === id)?.name || id : "-");
+  const getRouteName = (id: string) => routeOf(id)?.name || id;
+  const getBusTypeName = (id: string) => busTypes?.find((b) => b.id === id)?.name || id;
+
+  const formRoutes = routes?.filter((r) => r.companyId === formCompanyId);
+  const formBusTypes = busTypes?.filter((b) => b.companyId === formCompanyId);
+  const filterRoutes = routes?.filter((r) => !companyId || r.companyId === companyId);
+
+  const filteredPricing = pricing?.filter((p) =>
+    (!companyId || routeOf(p.routeId)?.companyId === companyId) &&
+    (!routeId || p.routeId === routeId) &&
+    (!search || getRouteName(p.routeId).toLowerCase().includes(search.toLowerCase()) || getBusTypeName(p.busTypeId).toLowerCase().includes(search.toLowerCase()) || String(p.costPerTrip || "").toLowerCase().includes(search.toLowerCase()) || (p.notes || "").toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const resetForm = () => { setFormCompanyId(""); setFormRouteId(""); setBusTypeId(""); setCostPerTrip(""); setPricingNotes(""); };
 
   const openCreate = () => { setEditItem(null); resetForm(); setShowForm(true); };
   const openEdit = (item: TransportRoutePricing) => {
-    setEditItem(item); setBusTypeId(item.busTypeId); setCostPerTrip(item.costPerTrip);
+    setEditItem(item); setFormCompanyId(routeOf(item.routeId)?.companyId || ""); setFormRouteId(item.routeId);
+    setBusTypeId(item.busTypeId); setCostPerTrip(item.costPerTrip);
     setPricingNotes(item.notes || ""); setShowForm(true);
   };
 
@@ -646,44 +719,43 @@ function RoutePricingTab() {
   });
 
   const handleSubmit = () => {
-    const data = { routeId, busTypeId, costPerTrip, notes: pricingNotes || undefined };
+    const data = { routeId: formRouteId, busTypeId, costPerTrip, notes: pricingNotes || undefined };
     if (editItem) updateMutation.mutate({ id: editItem.id, ...data });
     else createMutation.mutate(data);
   };
 
-  const getBusTypeName = (id: string) => busTypes?.find((b) => b.id === id)?.name || id;
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
-        <div className="w-64">
-          <Label>{t("company_label")}</Label>
-          <CompanySelector value={companyId} onChange={(v) => { setCompanyId(v); setRouteId(""); }} testId="select-pricing-company" />
+        <div className="w-56">
+          <Label>{t("filter_by_company")}</Label>
+          <CompanySelector value={companyId} onChange={(v) => { setCompanyId(v); setRouteId(""); }} allowAll testId="select-pricing-company" />
         </div>
-        {companyId && (
-          <div className="w-64">
-            <Label>{t("route_label")}</Label>
-            <Select value={routeId} onValueChange={setRouteId}>
-              <SelectTrigger data-testid="select-pricing-route"><SelectValue placeholder={t("select_route_placeholder")} /></SelectTrigger>
-              <SelectContent>
-                {routes?.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-        {routeId && (
-          <Button className={pressFeedback} onClick={openCreate} data-testid="button-add-pricing"><Plus className="h-4 w-4" />{t("add_pricing")}</Button>
-        )}
+        <div className="w-56">
+          <Label>{t("route_label")}</Label>
+          <Select value={routeId || allRoutesValue} onValueChange={(v) => setRouteId(v === allRoutesValue ? "" : v)}>
+            <SelectTrigger data-testid="select-pricing-route"><SelectValue placeholder={t("route_label")} /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={allRoutesValue}>{t("all_routes")}</SelectItem>
+              {filterRoutes?.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("search_pricing_placeholder")} className="pl-9" data-testid="input-search-pricing" />
+        </div>
+        <Button className={pressFeedback} onClick={openCreate} data-testid="button-add-pricing"><Plus className="h-4 w-4" />{t("add_pricing")}</Button>
       </div>
 
-      {!routeId && <p className="text-muted-foreground text-center py-8">{t("select_company_and_route")}</p>}
+      {isLoading && <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>}
 
-      {routeId && isLoading && <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>}
-
-      {routeId && !isLoading && (
+      {!isLoading && (
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>{t("company_label")}</TableHead>
+              <TableHead>{t("route_label")}</TableHead>
               <TableHead>{t("bus_type_label")}</TableHead>
               <TableHead>{t("cost_per_trip")}</TableHead>
               <TableHead>{t("notes")}</TableHead>
@@ -691,8 +763,10 @@ function RoutePricingTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {pricing?.map((p) => (
+            {filteredPricing?.map((p) => (
               <TableRow key={p.id} data-testid={`row-pricing-${p.id}`}>
+                <TableCell data-testid={`text-pricing-company-${p.id}`}>{getCompanyName(routeOf(p.routeId)?.companyId)}</TableCell>
+                <TableCell data-testid={`text-pricing-route-${p.id}`}>{getRouteName(p.routeId)}</TableCell>
                 <TableCell className="font-medium" data-testid={`text-pricing-bustype-${p.id}`}>{getBusTypeName(p.busTypeId)}</TableCell>
                 <TableCell data-testid={`text-pricing-cost-${p.id}`}>{p.costPerTrip}</TableCell>
                 <TableCell className="text-muted-foreground max-w-[200px] truncate">{p.notes || "-"}</TableCell>
@@ -704,8 +778,8 @@ function RoutePricingTab() {
                 </TableCell>
               </TableRow>
             ))}
-            {(!pricing || pricing.length === 0) && (
-              <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">{t("no_pricing_entries_found")}</TableCell></TableRow>
+            {(!filteredPricing || filteredPricing.length === 0) && (
+              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{t("no_pricing_entries_found")}</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
@@ -716,11 +790,24 @@ function RoutePricingTab() {
           <DialogHeader><DialogTitle>{editItem ? t("edit_pricing") : t("add_pricing")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
+              <Label>{t("company_label")} *</Label>
+              <CompanySelector value={formCompanyId} onChange={(v) => { setFormCompanyId(v); setFormRouteId(""); setBusTypeId(""); }} testId="select-pricing-form-company" />
+            </div>
+            <div>
+              <Label>{t("route_label")} *</Label>
+              <Select value={formRouteId} onValueChange={setFormRouteId}>
+                <SelectTrigger data-testid="select-pricing-form-route"><SelectValue placeholder={t("select_route_placeholder")} /></SelectTrigger>
+                <SelectContent>
+                  {formRoutes?.map((r) => <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label>{t("bus_type_label")} *</Label>
               <Select value={busTypeId} onValueChange={setBusTypeId}>
                 <SelectTrigger data-testid="select-pricing-bus-type"><SelectValue placeholder={t("select_bus_type_placeholder")} /></SelectTrigger>
                 <SelectContent>
-                  {busTypes?.map((b) => <SelectItem key={b.id} value={b.id}>{b.name} ({b.seats} {t("seats_label")})</SelectItem>)}
+                  {formBusTypes?.map((b) => <SelectItem key={b.id} value={b.id}>{b.name} ({b.seats} {t("seats_label")})</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -729,7 +816,7 @@ function RoutePricingTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowForm(false)} data-testid="button-cancel-pricing">{t("cancel")}</Button>
-            <Button onClick={handleSubmit} disabled={!busTypeId || !costPerTrip || createMutation.isPending || updateMutation.isPending} data-testid="button-save-pricing">
+            <Button onClick={handleSubmit} disabled={!formCompanyId || !formRouteId || !busTypeId || !costPerTrip || createMutation.isPending || updateMutation.isPending} data-testid="button-save-pricing">
               {(createMutation.isPending || updateMutation.isPending) ? t("saving") : t("save")}
             </Button>
           </DialogFooter>
@@ -745,6 +832,7 @@ function BookingsTab() {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState("");
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const pageSize = 50;
   const [showForm, setShowForm] = useState(false);
@@ -831,12 +919,26 @@ function BookingsTab() {
     return null;
   };
 
+  const filteredBookings = bookings?.rows.filter((bk) =>
+    !search ||
+    getCompanyName(bk.companyId).toLowerCase().includes(search.toLowerCase()) ||
+    getTourTitle(bk.tourId).toLowerCase().includes(search.toLowerCase()) ||
+    (bk.serviceDate || "").toLowerCase().includes(search.toLowerCase()) ||
+    (bk.serviceEndDate || "").toLowerCase().includes(search.toLowerCase()) ||
+    String(bk.costQuoted || "").toLowerCase().includes(search.toLowerCase()) ||
+    (t(`booking_status_${bk.status || "requested"}` as any) || "").toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-64">
           <Label>{t("filter_by_company")}</Label>
-          <CompanySelector value={companyId} onChange={(value) => { setCompanyId(value); setPage(1); }} testId="select-booking-company-filter" />
+          <CompanySelector value={companyId} onChange={(value) => { setCompanyId(value); setPage(1); }} allowAll testId="select-booking-company-filter" />
+        </div>
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("search_transport_bookings_placeholder")} className="pl-9" data-testid="input-search-bookings" />
         </div>
         <Button className={pressFeedback} onClick={openCreate} data-testid="button-add-booking"><Plus className="h-4 w-4" />{t("new_booking")}</Button>
       </div>
@@ -857,7 +959,7 @@ function BookingsTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {bookings?.rows.map((bk) => (
+            {filteredBookings?.map((bk) => (
               <TableRow key={bk.id} data-testid={`row-booking-${bk.id}`}>
                 <TableCell className="font-medium" data-testid={`text-booking-company-${bk.id}`}>{getCompanyName(bk.companyId)}</TableCell>
                 <TableCell data-testid={`text-booking-tour-${bk.id}`}>{getTourTitle(bk.tourId)}</TableCell>
@@ -881,7 +983,7 @@ function BookingsTab() {
                 </TableCell>
               </TableRow>
             ))}
-            {(!bookings || bookings.total === 0) && (
+            {(!filteredBookings || filteredBookings.length === 0) && (
               <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("no_bookings_found")}</TableCell></TableRow>
             )}
           </TableBody>

@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Upload, Pencil, Trash2, Globe, Building2, Plane, Landmark, Truck, TicketCheck, Wand2, Sparkles } from "lucide-react";
+import { Plus, Upload, Pencil, Trash2, Globe, Building2, Plane, Landmark, Truck, TicketCheck, Wand2, Sparkles, Search, FileDown } from "lucide-react";
 import type {
   Country, City, Airport, Sight, Hotel, TransportCompany, AirlineAgency, UserProfile,
 } from "@workspace/db";
@@ -24,6 +24,8 @@ import { HotelFormFields, emptyHotelFormValues, hotelToFormValues, hotelFormToPa
 import { CityFormFields, emptyCityFormValues, cityToFormValues, cityFormToPayload, type CityFormValues } from "@/components/city-form-fields";
 
 const SIGHT_CATEGORIES = ["museum", "landmark", "park", "religious", "entertainment", "nature", "historical", "other"];
+const allCountriesFilter = "__all_countries__";
+const allCitiesFilter = "__all_cities__";
 
 function detectDelimiter(headerLine: string): string {
   const tab = (headerLine.match(/\t/g) || []).length;
@@ -76,6 +78,15 @@ const HEADER_ALIASES: Record<string, string> = {
   "fleetsize": "fleetSize", "fleet_size": "fleetSize",
 };
 
+const CSV_TEMPLATE_COLUMNS: Record<string, string[]> = {
+  "/api/master/countries": ["code", "iso3", "name", "capitalCity", "continent", "region", "subregion", "currencyCode", "currencyName", "phoneCode", "flagUrl", "latitude", "longitude", "status"],
+  "/api/master/cities": ["name", "country", "asciiName", "timezone", "geonameId", "osmId", "latitude", "longitude", "is_airport_city", "status"],
+  "/api/master/airports": ["code", "name", "city", "status"],
+  "/api/master/sights": ["name", "city", "category", "description", "longDescription", "estimatedDuration", "address", "phone", "email", "officialWebsite", "latitude", "longitude", "individualTicketCost", "groupTicketCost", "ticketCurrency", "ticket_required", "status"],
+  "/api/master/transport-companies": ["name", "contactName", "contactPhone", "contactEmail", "city", "addressLine1", "addressLine2", "state", "postalCode", "bankName", "bankAccountNumber", "bankSwift", "bankIban", "taxId", "notes", "status"],
+  "/api/master/airline-agencies": ["name", "contactName", "contactPhone", "contactEmail", "website", "status"],
+};
+
 function normalizeRow(row: Record<string, string>): Record<string, string> {
   const result: Record<string, string> = {};
   for (const [key, val] of Object.entries(row)) {
@@ -121,6 +132,21 @@ function CsvImportDialog({
   const { toast } = useToast();
   const [parsed, setParsed] = useState<Record<string, string>[]>([]);
   const [fileName, setFileName] = useState("");
+  const templateColumns = CSV_TEMPLATE_COLUMNS[apiPath];
+
+  function downloadTemplate() {
+    if (!templateColumns) return;
+    const csv = "\uFEFF" + templateColumns.join(",") + "\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${apiPath.split("/").pop()}-template.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -181,6 +207,16 @@ function CsvImportDialog({
         </DialogHeader>
         <div className="space-y-4">
           <div>
+            {templateColumns && (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={downloadTemplate}
+                data-testid="button-download-template"
+              >
+                <FileDown className="h-4 w-4 mr-2" />{t("download_template")}
+              </Button>
+            )}
             <Label>{t("choose_csv_file")}</Label>
             <Input
               type="file"
@@ -268,6 +304,7 @@ function CountriesTab() {
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const [code, setCode] = useState("");
   const [iso3, setIso3] = useState("");
@@ -283,6 +320,11 @@ function CountriesTab() {
   const [isActive, setIsActive] = useState(true);
 
   const { data: items, isLoading } = useQuery<Country[]>({ queryKey: ["/api/master/countries"] });
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtered = (items || []).filter((item) =>
+    !normalizedSearch || [item.name, item.code, item.iso3, item.capitalCity, item.continent]
+      .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch)
+  );
 
   const resetForm = () => { 
     setCode(""); setIso3(""); setName(""); setCapitalCity(""); setContinent(""); 
@@ -352,6 +394,10 @@ function CountriesTab() {
           <Wand2 className="h-4 w-4 mr-2" />
           {scrapeCountriesMutation.isPending ? t("scraping") : t("scrape_all_countries")}
         </Button>
+        <div className="relative w-56">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" placeholder={t("search_countries_placeholder")} value={search} onChange={(e) => setSearch(e.target.value)} data-testid="input-search-countries" />
+        </div>
       </div>
 
       <Table>
@@ -368,7 +414,7 @@ function CountriesTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items?.map((item) => (
+          {filtered.map((item) => (
             <TableRow key={item.id} data-testid={`row-country-${item.id}`}>
               <TableCell>
                 {item.flagUrl ? (
@@ -395,8 +441,8 @@ function CountriesTab() {
               </TableCell>
             </TableRow>
           ))}
-          {(!items || items.length === 0) && (
-            <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("no_countries_found")}</TableCell></TableRow>
+          {filtered.length === 0 && (
+            <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{normalizedSearch ? t("no_results") : t("no_countries_found")}</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
@@ -454,11 +500,20 @@ function CitiesTab() {
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [countryFilter, setCountryFilter] = useState(allCountriesFilter);
+  const [search, setSearch] = useState("");
 
   const [form, setForm] = useState<CityFormValues>(emptyCityFormValues);
 
   const { data: items, isLoading } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
   const { data: countriesList } = useQuery<Country[]>({ queryKey: ["/api/master/countries"] });
+  const getCountryName = (cId: string) => countriesList?.find((c) => c.id === cId)?.name || cId;
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtered = (items || []).filter((item) =>
+    (countryFilter === allCountriesFilter || item.countryId === countryFilter) &&
+    (!normalizedSearch || [item.name, getCountryName(item.countryId)]
+      .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch))
+  );
 
   const resetForm = () => setForm(emptyCityFormValues);
 
@@ -488,25 +543,11 @@ function CitiesTab() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
-  const scrapeCitiesMutation = useMutation({
-    mutationFn: (countryId: string) => {
-      const country = countriesList?.find(c => c.id === countryId);
-      return apiRequest("POST", `/api/admin/scrape/cities/${country?.code}`, { countryId });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/master/cities"] });
-      toast({ title: t("cities_scraped_for_country") });
-    },
-    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
-  });
-
   const handleSubmit = () => {
     const data = cityFormToPayload(form);
     if (editItem) updateMutation.mutate({ id: editItem.id, ...data });
     else createMutation.mutate(data);
   };
-
-  const getCountryName = (cId: string) => countriesList?.find((c) => c.id === cId)?.name || cId;
 
   if (isLoading) return <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>;
 
@@ -516,14 +557,19 @@ function CitiesTab() {
         <Button onClick={openCreate} data-testid="button-add-city"><Plus className="h-4 w-4 mr-2" />{t("add_new")}</Button>
         <Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-cities"><Upload className="h-4 w-4 mr-2" />{t("import_csv")}</Button>
         <div className="flex items-center gap-2 border-l pl-3 ml-1">
-          <Select onValueChange={(v) => scrapeCitiesMutation.mutate(v)}>
-            <SelectTrigger className="w-[200px] h-9">
-              <SelectValue placeholder={t("scrape_cities_placeholder")} />
+          <Select value={countryFilter} onValueChange={setCountryFilter}>
+            <SelectTrigger className="w-[200px] h-9" data-testid="select-cities-country-filter">
+              <SelectValue placeholder={t("select_country_placeholder")} />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value={allCountriesFilter}>{t("all_countries")}</SelectItem>
               {countriesList?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
             </SelectContent>
           </Select>
+        </div>
+        <div className="relative w-56">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" placeholder={t("search_cities_placeholder")} value={search} onChange={(e) => setSearch(e.target.value)} data-testid="input-search-cities" />
         </div>
       </div>
 
@@ -540,7 +586,7 @@ function CitiesTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items?.map((item) => (
+          {filtered.map((item) => (
             <TableRow key={item.id} data-testid={`row-city-${item.id}`}>
               <TableCell className="font-medium" data-testid={`text-city-name-${item.id}`}>
                 {item.name} {item.isCapital && <Badge variant="outline" className="ml-2 text-[10px] uppercase">{t("capital_label")}</Badge>}
@@ -562,8 +608,8 @@ function CitiesTab() {
               </TableCell>
             </TableRow>
           ))}
-          {(!items || items.length === 0) && (
-            <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("no_cities_found")}</TableCell></TableRow>
+          {filtered.length === 0 && (
+            <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{normalizedSearch || countryFilter !== allCountriesFilter ? t("no_results") : t("no_cities_found")}</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
@@ -597,6 +643,7 @@ function AirportsTab() {
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const [code, setCode] = useState("");
   const [name, setName] = useState("");
@@ -605,6 +652,12 @@ function AirportsTab() {
 
   const { data: items, isLoading } = useQuery<Airport[]>({ queryKey: ["/api/master/airports"] });
   const { data: citiesList } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
+  const getCityName = (cId: string) => citiesList?.find((c) => c.id === cId)?.name || cId;
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtered = (items || []).filter((item) =>
+    !normalizedSearch || [item.code, item.name, getCityName(item.cityId)]
+      .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch)
+  );
 
   const resetForm = () => { setCode(""); setName(""); setCityId(""); setIsActive(true); };
 
@@ -638,8 +691,6 @@ function AirportsTab() {
     else createMutation.mutate(data);
   };
 
-  const getCityName = (cId: string) => citiesList?.find((c) => c.id === cId)?.name || cId;
-
   if (isLoading) return <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>;
 
   return (
@@ -647,6 +698,10 @@ function AirportsTab() {
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={openCreate} data-testid="button-add-airport"><Plus className="h-4 w-4 mr-2" />{t("add_new")}</Button>
         <Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-airports"><Upload className="h-4 w-4 mr-2" />{t("import_csv")}</Button>
+        <div className="relative w-56">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" placeholder={t("search_airports_placeholder")} value={search} onChange={(e) => setSearch(e.target.value)} data-testid="input-search-airports" />
+        </div>
       </div>
 
       <Table>
@@ -660,7 +715,7 @@ function AirportsTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items?.map((item) => (
+          {filtered.map((item) => (
             <TableRow key={item.id} data-testid={`row-airport-${item.id}`}>
               <TableCell className="font-medium" data-testid={`text-airport-code-${item.id}`}>{item.code}</TableCell>
               <TableCell data-testid={`text-airport-name-${item.id}`}>{item.name}</TableCell>
@@ -674,8 +729,8 @@ function AirportsTab() {
               </TableCell>
             </TableRow>
           ))}
-          {(!items || items.length === 0) && (
-            <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">{t("no_airports_found")}</TableCell></TableRow>
+          {filtered.length === 0 && (
+            <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">{normalizedSearch ? t("no_results") : t("no_airports_found")}</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
@@ -723,6 +778,8 @@ export function SightsTab() {
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [cityFilter, setCityFilter] = useState(allCitiesFilter);
+  const [search, setSearch] = useState("");
 
   const [name, setName] = useState("");
   const [cityId, setCityId] = useState("");
@@ -737,6 +794,13 @@ export function SightsTab() {
 
   const { data: items, isLoading } = useQuery<Sight[]>({ queryKey: ["/api/master/sights"] });
   const { data: citiesList } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
+  const getCityName = (cId: string) => citiesList?.find((c) => c.id === cId)?.name || cId;
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtered = (items || []).filter((item) =>
+    (cityFilter === allCitiesFilter || item.cityId === cityFilter) &&
+    (!normalizedSearch || [item.name, getCityName(item.cityId), item.category, item.longDescription]
+      .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch))
+  );
 
   const resetForm = () => { setName(""); setCityId(""); setDescription(""); setLongDescription(""); setCategory("other"); setTicketRequired(false); setIndividualTicketCost(""); setGroupTicketCost(""); setEstimatedDuration(""); setIsActive(true); };
 
@@ -768,15 +832,6 @@ export function SightsTab() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
-  const scrapeSightsMutation = useMutation({
-    mutationFn: (cityId: string) => apiRequest("POST", `/api/admin/scrape/sights/${cityId}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/master/sights"] });
-      toast({ title: t("sights_scraped_for_city") });
-    },
-    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
-  });
-
   const enrichMutation = useMutation({
     mutationFn: (id: string) => apiRequest("POST", `/api/admin/ai/enrich-sight/${id}`),
     onSuccess: () => {
@@ -792,8 +847,6 @@ export function SightsTab() {
     else createMutation.mutate(data);
   };
 
-  const getCityName = (cId: string) => citiesList?.find((c) => c.id === cId)?.name || cId;
-
   if (isLoading) return <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>;
 
   return (
@@ -802,14 +855,19 @@ export function SightsTab() {
         <Button onClick={openCreate} data-testid="button-add-sight"><Plus className="h-4 w-4 mr-2" />Add New</Button>
         <Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-sights"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>
         <div className="flex items-center gap-2 border-l pl-3 ml-1">
-          <Select onValueChange={(v) => scrapeSightsMutation.mutate(v)}>
-            <SelectTrigger className="w-[200px] h-9">
-              <SelectValue placeholder={t("scrape_sights_for_placeholder")} />
+          <Select value={cityFilter} onValueChange={setCityFilter}>
+            <SelectTrigger className="w-[200px] h-9" data-testid="select-sights-city-filter">
+              <SelectValue placeholder={t("select_city_placeholder")} />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value={allCitiesFilter}>{t("all_cities")}</SelectItem>
               {citiesList?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
             </SelectContent>
           </Select>
+        </div>
+        <div className="relative w-56">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" placeholder={t("search_sights_placeholder")} value={search} onChange={(e) => setSearch(e.target.value)} data-testid="input-search-sights" />
         </div>
       </div>
 
@@ -829,7 +887,7 @@ export function SightsTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items?.map((item) => (
+          {filtered.map((item) => (
             <TableRow key={item.id} data-testid={`row-sight-${item.id}`}>
               <TableCell className="font-medium" data-testid={`text-sight-name-${item.id}`}>{item.name}</TableCell>
               <TableCell className="text-muted-foreground">{getCityName(item.cityId)}</TableCell>
@@ -857,8 +915,8 @@ export function SightsTab() {
               </TableCell>
             </TableRow>
           ))}
-          {(!items || items.length === 0) && (
-            <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">No sights found</TableCell></TableRow>
+          {filtered.length === 0 && (
+            <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">{normalizedSearch || cityFilter !== allCitiesFilter ? t("no_results") : "No sights found"}</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
@@ -925,6 +983,7 @@ function TransportCompaniesTab() {
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const [name, setName] = useState("");
   const [countryId, setCountryId] = useState("");
@@ -936,6 +995,12 @@ function TransportCompaniesTab() {
 
   const { data: items, isLoading } = useQuery<TransportCompany[]>({ queryKey: ["/api/master/transport-companies"] });
   const { data: countriesList } = useQuery<Country[]>({ queryKey: ["/api/master/countries"] });
+  const getCountryName = (cId: string) => countriesList?.find((c) => c.id === cId)?.name || cId;
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtered = (items || []).filter((item) =>
+    !normalizedSearch || [item.name, item.countryId ? getCountryName(item.countryId) : "", ...(item.vehicleTypes || []), item.contactName]
+      .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch)
+  );
 
   const resetForm = () => { setName(""); setCountryId(""); setVehicleTypes(""); setContactName(""); setContactPhone(""); setContactEmail(""); setIsActive(true); };
 
@@ -980,8 +1045,6 @@ function TransportCompaniesTab() {
     else createMutation.mutate(data);
   };
 
-  const getCountryName = (cId: string) => countriesList?.find((c) => c.id === cId)?.name || cId;
-
   if (isLoading) return <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>;
 
   return (
@@ -989,6 +1052,10 @@ function TransportCompaniesTab() {
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={openCreate} data-testid="button-add-transport"><Plus className="h-4 w-4 mr-2" />Add New</Button>
         <Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-transport"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>
+        <div className="relative w-56">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" placeholder={t("search_transport_companies_placeholder")} value={search} onChange={(e) => setSearch(e.target.value)} data-testid="input-search-transport-companies" />
+        </div>
       </div>
 
       <Table>
@@ -1003,7 +1070,7 @@ function TransportCompaniesTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items?.map((item) => (
+          {filtered.map((item) => (
             <TableRow key={item.id} data-testid={`row-transport-${item.id}`}>
               <TableCell className="font-medium" data-testid={`text-transport-name-${item.id}`}>{item.name}</TableCell>
               <TableCell className="text-muted-foreground">{item.countryId ? getCountryName(item.countryId) : "-"}</TableCell>
@@ -1023,8 +1090,8 @@ function TransportCompaniesTab() {
               </TableCell>
             </TableRow>
           ))}
-          {(!items || items.length === 0) && (
-            <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No transport companies found</TableCell></TableRow>
+          {filtered.length === 0 && (
+            <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{normalizedSearch ? t("no_results") : "No transport companies found"}</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
@@ -1076,6 +1143,7 @@ function AirlineAgenciesTab() {
   const [showForm, setShowForm] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const [name, setName] = useState("");
   const [countryIds, setCountryIds] = useState("");
@@ -1086,6 +1154,17 @@ function AirlineAgenciesTab() {
   const [isActive, setIsActive] = useState(true);
 
   const { data: items, isLoading } = useQuery<AirlineAgency[]>({ queryKey: ["/api/master/airline-agencies"] });
+  const { data: countriesList } = useQuery<Country[]>({ queryKey: ["/api/master/countries"] });
+  const getCountryName = (cId: string) => countriesList?.find((c) => c.id === cId)?.name || cId;
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtered = (items || []).filter((item) =>
+    !normalizedSearch || [
+      item.name,
+      ...(item.countryIds || []).map((cId) => getCountryName(cId)),
+      item.contactName,
+      ...(item.specializations || []),
+    ].filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch)
+  );
 
   const resetForm = () => { setName(""); setCountryIds(""); setContactName(""); setContactPhone(""); setContactEmail(""); setSpecializations(""); setIsActive(true); };
 
@@ -1137,6 +1216,10 @@ function AirlineAgenciesTab() {
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={openCreate} data-testid="button-add-airline-agency"><Plus className="h-4 w-4 mr-2" />Add New</Button>
         <Button variant="outline" onClick={() => setShowImport(true)} data-testid="button-import-airline-agencies"><Upload className="h-4 w-4 mr-2" />Import CSV</Button>
+        <div className="relative w-56">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" placeholder={t("search_airline_agencies_placeholder")} value={search} onChange={(e) => setSearch(e.target.value)} data-testid="input-search-airline-agencies" />
+        </div>
       </div>
 
       <Table>
@@ -1151,7 +1234,7 @@ function AirlineAgenciesTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items?.map((item) => (
+          {filtered.map((item) => (
             <TableRow key={item.id} data-testid={`row-airline-agency-${item.id}`}>
               <TableCell className="font-medium" data-testid={`text-airline-agency-name-${item.id}`}>{item.name}</TableCell>
               <TableCell>
@@ -1176,8 +1259,8 @@ function AirlineAgenciesTab() {
               </TableCell>
             </TableRow>
           ))}
-          {(!items || items.length === 0) && (
-            <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No airline agencies found</TableCell></TableRow>
+          {filtered.length === 0 && (
+            <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{normalizedSearch ? t("no_results") : "No airline agencies found"}</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
@@ -1219,12 +1302,21 @@ function HotelsTab() {
   const [editItem, setEditItem] = useState<Hotel | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [cityFilter, setCityFilter] = useState(allCitiesFilter);
+  const [search, setSearch] = useState("");
 
   const [form, setForm] = useState<HotelFormValues>(emptyHotelFormValues);
 
   const { data: items, isLoading } = useQuery<Hotel[]>({ queryKey: ["/api/hotels"] });
   const { data: citiesList } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
   const { data: profile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const getCityName = (cId: string) => citiesList?.find((c) => c.id === cId)?.name || cId;
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtered = (items || []).filter((item) =>
+    (cityFilter === allCitiesFilter || item.cityId === cityFilter) &&
+    (!normalizedSearch || [item.name, getCityName(item.cityId), String(item.starRating), (item as any).googleMapsUrl]
+      .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch))
+  );
   const canApprove = profile?.role === "admin" || profile?.role === "super_admin";
 
   const approveMutation = useMutation({
@@ -1261,19 +1353,11 @@ function HotelsTab() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
-  const scrapeHotelsMutation = useMutation({
-    mutationFn: (cId: string) => apiRequest("POST", `/api/admin/scrape/hotels/${cId}`),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/hotels"] }); toast({ title: t("hotels_scraped_for_city") }); },
-    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
-  });
-
   const handleSubmit = () => {
     const data = hotelFormToPayload(form);
     if (editItem) updateMutation.mutate({ id: editItem.id, ...data });
     else createMutation.mutate(data);
   };
-
-  const getCityName = (cId: string) => citiesList?.find((c) => c.id === cId)?.name || cId;
 
   if (isLoading) return <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>;
 
@@ -1282,14 +1366,19 @@ function HotelsTab() {
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" />Add New</Button>
         <div className="flex items-center gap-2 border-l pl-3 ml-1">
-          <Select onValueChange={(v) => scrapeHotelsMutation.mutate(v)}>
-            <SelectTrigger className="w-[200px] h-9">
-              <SelectValue placeholder={t("scrape_hotels_for_placeholder")} />
+          <Select value={cityFilter} onValueChange={setCityFilter}>
+            <SelectTrigger className="w-[200px] h-9" data-testid="select-hotels-city-filter">
+              <SelectValue placeholder={t("select_city_placeholder")} />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value={allCitiesFilter}>{t("all_cities")}</SelectItem>
               {citiesList?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
             </SelectContent>
           </Select>
+        </div>
+        <div className="relative w-56">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" placeholder={t("search_hotels_placeholder")} value={search} onChange={(e) => setSearch(e.target.value)} data-testid="input-search-hotels" />
         </div>
       </div>
 
@@ -1306,7 +1395,7 @@ function HotelsTab() {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items?.map((item) => (
+          {filtered.map((item) => (
             <TableRow key={item.id}>
               <TableCell className="font-medium">{item.name}</TableCell>
               <TableCell className="text-muted-foreground">{getCityName(item.cityId)}</TableCell>
@@ -1341,8 +1430,8 @@ function HotelsTab() {
               </TableCell>
             </TableRow>
           ))}
-          {(!items || items.length === 0) && (
-            <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No hotels found</TableCell></TableRow>
+          {filtered.length === 0 && (
+            <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{normalizedSearch || cityFilter !== allCitiesFilter ? t("no_results") : "No hotels found"}</TableCell></TableRow>
           )}
         </TableBody>
       </Table>

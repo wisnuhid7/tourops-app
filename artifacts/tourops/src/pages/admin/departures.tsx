@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +16,25 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { Plus, Calendar, Plane, Pencil, Trash2, Search } from "lucide-react";
 import type { TourDeparture, Tour, Airport } from "@workspace/db";
+import {
+  DateFilterModule,
+  ModuleRegistry,
+  NumberFilterModule,
+  TextFilterModule,
+  ValidationModule,
+  themeQuartz,
+  type ColDef,
+  type GetRowIdParams,
+  type ICellRendererParams,
+} from "ag-grid-community";
+import { AgGridReact } from "ag-grid-react";
+
+ModuleRegistry.registerModules([TextFilterModule, NumberFilterModule, DateFilterModule]);
+if (import.meta.env.DEV) {
+  ModuleRegistry.registerModules([ValidationModule]);
+}
+
+type DepartureRow = TourDeparture;
 
 export default function AdminDepartures() {
   const { toast } = useToast();
@@ -67,7 +86,7 @@ export default function AdminDepartures() {
   const [editPublicJoin, setEditPublicJoin] = useState(true);
   const [deleteDep, setDeleteDep] = useState<TourDeparture | null>(null);
 
-  const openEdit = (dep: TourDeparture) => {
+  const openEdit = useCallback((dep: TourDeparture) => {
     setEditDep(dep);
     setEditStartDate(dep.startDate || "");
     setEditEndDate(dep.endDate || "");
@@ -75,7 +94,7 @@ export default function AdminDepartures() {
     setEditPrice(Number(dep.pricePerPerson) || 0);
     setEditStatus(dep.status || "open");
     setEditPublicJoin(!!dep.publicJoinEnabled);
-  };
+  }, []);
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => apiRequest("PATCH", `/api/departures/${id}`, data),
@@ -130,6 +149,132 @@ export default function AdminDepartures() {
       (statusFilter === "all" || dep.status === statusFilter) &&
       (tourFilter === "all" || dep.tourId === tourFilter);
   });
+
+  const gridTheme = useMemo(() => themeQuartz.withParams({
+    fontFamily: "var(--font-sans)",
+    accentColor: "hsl(var(--primary))",
+    backgroundColor: "hsl(var(--background))",
+    borderColor: "hsl(var(--border))",
+    columnBorder: "1px solid hsl(var(--border))",
+    rowBorder: "1px solid hsl(var(--border))",
+    headerColumnBorder: "1px solid hsl(var(--border))",
+    headerRowBorder: "1px solid hsl(var(--border))",
+    wrapperBorder: "1px solid hsl(var(--border))",
+    wrapperBorderRadius: 8,
+    headerBackgroundColor: "hsl(var(--muted) / 0.45)",
+    headerTextColor: "hsl(var(--muted-foreground))",
+    inputBackgroundColor: "hsl(var(--background))",
+    inputBorder: "1px solid hsl(var(--border))",
+    inputBorderRadius: 6,
+    inputFocusBackgroundColor: "hsl(var(--background))",
+    inputFocusBorder: "1px solid hsl(var(--primary))",
+    inputHeight: 28,
+    inputPlaceholderTextColor: "hsl(var(--muted-foreground))",
+    inputTextColor: "hsl(var(--foreground))",
+    borderRadius: 8,
+    headerHeight: 40,
+    rowHeight: 40,
+    fontSize: 14,
+    dataFontSize: 14,
+    headerFontWeight: 500,
+  }), []);
+
+  const defaultColDef = useMemo<ColDef<DepartureRow>>(() => ({
+    sortable: true,
+    filter: true,
+    resizable: true,
+    suppressHeaderMenuButton: true,
+  }), []);
+
+  const columnDefs = useMemo<ColDef<DepartureRow>[]>(() => [
+    {
+      headerName: t("tour_label"),
+      field: "tourId",
+      minWidth: 200,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => {
+        const tour = tours?.find((tr) => tr.id === params.data?.tourId);
+        return tour?.title || t("unknown_tour");
+      },
+    },
+    {
+      headerName: t("date"),
+      minWidth: 190,
+      flex: 1,
+      filter: "agDateColumnFilter",
+      valueGetter: (params) => `${params.data?.startDate || ""} → ${params.data?.endDate || ""}`,
+      filterValueGetter: (params) => params.data?.startDate ? new Date(`${params.data.startDate}T00:00:00`) : null,
+    },
+    {
+      headerName: t("booked_label"),
+      width: 120,
+      filter: "agNumberColumnFilter",
+      valueGetter: (params) => Number(params.data?.capacityBooked || 0),
+      valueFormatter: (params) => `${params.value ?? 0}/${params.data?.capacityTotal || 0} ${t("booked_suffix")}`,
+    },
+    {
+      headerName: t("price"),
+      width: 140,
+      filter: "agNumberColumnFilter",
+      valueGetter: (params) => params.data?.pricePerPerson != null ? Number(params.data.pricePerPerson) : null,
+      valueFormatter: (params) => params.data?.pricePerPerson != null ? `$${params.data.pricePerPerson} / ${t("per_person")}` : "—",
+    },
+    {
+      headerName: t("route_label"),
+      width: 140,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => {
+        const departureAirport = airports?.find((airport) => airport.id === params.data?.departureAirportId);
+        const arrivalAirport = airports?.find((airport) => airport.id === params.data?.arrivalAirportId);
+        if (!departureAirport && !arrivalAirport) return "";
+        return `${departureAirport?.code || ""} → ${arrivalAirport?.code || ""}`;
+      },
+      cellRenderer: (params: ICellRendererParams<DepartureRow>) => params.value ? (
+        <span className="flex items-center gap-1"><Plane className="h-4 w-4" />{params.value}</span>
+      ) : "—",
+    },
+    {
+      headerName: t("public_badge"),
+      width: 100,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => !!params.data?.publicJoinEnabled,
+      filterValueGetter: (params) => params.data?.publicJoinEnabled ? t("public_badge") : "—",
+      cellRenderer: (params: ICellRendererParams<DepartureRow>) => params.value ? <Badge variant="outline">{t("public_badge")}</Badge> : "—",
+    },
+    {
+      headerName: t("status"),
+      field: "status",
+      width: 130,
+      filter: "agTextColumnFilter",
+      cellRenderer: (params: ICellRendererParams<DepartureRow>) => {
+        const status = params.data?.status || "open";
+        return <Badge variant={statusColors[status] as any}>{status}</Badge>;
+      },
+    },
+    {
+      headerName: t("actions"),
+      width: 100,
+      pinned: "right",
+      sortable: false,
+      filter: false,
+      resizable: false,
+      cellRenderer: (params: ICellRendererParams<DepartureRow>) => {
+        if (!params.data) return null;
+        const dep = params.data;
+        return (
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={() => openEdit(dep)} data-testid={`button-edit-departure-${dep.id}`}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteDep(dep)} data-testid={`button-delete-departure-${dep.id}`}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        );
+      },
+    },
+  ], [airports, openEdit, t, tours]);
 
   if (isLoading) return <div className="p-6"><Skeleton className="h-8 w-48 mb-4" />{[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 mb-2" />)}</div>;
 
@@ -242,54 +387,26 @@ export default function AdminDepartures() {
         ) : (
         <Card><CardContent className="flex flex-col items-center py-16"><Calendar className="h-12 w-12 text-muted-foreground/40 mb-4" /><h3 className="font-semibold mb-1">{t("no_departures_admin")}</h3><p className="text-sm text-muted-foreground">{t("create_departure_hint")}</p></CardContent></Card>
         )
-      ) : (
+      ) : filtered.length === 0 ? (
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("tour_label")}</TableHead>
-              <TableHead>{t("date")}</TableHead>
-              <TableHead>{t("booked_label")}</TableHead>
-              <TableHead>{t("price")}</TableHead>
-              <TableHead>{t("route_label")}</TableHead>
-              <TableHead>{t("public_badge")}</TableHead>
-              <TableHead>{t("status")}</TableHead>
-              <TableHead>{t("actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
           <TableBody>
-          {filtered.map((dep) => {
-            const tour = tours?.find((t) => t.id === dep.tourId);
-            const depAir = airports?.find(a => a.id === dep.departureAirportId);
-            const arrAir = airports?.find(a => a.id === dep.arrivalAirportId);
-            return (
-              <TableRow key={dep.id} data-testid={`card-departure-${dep.id}`}>
-                <TableCell className="font-medium">{tour?.title || t("unknown_tour")}</TableCell>
-                <TableCell>{dep.startDate} → {dep.endDate}</TableCell>
-                <TableCell>{dep.capacityBooked}/{dep.capacityTotal} {t("booked_suffix")}</TableCell>
-                <TableCell>{dep.pricePerPerson != null ? `$${dep.pricePerPerson} / ${t("per_person")}` : "—"}</TableCell>
-                <TableCell>
-                  {(depAir || arrAir) ? <span className="flex items-center gap-1"><Plane className="h-4 w-4" />{depAir?.code || "—"} → {arrAir?.code || "—"}</span> : "—"}
-                </TableCell>
-                <TableCell>{dep.publicJoinEnabled ? <Badge variant="outline">{t("public_badge")}</Badge> : "—"}</TableCell>
-                <TableCell><Badge variant={statusColors[dep.status || "open"] as any}>{dep.status || "open"}</Badge></TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(dep)} data-testid={`button-edit-departure-${dep.id}`}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => setDeleteDep(dep)} data-testid={`button-delete-departure-${dep.id}`}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            );
-          })}
-          {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{filtersActive ? t("no_results") : t("no_departures_admin")}</TableCell></TableRow>
-          )}
+            <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{t("no_results")}</TableCell></TableRow>
           </TableBody>
         </Table>
+      ) : (
+        <div
+          data-testid="grid-departures"
+          style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}
+        >
+          <AgGridReact<DepartureRow>
+            theme={gridTheme}
+            rowData={filtered}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            getRowId={(params: GetRowIdParams<DepartureRow>) => params.data.id}
+            suppressCellFocus
+          />
+        </div>
       )}
 
       {/* Edit dialog */}

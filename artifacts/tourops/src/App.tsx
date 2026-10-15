@@ -221,8 +221,9 @@ function AuthenticatedLayout() {
             <Route path="/ops/booking-operations/:bookingId" component={BookingOperations} />
 
             {/* Redirects */}
+            {/* Airline search (simulated data) is disabled — stale links land on the supplier dashboard default. */}
             <Route path="/admin/airline-search">
-              {() => <Redirect to="/supplier?tab=airline_search" />}
+              {() => <Redirect to="/supplier" />}
             </Route>
             <Route path="/admin/login">
               {() => <Redirect to="/admin" />}

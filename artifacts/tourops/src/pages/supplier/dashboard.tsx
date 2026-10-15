@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { SightsTab } from "@/pages/admin/master-data";
 import { AirlinesCatalogTab } from "@/pages/supplier/airlines-catalog";
-import { AirlineSearchTab } from "@/pages/supplier/airline-search";
 import { WORKFLOW_STATUSES } from "@/lib/constants";
 import type { BookingWorkflow, Booking, UserProfile, Traveler, Document } from "@workspace/db";
 import { Link, useSearch } from "wouter";
@@ -75,7 +74,9 @@ export default function SupplierDashboard() {
   const search = useSearch();
   // Deep-link support: /supplier?tab=guide_rates opens directly on that tab
   // (used by the admin/super_admin "Guides" sidebar link).
-  const initialTab = new URLSearchParams(search).get("tab") || "tasks";
+  const requestedTab = new URLSearchParams(search).get("tab") || "tasks";
+  // Airline search (simulated data) is disabled — coerce stale deep links to the default tab.
+  const initialTab = requestedTab === "airline_search" ? "tasks" : requestedTab;
   const [activeTab, setActiveTab] = useState(initialTab);
   // Keep the active tab in sync when the URL changes while mounted
   // (e.g. sidebar links switching between /supplier and /supplier?tab=...).
@@ -480,12 +481,6 @@ export default function SupplierDashboard() {
               {t("airline_rates_tab")}
             </TabsTrigger>
           )}
-          {(profile?.role === "airline_supplier" || profile?.role === "country_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
-            <TabsTrigger value="airline_search" data-testid="tab-airline-search" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
-              <Plane className="h-4 w-4 mr-2" />
-              {t("airline_search")}
-            </TabsTrigger>
-          )}
         </TabsList>
 
         <TabsContent value="service_requests">
@@ -736,16 +731,6 @@ export default function SupplierDashboard() {
           </CardContent>
         </Card>
       </TabsContent>
-
-      {(profile?.role === "airline_supplier" || profile?.role === "country_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
-        <TabsContent value="airline_search">
-          <Card>
-            <CardContent className="pt-6">
-              <AirlineSearchTab />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      )}
 
       <TabsContent value="airline_rates">
         <Card>

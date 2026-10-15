@@ -16,7 +16,7 @@ import {
   Hotel, Bus, MapPin, Camera, Plane,
   ChevronRight, Calendar, User, Search, Globe,
   UserCheck, Ticket, Download, FileCheck, AlertTriangle,
-  DollarSign, ClipboardList, Bell, Plus, Trash2, Pencil, Landmark
+  DollarSign, Bell, Plus, Trash2, Pencil
 } from "lucide-react";
 import { SightsTab } from "@/pages/admin/master-data";
 import { AirlinesCatalogTab } from "@/pages/supplier/airlines-catalog";
@@ -270,7 +270,7 @@ export default function SupplierDashboard() {
     { headerName: t("rate_label"), width: 150, filter: "agNumberColumnFilter", valueGetter: (params) => params.data?.pricePerRoomPerNight != null ? Number(params.data.pricePerRoomPerNight) : null, valueFormatter: (params) => params.data ? `${params.data.currency} ${params.data.pricePerRoomPerNight}` : "" },
     { headerName: t("validity_label"), minWidth: 190, flex: 1, filter: "agDateColumnFilter", valueGetter: (params) => `${params.data?.validFrom || ""} to ${params.data?.validTo || ""}`, filterValueGetter: (params) => toGridDate(params.data?.validFrom) },
     { headerName: t("status"), width: 130, filter: "agTextColumnFilter", field: "status", filterValueGetter: (params) => params.data?.status || "", cellRenderer: (params: ICellRendererParams<any>) => <Badge variant="outline" className="capitalize">{params.data?.status}</Badge> },
-    { headerName: t("actions"), width: 110, pinned: "right", sortable: false, filter: false, resizable: false, cellRenderer: (params: ICellRendererParams<any>) => params.data ? <div className="flex justify-end gap-2"><Button variant="ghost" size="icon" onClick={() => openRateDialog("hotel", params.data)}><Plus className="h-4 w-4 rotate-45" /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => { if (confirm(t("confirm_delete_rate"))) deleteRate.mutate({ type: "hotel", id: params.data.id }); }}><Trash2 className="h-4 w-4" /></Button></div> : null },
+    { headerName: t("actions"), width: 110, pinned: "right", sortable: false, filter: false, resizable: false, cellRenderer: (params: ICellRendererParams<any>) => params.data ? <div className="flex justify-end gap-2"><Button variant="ghost" size="icon" onClick={() => openRateDialog("hotel", params.data)} data-testid={`button-edit-hotel-rate-${params.data.id}`}><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => { if (confirm(t("confirm_delete_rate"))) deleteRate.mutate({ type: "hotel", id: params.data.id }); }}><Trash2 className="h-4 w-4" /></Button></div> : null },
   ], [deleteRate, openRateDialog, t]);
 
   const guideRateGridTheme = useMemo(() => agGridTheme, []);
@@ -430,59 +430,6 @@ export default function SupplierDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-8">
-        <TabsList className="mb-6 bg-white/50 backdrop-blur-sm border shadow-sm p-1">
-          <TabsTrigger value="tasks" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
-            <ClipboardList className="h-4 w-4 mr-2" />
-            {t("tasks_tab")}
-          </TabsTrigger>
-          <TabsTrigger value="service_requests" data-testid="tab-service-requests" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
-            <Bell className="h-4 w-4 mr-2" />
-            {t("sr_tab")}
-          </TabsTrigger>
-          {(profile?.role === "hotel_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
-            <TabsTrigger value="hotels" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
-              <Hotel className="h-4 w-4 mr-2" />
-              {t("hotels_catalog")}
-            </TabsTrigger>
-          )}
-          {(profile?.role === "hotel_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
-            <TabsTrigger value="hotel_rates" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
-              <Hotel className="h-4 w-4 mr-2" />
-              {t("hotel_rates_tab")}
-            </TabsTrigger>
-          )}
-          {(profile?.role === "guide_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
-            <TabsTrigger value="guide_rates" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
-              <UserCheck className="h-4 w-4 mr-2" />
-              {t("guide_rates_tab")}
-            </TabsTrigger>
-          )}
-          {(profile?.role === "sights_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
-            <TabsTrigger value="sights_catalog" data-testid="tab-sights-catalog" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
-              <Landmark className="h-4 w-4 mr-2" />
-              {t("sights_catalog")}
-            </TabsTrigger>
-          )}
-          {(profile?.role === "sights_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
-            <TabsTrigger value="sights_rates" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
-              <Ticket className="h-4 w-4 mr-2" />
-              {t("sights_rates_tab")}
-            </TabsTrigger>
-          )}
-          {(profile?.role === "airline_supplier" || profile?.role === "country_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
-            <TabsTrigger value="airlines_catalog" data-testid="tab-airlines-catalog" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
-              <Plane className="h-4 w-4 mr-2" />
-              {t("airlines_catalog")}
-            </TabsTrigger>
-          )}
-          {(profile?.role === "airline_supplier" || profile?.role === "country_manager" || profile?.role === "admin" || profile?.role === "super_admin") && (
-            <TabsTrigger value="airline_rates" className="data-[state=active]:bg-primary data-[state=active]:text-white rounded-md px-6 py-2 transition-all">
-              <Plane className="h-4 w-4 mr-2" />
-              {t("airline_rates_tab")}
-            </TabsTrigger>
-          )}
-        </TabsList>
-
         <TabsContent value="service_requests">
           <SupplierServiceRequests />
         </TabsContent>

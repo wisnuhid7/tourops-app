@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearch } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -9,11 +10,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Building2, Bus, Route, DollarSign, CalendarCheck, FileText,
+  FileText,
   Plus, Pencil, Trash2, Check, X, CreditCard, ChevronLeft, ChevronRight, Search,
 } from "lucide-react";
 import type {
@@ -1671,32 +1672,21 @@ function InvoicesPaymentsTab() {
 
 export default function TransportManagement() {
   const { t } = useLanguage();
+  const search = useSearch();
+  const tabParam = new URLSearchParams(search).get("tab") || "";
+  const TRANSPORT_TABS = ["companies", "bus-types", "routes", "pricing", "bookings", "invoices"] as const;
+  const initialTab = (TRANSPORT_TABS as readonly string[]).includes(tabParam) ? tabParam : "companies";
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-bold" data-testid="text-page-title">{t("transportation_management")}</h1>
 
-      <Tabs defaultValue="companies">
-        <TabsList className="flex flex-wrap gap-1">
-          <TabsTrigger value="companies" data-testid="tab-companies" className="flex items-center gap-1">
-            <Building2 className="h-4 w-4" />{t("companies_label")}
-          </TabsTrigger>
-          <TabsTrigger value="bus-types" data-testid="tab-bus-types" className="flex items-center gap-1">
-            <Bus className="h-4 w-4" />{t("bus_types_label")}
-          </TabsTrigger>
-          <TabsTrigger value="routes" data-testid="tab-routes" className="flex items-center gap-1">
-            <Route className="h-4 w-4" />{t("routes_label")}
-          </TabsTrigger>
-          <TabsTrigger value="pricing" data-testid="tab-pricing" className="flex items-center gap-1">
-            <DollarSign className="h-4 w-4" />{t("route_pricing_label")}
-          </TabsTrigger>
-          <TabsTrigger value="bookings" data-testid="tab-bookings" className="flex items-center gap-1">
-            <CalendarCheck className="h-4 w-4" />{t("bookings")}
-          </TabsTrigger>
-          <TabsTrigger value="invoices" data-testid="tab-invoices" className="flex items-center gap-1">
-            <FileText className="h-4 w-4" />{t("invoices_payments_label")}
-          </TabsTrigger>
-        </TabsList>
-
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsContent value="companies"><CompaniesTab /></TabsContent>
         <TabsContent value="bus-types"><BusTypesTab /></TabsContent>
         <TabsContent value="routes"><RoutesTab /></TabsContent>

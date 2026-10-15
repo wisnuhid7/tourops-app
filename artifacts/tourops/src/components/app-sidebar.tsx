@@ -25,7 +25,7 @@ import {
   LayoutDashboard, Globe, BookOpen, Users, 
   BarChart3, Settings, LogOut, Plane, 
   Hotel, Bus, UserCheck, Ticket, Truck, TicketCheck, Database, Headset,
-  UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart, Wand2, Percent, DollarSign, Building2, Flag, Landmark, CalendarDays, Calculator, Sparkles, ChevronDown
+  UserPlus, ShieldCheck, Mail, CreditCard, UserCheck2, FileText, PieChart, Wand2, Percent, DollarSign, Building2, Flag, Landmark, CalendarDays, Calculator, Route, Sparkles, ChevronDown
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,7 @@ type NavGroup = NavItem & {
 };
 
 type NavEntry = NavItem | NavGroup;
+type SupplierSection = "hotels" | "guides" | "sights" | "airlines";
 
 function isNavGroup(item: NavEntry): item is NavGroup {
   return "children" in item;
@@ -79,6 +80,44 @@ export function AppSidebar() {
 
   const getNav = (): NavEntry[] => {
     const role = profile?.role;
+    const createTransportChildren = (baseUrl: string): NavItem[] => [
+      { title: t("companies_label"), url: `${baseUrl}?tab=companies`, icon: Building2 },
+      { title: t("bus_types_label"), url: `${baseUrl}?tab=bus-types`, icon: Bus },
+      { title: t("routes_label"), url: `${baseUrl}?tab=routes`, icon: Route },
+      { title: t("route_pricing_label"), url: `${baseUrl}?tab=pricing`, icon: DollarSign },
+      { title: t("bookings"), url: `${baseUrl}?tab=bookings`, icon: CalendarDays },
+      { title: t("invoices_payments_label"), url: `${baseUrl}?tab=invoices`, icon: FileText },
+    ];
+
+    const createSupplierChildren = (baseUrl: string, sections: SupplierSection[]): NavItem[] => {
+      const children: NavItem[] = [
+        { title: t("tasks_tab"), url: `${baseUrl}?tab=tasks`, icon: BookOpen },
+        { title: t("sr_tab"), url: `${baseUrl}?tab=service_requests`, icon: Headset },
+      ];
+      if (sections.includes("hotels")) {
+        children.push(
+          { title: t("hotels_catalog"), url: `${baseUrl}?tab=hotels`, icon: Hotel },
+          { title: t("hotel_rates_tab"), url: `${baseUrl}?tab=hotel_rates`, icon: CreditCard },
+        );
+      }
+      if (sections.includes("guides")) {
+        children.push({ title: t("guide_rates_tab"), url: `${baseUrl}?tab=guide_rates`, icon: UserCheck2 });
+      }
+      if (sections.includes("sights")) {
+        children.push(
+          { title: t("sights_catalog"), url: `${baseUrl}?tab=sights_catalog`, icon: Landmark },
+          { title: t("sights_rates_tab"), url: `${baseUrl}?tab=sights_rates`, icon: Ticket },
+        );
+      }
+      if (sections.includes("airlines")) {
+        children.push(
+          { title: t("airlines_catalog"), url: `${baseUrl}?tab=airlines_catalog`, icon: Plane },
+          { title: t("airline_rates_tab"), url: `${baseUrl}?tab=airline_rates`, icon: CreditCard },
+        );
+      }
+      return children;
+    };
+
     if (role === "admin" || role === "super_admin") {
       const masterDataChildren: NavItem[] = [
         { title: t("entity_countries_plural"), url: "/admin/master-data?tab=countries", icon: Flag },
@@ -90,6 +129,13 @@ export function AppSidebar() {
         { title: t("hotels"), url: "/admin/master-data?tab=hotels", icon: Hotel },
       ];
 
+      const rateCardsChildren: NavItem[] = [
+        { title: t("hotel_label"), url: "/admin/rate-cards?tab=hotel", icon: Hotel },
+        { title: t("transport"), url: "/admin/rate-cards?tab=transport", icon: Bus },
+        { title: t("guide_label"), url: "/admin/rate-cards?tab=guide", icon: UserCheck2 },
+        { title: t("sights"), url: "/admin/rate-cards?tab=sights", icon: Landmark },
+      ];
+
       const items: NavEntry[] = [
         { title: t("dashboard"), url: "/admin", icon: LayoutDashboard },
         { title: t("tours"), url: "/admin/tours", icon: Globe },
@@ -97,15 +143,13 @@ export function AppSidebar() {
         { title: t("bookings"), url: "/admin/bookings", icon: BookOpen },
         { title: t("reports"), url: "/admin/reports", icon: BarChart3 },
         { title: t("users"), url: "/admin/users", icon: Users },
-        { title: t("transport"), url: "/admin/transport", icon: Bus },
+        { type: "group", title: t("transport"), url: "/admin/transport", icon: Bus, children: createTransportChildren("/admin/transport") },
         { title: t("tour_generator"), url: "/admin/tour-generator", icon: Wand2 },
-        { title: t("rate_cards"), url: "/admin/rate-cards", icon: CreditCard },
+        { type: "group", title: t("rate_cards"), url: "/admin/rate-cards", icon: CreditCard, children: rateCardsChildren },
         { title: t("pricing"), url: "/admin/pricing", icon: Percent },
         { title: t("pe_tab_quotes"), url: "/admin/pricing-engine", icon: Calculator },
         { type: "group", title: t("master_data"), url: "/admin/master-data", icon: Database, children: masterDataChildren },
-        { title: t("guides"), url: "/supplier?tab=guide_rates", icon: UserCheck2 },
-        { title: t("nav_sights"), url: "/supplier?tab=sights_catalog", icon: Landmark },
-        { title: t("nav_airlines"), url: "/supplier?tab=airlines_catalog", icon: Plane },
+        { type: "group", title: t("supplier_dashboard"), url: "/supplier", icon: Globe, children: createSupplierChildren("/supplier", ["hotels", "guides", "sights", "airlines"]) },
         { title: t("nav_documents"), url: "/admin/documents", icon: FileText },
         { title: t("nav_payments"), url: "/admin/payments", icon: DollarSign },
         { title: t("nav_messages"), url: "/admin/messages", icon: Mail },
@@ -122,6 +166,7 @@ export function AppSidebar() {
       return [
         { title: t("dashboard"), url: home, icon: LayoutDashboard },
         { title: t("master_data"), url: "/admin/master-data", icon: Database },
+        { type: "group", title: t("supplier_dashboard"), url: "/supplier", icon: Globe, children: createSupplierChildren("/supplier", ["airlines"]) },
       ];
     }
     if (role === "customer") {
@@ -132,14 +177,21 @@ export function AppSidebar() {
       ];
     }
     if (profile?.isTourLeader) return [{ title: t("leader_dashboard"), url: "/leader-dashboard", icon: ShieldCheck }];
-    if (role === "transport_manager") return [{ title: t("transport_dashboard"), url: home, icon: Bus }];
-    if (role === "hotel_manager") return [{ title: t("hotel_dashboard"), url: home, icon: Hotel }];
-    if (role === "guide_manager") return [{ title: t("guide_dashboard"), url: home, icon: UserCheck2 }];
-    if (role === "sights_manager") return [
-      { title: t("sights_dashboard"), url: home, icon: Ticket },
-      { title: t("nav_sights"), url: "/supplier?tab=sights_catalog", icon: Landmark },
+    if (role === "transport_manager") return [
+      { type: "group", title: t("transport_dashboard"), url: home, icon: Bus, children: createTransportChildren(home) },
     ];
-    if (role === "airline_supplier") return [{ title: t("airline_dashboard"), url: home, icon: Plane }];
+    if (role === "hotel_manager") return [
+      { type: "group", title: t("hotel_dashboard"), url: home, icon: Hotel, children: createSupplierChildren(home, ["hotels"]) },
+    ];
+    if (role === "guide_manager") return [
+      { type: "group", title: t("guide_dashboard"), url: home, icon: UserCheck2, children: createSupplierChildren(home, ["guides"]) },
+    ];
+    if (role === "sights_manager") return [
+      { type: "group", title: t("sights_dashboard"), url: home, icon: Ticket, children: createSupplierChildren(home, ["sights"]) },
+    ];
+    if (role === "airline_supplier") return [
+      { type: "group", title: t("airline_dashboard"), url: home, icon: Plane, children: createSupplierChildren(home, ["airlines"]) },
+    ];
     if (role === "city_manager") return [{ title: t("city_dashboard"), url: home, icon: Globe }];
     if (role === "content_editor") return [{ title: t("editor_dashboard"), url: home, icon: FileText }];
     if (role === "flight_agent") return [{ title: t("flight_dashboard"), url: home, icon: Plane }];
@@ -147,7 +199,9 @@ export function AppSidebar() {
       { title: t("builder_dashboard"), url: home, icon: LayoutDashboard },
       { title: t("tour_generator"), url: "/admin/tour-generator", icon: Wand2 },
     ];
-    if (role === "supplier") return [{ title: t("supplier_dashboard"), url: home, icon: Database }];
+    if (role === "supplier") return [
+      { type: "group", title: t("supplier_dashboard"), url: home, icon: Database, children: createSupplierChildren(home, []) },
+    ];
     if (role === "tour_leader") return [{ title: t("agent_dashboard"), url: home, icon: Users }];
     if (role === "accounting") return [{ title: t("finance_dashboard"), url: home, icon: DollarSign }];
     if (role === "support_agent") return [{ title: t("support_dashboard"), url: home, icon: Headset }];
@@ -171,19 +225,23 @@ export function AppSidebar() {
       ? currentUrl === url
       : location === url && !queryNavItems.some((i) => i.url.includes("?") && currentUrl === i.url);
 
-  const masterDataGroup = navItems.find((item): item is NavGroup => isNavGroup(item) && item.url === "/admin/master-data");
-  const masterDataChildActive = Boolean(masterDataGroup?.children.some((child) => isItemActive(child.url)));
-  const [masterDataOpen, setMasterDataOpen] = useState(masterDataChildActive);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    if (masterDataChildActive) setMasterDataOpen(true);
-  }, [masterDataChildActive]);
+    const next: Record<string, boolean> = {};
+    navItems.forEach((item) => {
+      if (isNavGroup(item)) {
+        next[item.url] = item.children.some((child) => isItemActive(child.url));
+      }
+    });
+    setOpenGroups((previous) => ({ ...previous, ...next }));
+  }, [currentUrl, profile?.role]);
 
   const closeMobileAfterNavigation = () => {
     if (isMobile) setOpenMobile(false);
   };
 
-  const openSidebarForMasterData = () => {
+  const openSidebarForGroup = () => {
     if (!isMobile && state === "collapsed") setOpen(true);
   };
 
@@ -210,42 +268,50 @@ export function AppSidebar() {
             <SidebarMenu>
               {navItems.map((item) => {
                 if (isNavGroup(item)) {
-                  const groupActive = location === item.url || masterDataChildActive;
-                  const groupOpen = masterDataOpen || masterDataChildActive;
+                  const childActive = item.children.some((child) => isItemActive(child.url));
+                  const groupActive = location === item.url || childActive;
+                  const groupOpen = openGroups[item.url] || childActive;
                   return (
-                    <Collapsible key={item.title} open={groupOpen} onOpenChange={setMasterDataOpen} asChild>
+                    <Collapsible
+                      key={item.title}
+                      open={groupOpen}
+                      onOpenChange={(open) => setOpenGroups((previous) => ({ ...previous, [item.url]: open }))}
+                      asChild
+                    >
                       <SidebarMenuItem>
-                        <SidebarMenuButton
-                          asChild
-                          isActive={groupActive}
-                          tooltip={item.title}
-                          className="hover:bg-primary/5 active:scale-95 transition-all rounded-lg py-6 pr-12 group"
-                        >
-                          <Link
-                            href={item.url}
-                            className="flex items-center gap-3"
-                            onClick={() => {
-                              openSidebarForMasterData();
-                              closeMobileAfterNavigation();
-                            }}
+                        <div className="relative">
+                          <SidebarMenuButton
+                            asChild
+                            isActive={groupActive}
+                            tooltip={item.title}
+                            className="hover:bg-primary/5 active:scale-95 transition-all rounded-lg py-6 pr-12 group"
                           >
-                            <div className={`p-2 rounded-md transition-colors ${groupActive ? 'bg-primary text-white shadow-md' : 'bg-slate-100 dark:bg-slate-900 group-hover:bg-primary/10 group-hover:text-primary'}`}>
-                              <item.icon className="h-4 w-4" />
-                            </div>
-                            <span className={`font-medium text-sm transition-colors ${groupActive ? 'text-primary font-bold' : 'text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white'}`}>
-                              {item.title}
-                            </span>
-                          </Link>
-                        </SidebarMenuButton>
-                        <CollapsibleTrigger asChild>
-                          <SidebarMenuAction
-                            aria-label={`${groupOpen ? "Collapse" : "Expand"} ${item.title}`}
-                            aria-expanded={groupOpen}
-                            className="right-1.5 top-1/2 h-9 w-9 -translate-y-1/2 rounded-md p-0 flex items-center justify-center text-muted-foreground transition-colors duration-200 hover:bg-primary/10 hover:text-primary active:bg-primary/15 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1"
-                          >
-                            <ChevronDown className={`h-4 w-4 transition-transform duration-200 ease-out ${groupOpen ? "rotate-180" : ""}`} />
-                          </SidebarMenuAction>
-                        </CollapsibleTrigger>
+                            <Link
+                              href={item.url}
+                              className="flex items-center gap-3"
+                              onClick={() => {
+                                openSidebarForGroup();
+                                closeMobileAfterNavigation();
+                              }}
+                            >
+                              <div className={`p-2 rounded-md transition-colors ${groupActive ? 'bg-primary text-white shadow-md' : 'bg-slate-100 dark:bg-slate-900 group-hover:bg-primary/10 group-hover:text-primary'}`}>
+                                <item.icon className="h-4 w-4" />
+                              </div>
+                              <span className={`font-medium text-sm transition-colors ${groupActive ? 'text-primary font-bold' : 'text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white'}`}>
+                                {item.title}
+                              </span>
+                            </Link>
+                          </SidebarMenuButton>
+                          <CollapsibleTrigger asChild>
+                            <SidebarMenuAction
+                              aria-label={`${groupOpen ? "Collapse" : "Expand"} ${item.title}`}
+                              aria-expanded={groupOpen}
+                              className="right-1.5 !top-1/2 h-9 w-9 -translate-y-1/2 rounded-md p-0 flex items-center justify-center text-muted-foreground transition-colors duration-200 hover:bg-primary/10 hover:text-primary active:bg-primary/15 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1"
+                            >
+                              <ChevronDown className={`h-4 w-4 transition-transform duration-200 ease-out ${groupOpen ? "rotate-180" : ""}`} />
+                            </SidebarMenuAction>
+                          </CollapsibleTrigger>
+                        </div>
                         <CollapsibleContent asChild>
                           <SidebarMenuSub>
                             {item.children.map((child) => {

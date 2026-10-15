@@ -1,4 +1,5 @@
-import { useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { useSearch } from "wouter";
 import { getFullImageUrl } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -12,11 +13,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Plus, Upload, Pencil, Trash2, CheckCircle, Archive, Hotel, Bus, Users, Ticket, FileDown, Search,
+  Plus, Upload, Pencil, Trash2, CheckCircle, Archive, FileDown, Search,
 } from "lucide-react";
 import type { HotelRate, TransportRate, GuideRate, SightsRate } from "@workspace/db";
 import * as XLSX from "xlsx";
@@ -1421,19 +1422,23 @@ function SightsRatesTab() {
 
 export default function RateCardsPage() {
   const { t } = useLanguage();
+  const search = useSearch();
+  const tabParam = new URLSearchParams(search).get("tab") || "";
+  const RATE_CARD_TABS = ["hotel", "transport", "guide", "sights"] as const;
+  const initialTab = (RATE_CARD_TABS as readonly string[]).includes(tabParam) ? tabParam : "hotel";
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
+
   return (
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-2xl font-bold" data-testid="text-page-title">{t("rate_cards")}</h1>
         <p className="text-muted-foreground" data-testid="text-page-description">{t("rate_cards_subtitle")}</p>
       </div>
-      <Tabs defaultValue="hotel" data-testid="tabs-rate-cards">
-        <TabsList data-testid="tabs-list-rate-cards">
-          <TabsTrigger value="hotel" data-testid="tab-hotel"><Hotel className="h-4 w-4 mr-2" />{t("hotel_label")}</TabsTrigger>
-          <TabsTrigger value="transport" data-testid="tab-transport"><Bus className="h-4 w-4 mr-2" />{t("transport")}</TabsTrigger>
-          <TabsTrigger value="guide" data-testid="tab-guide"><Users className="h-4 w-4 mr-2" />{t("guide_label")}</TabsTrigger>
-          <TabsTrigger value="sights" data-testid="tab-sights"><Ticket className="h-4 w-4 mr-2" />{t("sights")}</TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} data-testid="tabs-rate-cards">
         <TabsContent value="hotel"><HotelRatesTab /></TabsContent>
         <TabsContent value="transport"><TransportRatesTab /></TabsContent>
         <TabsContent value="guide"><GuideRatesTab /></TabsContent>

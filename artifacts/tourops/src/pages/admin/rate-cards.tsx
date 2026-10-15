@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import {
-  Plus, Upload, Pencil, Trash2, CheckCircle, Archive, Hotel, Bus, Users, Ticket,
+  Plus, Upload, Pencil, Trash2, CheckCircle, Archive, Hotel, Bus, Users, Ticket, FileDown, Search,
 } from "lucide-react";
 import type { HotelRate, TransportRate, GuideRate, SightsRate } from "@workspace/db";
 import * as XLSX from "xlsx";
@@ -87,6 +87,18 @@ function BulkUploadDialog({
   const [rows, setRows] = useState<any[]>([]);
   const [fileName, setFileName] = useState("");
 
+  const buildRateTemplate = (
+    templateSheetName: string,
+    templateHeaderMapping: Record<string, { field: string; transform?: (v: any) => any }>,
+  ) => {
+    const workbook = XLSX.utils.book_new();
+    const sheet = XLSX.utils.aoa_to_sheet([Object.keys(templateHeaderMapping)]);
+    XLSX.utils.book_append_sheet(workbook, sheet, templateSheetName);
+    return workbook;
+  };
+
+  const templateFileName = `${sheetName.toLowerCase().replace(/_/g, "-")}-template.xlsx`;
+
   const bulkMutation = useMutation({
     mutationFn: (data: any[]) => apiRequest("POST", `${apiPath}/bulk`, data),
     onSuccess: () => {
@@ -130,6 +142,14 @@ function BulkUploadDialog({
       <DialogContent>
         <DialogHeader><DialogTitle>{t("bulk_upload_rates")}</DialogTitle></DialogHeader>
         <div className="space-y-4">
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => XLSX.writeFile(buildRateTemplate(sheetName, headerMapping), templateFileName)}
+            data-testid="button-download-template"
+          >
+            <FileDown className="h-4 w-4 mr-2" />{t("download_template")}
+          </Button>
           <div>
             <Label>{t("select_excel_file")}</Label>
             <Input
@@ -242,6 +262,7 @@ function HotelRatesTab() {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const [editItem, setEditItem] = useState<HotelRate | null>(null);
@@ -264,7 +285,12 @@ function HotelRatesTab() {
 
   const { data, isLoading } = useQuery<HotelRate[]>({ queryKey: ["/api/rates/hotel"] });
 
-  const filtered = data?.filter((r) => statusFilter === "all" || r.status === statusFilter) || [];
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtered = data?.filter((r) =>
+    (statusFilter === "all" || r.status === statusFilter) &&
+    (!normalizedSearch || [r.hotelName, r.city, r.countryCode, r.hotelCode, r.roomType, r.mealPlan, r.notes]
+      .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch))
+  ) || [];
 
   const resetForm = () => {
     setCountryCode(""); setCity(""); setHotelName(""); setHotelCode(""); setRoomType("");
@@ -332,6 +358,10 @@ function HotelRatesTab() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+        <div className="relative w-56">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" placeholder={t("search_hotel_rates_placeholder")} value={search} onChange={(e) => setSearch(e.target.value)} data-testid="input-search-hotel-rates" />
+        </div>
         <Button onClick={openCreate} data-testid="button-add-hotel-rate"><Plus className="h-4 w-4 mr-2" />{t("add_rate")}</Button>
         <Button variant="outline" onClick={() => setShowBulk(true)} data-testid="button-bulk-hotel"><Upload className="h-4 w-4 mr-2" />{t("bulk_upload")}</Button>
       </div>
@@ -369,7 +399,7 @@ function HotelRatesTab() {
             </TableRow>
           ))}
           {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{t("no_hotel_rates_found")}</TableCell></TableRow>
+            <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{normalizedSearch || statusFilter !== "all" ? t("no_results") : t("no_hotel_rates_found")}</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
@@ -453,6 +483,7 @@ function TransportRatesTab() {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const [editItem, setEditItem] = useState<TransportRate | null>(null);
@@ -478,7 +509,12 @@ function TransportRatesTab() {
   const [notes, setNotes] = useState("");
 
   const { data, isLoading } = useQuery<TransportRate[]>({ queryKey: ["/api/rates/transport"] });
-  const filtered = data?.filter((r) => statusFilter === "all" || r.status === statusFilter) || [];
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtered = data?.filter((r) =>
+    (statusFilter === "all" || r.status === statusFilter) &&
+    (!normalizedSearch || [r.vendorName, r.cityBase, r.countryCode, r.vendorCode, r.vehicleType, r.rateMode, r.routeFromCity, r.routeToCity, r.notes]
+      .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch))
+  ) || [];
 
   const resetForm = () => {
     setCountryCode(""); setCityBase(""); setVendorName(""); setVendorCode(""); setVehicleType("");
@@ -551,6 +587,10 @@ function TransportRatesTab() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+        <div className="relative w-56">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" placeholder={t("search_transport_rates_placeholder")} value={search} onChange={(e) => setSearch(e.target.value)} data-testid="input-search-transport-rates" />
+        </div>
         <Button onClick={openCreate} data-testid="button-add-transport-rate"><Plus className="h-4 w-4 mr-2" />{t("add_rate")}</Button>
         <Button variant="outline" onClick={() => setShowBulk(true)} data-testid="button-bulk-transport"><Upload className="h-4 w-4 mr-2" />{t("bulk_upload")}</Button>
       </div>
@@ -588,7 +628,7 @@ function TransportRatesTab() {
             </TableRow>
           ))}
           {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{t("no_transport_rates_found")}</TableCell></TableRow>
+            <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{normalizedSearch || statusFilter !== "all" ? t("no_results") : t("no_transport_rates_found")}</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
@@ -672,6 +712,7 @@ function GuideRatesTab() {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const [editItem, setEditItem] = useState<GuideRate | null>(null);
@@ -697,7 +738,12 @@ function GuideRatesTab() {
   const [status, setStatus] = useState<RateStatus>("draft");
 
   const { data, isLoading } = useQuery<GuideRate[]>({ queryKey: ["/api/rates/guide"] });
-  const filtered = data?.filter((r) => statusFilter === "all" || r.status === statusFilter) || [];
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtered = data?.filter((r) =>
+    (statusFilter === "all" || r.status === statusFilter) &&
+    (!normalizedSearch || [r.guideName, r.cityBase, r.countryCode, r.guideCode, r.language, r.email, r.phone, r.licenseLevel, r.notes]
+      .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch))
+  ) || [];
 
   const resetForm = () => {
     setCountryCode(""); setCityBase(""); setGuideName(""); setGuideCode(""); setLanguage("");
@@ -802,6 +848,10 @@ function GuideRatesTab() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+        <div className="relative w-56">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" placeholder={t("search_guide_rates_placeholder")} value={search} onChange={(e) => setSearch(e.target.value)} data-testid="input-search-guide-rates" />
+        </div>
         <Button onClick={openCreate} data-testid="button-add-guide-rate"><Plus className="h-4 w-4 mr-2" />{t("add_rate")}</Button>
         <Button variant="outline" onClick={() => setShowBulk(true)} data-testid="button-bulk-guide"><Upload className="h-4 w-4 mr-2" />{t("bulk_upload")}</Button>
       </div>
@@ -850,7 +900,7 @@ function GuideRatesTab() {
             </TableRow>
           ))}
           {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{t("no_guide_rates_found")}</TableCell></TableRow>
+            <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{normalizedSearch || statusFilter !== "all" ? t("no_results") : t("no_guide_rates_found")}</TableCell></TableRow>
           )}
         </TableBody>
       </Table>
@@ -952,6 +1002,7 @@ function SightsRatesTab() {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const [editItem, setEditItem] = useState<SightsRate | null>(null);
@@ -970,7 +1021,12 @@ function SightsRatesTab() {
   const [notes, setNotes] = useState("");
 
   const { data, isLoading } = useQuery<SightsRate[]>({ queryKey: ["/api/rates/sights"] });
-  const filtered = data?.filter((r) => statusFilter === "all" || r.status === statusFilter) || [];
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtered = data?.filter((r) =>
+    (statusFilter === "all" || r.status === statusFilter) &&
+    (!normalizedSearch || [r.attractionName, r.city, r.countryCode, r.attractionCode, r.ticketType, r.notes]
+      .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch))
+  ) || [];
 
   const resetForm = () => {
     setCountryCode(""); setCity(""); setAttractionName(""); setAttractionCode(""); setTicketType("");
@@ -1036,6 +1092,10 @@ function SightsRatesTab() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+        <div className="relative w-56">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" placeholder={t("search_sights_rates_placeholder")} value={search} onChange={(e) => setSearch(e.target.value)} data-testid="input-search-sights-rates" />
+        </div>
         <Button onClick={openCreate} data-testid="button-add-sights-rate"><Plus className="h-4 w-4 mr-2" />{t("add_rate")}</Button>
         <Button variant="outline" onClick={() => setShowBulk(true)} data-testid="button-bulk-sights"><Upload className="h-4 w-4 mr-2" />{t("bulk_upload")}</Button>
       </div>
@@ -1071,7 +1131,7 @@ function SightsRatesTab() {
             </TableRow>
           ))}
           {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("no_sights_rates_found")}</TableCell></TableRow>
+            <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{normalizedSearch || statusFilter !== "all" ? t("no_results") : t("no_sights_rates_found")}</TableCell></TableRow>
           )}
         </TableBody>
       </Table>

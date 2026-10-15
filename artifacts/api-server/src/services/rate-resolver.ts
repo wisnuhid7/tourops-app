@@ -472,8 +472,10 @@ export async function resolveTourComponents(db: Db, input: ResolveInput): Promis
 // the whole tour = Σ over the tour's hotels of (that hotel's nightly rate for
 // the selected room type × the nights spent at that hotel).
 // ---------------------------------------------------------------------------
-export type BookingRoomType = "matrimonial" | "doble" | "triple";
-export const BOOKING_ROOM_TYPES: BookingRoomType[] = ["matrimonial", "doble", "triple"];
+// Canonical definition lives in services/booking-pricing.ts so the pricing math
+// stays free of DB/rate-card imports; imported locally and re-exported here.
+import { BOOKING_ROOM_TYPES, type BookingRoomType } from "./booking-pricing";
+export { BOOKING_ROOM_TYPES, type BookingRoomType };
 
 const ROOM_TYPE_COLUMN: Record<BookingRoomType, "roomRateMatrimonial" | "roomRateDouble" | "roomRateTriple"> = {
   matrimonial: "roomRateMatrimonial",

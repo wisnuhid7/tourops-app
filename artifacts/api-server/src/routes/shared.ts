@@ -1,0 +1,307 @@
+/**
+ * Shared helpers for the route modules.
+ *
+ * Extracted verbatim from routes.ts so the per-domain route modules (and the
+ * sibling registrars) can reuse them without importing the monolith.
+ * Behaviour is unchanged.
+ */
+import type { Request, Response } from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import { storage } from "../storage";
+import { authStorage } from "../replit_integrations/auth/storage";
+import { getUserId, isStaffViewer } from "../middleware/auth";
+import { and, eq, sql } from "drizzle-orm";
+import { cities, countries, db } from "@workspace/db";
+import { pricingService } from "../lib/pricing";
+import { BOOKING_ROOM_TYPES, accommodationForTour } from "../services/rate-resolver";
+import { ROOM_TYPE_OCCUPANCY } from "../services/booking-pricing";
+
+// Shape a raw `translations` jsonb blob down to public-safe fields only, so
+// public endpoints never leak translated copies of non-public columns
+// (e.g. guide notes, hotel policies).
+export function pickPublicTranslations(translations: any, allowedKeys: string[]) {
+  if (!translations || typeof translations !== "object") return undefined;
+  const out: Record<string, Record<string, string>> = {};
+  for (const [lang, fields] of Object.entries(translations)) {
+    if (!fields || typeof fields !== "object") continue;
+    const shaped: Record<string, string> = {};
+    for (const key of allowedKeys) {
+      const v = (fields as any)[key];
+      if (typeof v === "string") shaped[key] = v;
+    }
+    if (Object.keys(shaped).length > 0) out[lang] = shaped;
+  }
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+// Internal-only tour columns that must never reach a public / unauthenticated
+// response. Public tour reads previously spread the whole DB row (`{...tour}`),
+// leaking supplier cost/margin (markupAmount) and private staff notes
+// (internalNotes) to anonymous callers (F-04 / OWASP A01/A02).
+export const INTERNAL_TOUR_FIELDS = ["markupAmount", "internalNotes"] as const;
+
+/**
+ * Strip internal-only columns from a tour row before it is returned from a
+ * public/unauthenticated endpoint. Every public field is preserved.
+ */
+export function toPublicTour<T extends Record<string, any>>(
+  tour: T,
+): Omit<T, "markupAmount" | "internalNotes"> {
+  if (!tour || typeof tour !== "object") return tour;
+  const clone: Record<string, any> = { ...tour };
+  for (const key of INTERNAL_TOUR_FIELDS) delete clone[key];
+  return clone as Omit<T, "markupAmount" | "internalNotes">;
+}
+
+// Strict raster-image allowlist. SVG is intentionally excluded: it can embed
+// <script> and, if served inline, execute in our origin (stored XSS). The
+// stored extension is derived from the validated MIME type — never from the
+// user-supplied filename — so a spoofed extension can't be smuggled onto disk.
+export const ALLOWED_IMAGE_MIME_EXT: Record<string, string> = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+};
+export const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = path.join(process.cwd(), "uploads", "images");
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      const ext = ALLOWED_IMAGE_MIME_EXT[file.mimetype] ?? ".bin";
+      cb(null, `${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`);
+    }
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  fileFilter: (_req, file, cb) => {
+    if (!ALLOWED_IMAGE_MIME_EXT[file.mimetype]) {
+      return cb(new Error("Only PNG, JPEG, WebP, or GIF images are allowed"));
+    }
+    cb(null, true);
+  }
+});
+
+// Magic-byte signatures for the allowed raster formats. The client-declared
+// Content-Type is attacker-controlled, so the ACTUAL bytes must also match the
+// declared image type (F-05 / OWASP A05/A08). An HTML/PDF/polyglot payload
+// labelled image/png or image/jpeg is rejected here.
+const IMAGE_SIGNATURES: Record<string, (b: Buffer) => boolean> = {
+  "image/png": (b) =>
+    b.length >= 8 &&
+    b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 &&
+    b[4] === 0x0d && b[5] === 0x0a && b[6] === 0x1a && b[7] === 0x0a,
+  "image/jpeg": (b) => b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
+  "image/gif": (b) =>
+    b.length >= 6 && (b.toString("ascii", 0, 6) === "GIF87a" || b.toString("ascii", 0, 6) === "GIF89a"),
+  "image/webp": (b) =>
+    b.length >= 12 && b.toString("ascii", 0, 4) === "RIFF" && b.toString("ascii", 8, 12) === "WEBP",
+};
+
+/** True when `buffer`'s real signature matches the declared image MIME type. */
+export function sniffImageMime(buffer: Buffer, declaredMime: string): boolean {
+  const check = IMAGE_SIGNATURES[declaredMime];
+  if (!check) return false;
+  try {
+    return check(buffer);
+  } catch {
+    return false;
+  }
+}
+
+export async function getUserName(req: Request): Promise<string> {
+  const userId = req.session?.userId;
+  if (!userId) return "User";
+  const user = await authStorage.getUser(userId);
+  if (user?.firstName) return `${user.firstName} ${user.lastName || ""}`.trim();
+  return user?.username || "User";
+}
+
+export async function canAccessBooking(userId: string, bookingId: string) {
+  const booking = await storage.getBooking(bookingId);
+  if (!booking) return null;
+  if (booking.customerId === userId) return booking;
+  if (booking.leaderUserId === userId) return booking;
+  return null;
+}
+
+export async function initializeBookingWorkflows(bookingId: string) {
+  const existingWfs = await storage.getWorkflows(bookingId);
+  if (existingWfs && existingWfs.length > 0) return; // Prevent duplicate generation
+
+  const services: ("airline" | "hotel" | "transport" | "guide" | "sights")[] = ["airline", "hotel", "transport"];
+
+  for (const service of services) {
+    const wf = await storage.createWorkflow({
+      bookingId,
+      serviceType: service,
+      status: "not_assigned",
+    });
+
+    const steps = [
+      { code: "REQ", name: `Request ${service.toUpperCase()} Choice` },
+      { code: "CONF", name: "Booking Confirmed with Supplier" },
+      { code: "DOC", name: "Issuing Document/Voucher" },
+    ];
+
+    for (let i = 0; i < steps.length; i++) {
+      await storage.createWorkflowStep({
+        workflowId: wf.id,
+        stepOrder: i + 1,
+        stepCode: steps[i].code,
+        stepName: steps[i].name,
+        status: "pending",
+      });
+    }
+  }
+}
+
+// Guard for public-facing tour sub-resources: an unpublished (draft) tour and
+// its nested resources (days, items, guides, hotels, departures) must never be
+// readable by anonymous or customer callers — only by authenticated staff.
+// Responds 404 (indistinguishable from "not found") and returns false when the
+// caller may not view the tour.
+export async function ensureTourViewable(req: Request, res: Response, tourId: string): Promise<boolean> {
+  const tour = await storage.getTour(tourId);
+  if (!tour) { res.status(404).json({ message: "Tour not found" }); return false; }
+  if (!tour.isPublished && !(await isStaffViewer(req))) {
+    res.status(404).json({ message: "Tour not found" });
+    return false;
+  }
+  return true;
+}
+
+// Per-supplier data isolation. When the caller's role is one of `scopedRoles`
+// (a supplier role that must only see its own records), returns ownerId = their
+// userId; for full-access / other staff roles returns ownerId = null (see all).
+export async function ownerScope(
+  req: Request,
+  scopedRoles: string[],
+): Promise<{ userId: string; role: string; ownerId: string | null; transportCompanyId: string | null }> {
+  const userId = getUserId(req) as string;
+  const profile = await storage.getOrCreateProfile(userId);
+  const ownerId = scopedRoles.includes(profile.role) ? userId : null;
+  return { userId, role: profile.role, ownerId, transportCompanyId: (profile as any).transportCompanyId ?? null };
+}
+
+export function coerceBooleans(data: any[], booleanFields: string[]) {
+  return data.map(row => {
+    const newRow = { ...row };
+    booleanFields.forEach(field => {
+      if (typeof newRow[field] === 'string') {
+        newRow[field] = newRow[field].toLowerCase() === 'true' || newRow[field] === '1' || newRow[field].toLowerCase() === 'yes';
+      }
+    });
+    return newRow;
+  });
+}
+
+/** PG unique-constraint violation (code 23505), possibly wrapped by the driver. */
+export function isUniqueViolation(e: any): boolean {
+  return e?.code === "23505" || e?.cause?.code === "23505";
+}
+/** True only for the tours.slug unique constraint (don't mislabel other 23505s). */
+export function isSlugUniqueViolation(e: any): boolean {
+  if (!isUniqueViolation(e)) return false;
+  const constraint = e?.constraint ?? e?.cause?.constraint ?? "";
+  const detail = e?.detail ?? e?.cause?.detail ?? "";
+  return /slug/i.test(constraint) || /slug/i.test(detail);
+}
+
+// Public per-person selling price for a tour: full price (base + day items +
+// markup + service fee) plus the cheapest same-currency per-person hotel
+// accommodation. Short-TTL cached; never throws (pricing enrichment must not
+// break public catalog reads).
+export type PublicTourPricing = { perPersonBase: number; accommodationFrom: number; perPersonFrom: number; currency: string };
+  // Short-TTL cache: catalog pages fan out to per-tour pricing queries; 60s
+  // bounds both the DB amplification and the staleness after a price edit.
+  const publicPricingCache = new Map<string, { value: PublicTourPricing | null; expires: number }>();
+  const PUBLIC_PRICING_TTL_MS = 60_000;
+
+// The cache is per-server: registerRoutes() clears it on (re)registration so a
+// freshly registered server never serves another instance's cached prices.
+export function resetPublicTourPricingCache(): void {
+  publicPricingCache.clear();
+}
+
+export async function publicTourPricing(tourId: string): Promise<PublicTourPricing | null> {
+    const cached = publicPricingCache.get(tourId);
+    if (cached && cached.expires > Date.now()) return cached.value;
+    let value: PublicTourPricing | null = null;
+    try {
+      const pricing = await pricingService.calculateTourPrice(tourId);
+      const perPersonBase = Math.round(pricing.totalPrice);
+      // Cheapest per-person accommodation among room types priced in the tour
+      // currency (no FX conversion yet — foreign-currency rooms are ignored,
+      // not allowed to zero out a same-currency option).
+      let accommodationFrom = 0;
+      for (const rt of BOOKING_ROOM_TYPES) {
+        const acc = await accommodationForTour(db, tourId, rt);
+        const total = Number(acc.total);
+        if (!Number.isFinite(total) || total <= 0) continue;
+        if (acc.currency.toUpperCase() !== pricing.currency.toUpperCase()) continue;
+        const perPerson = Math.round(total / ROOM_TYPE_OCCUPANCY[rt]);
+        if (accommodationFrom === 0 || perPerson < accommodationFrom) accommodationFrom = perPerson;
+      }
+      value = {
+        perPersonBase,
+        accommodationFrom,
+        perPersonFrom: perPersonBase + accommodationFrom,
+        currency: pricing.currency,
+      };
+    } catch {
+      value = null; // never let pricing enrichment break public catalog reads
+    }
+    publicPricingCache.set(tourId, { value, expires: Date.now() + PUBLIC_PRICING_TTL_MS });
+    return value;
+  }
+
+// Best-effort: make sure a city row exists for the given name/country so
+// tour day locations link to a real city. Silently no-ops when it cannot
+// resolve a country.
+export async function ensureCityExists(cityName: string | null | undefined, countryCode: string | null | undefined) {
+    if (!cityName || !cityName.trim()) return;
+    const nameTrimmed = cityName.trim();
+    
+    let countryId: string | null = null;
+    if (countryCode && countryCode.trim()) {
+      const codeUpper = countryCode.trim().toUpperCase();
+      const [country] = await db.select().from(countries).where(eq(countries.code, codeUpper)).limit(1);
+      if (country) {
+        countryId = country.id;
+      } else {
+        const [countryByName] = await db.select().from(countries).where(eq(sql`lower(${countries.name})`, codeUpper.toLowerCase())).limit(1);
+        if (countryByName) {
+          countryId = countryByName.id;
+        }
+      }
+    }
+
+    if (!countryId) {
+      const [firstCountry] = await db.select().from(countries).limit(1);
+      if (firstCountry) {
+        countryId = firstCountry.id;
+      } else {
+        return;
+      }
+    }
+
+    const [existingCity] = await db.select()
+      .from(cities)
+      .where(and(
+        eq(sql`lower(${cities.name})`, nameTrimmed.toLowerCase()),
+        eq(cities.countryId, countryId)
+      ))
+      .limit(1);
+
+    if (!existingCity) {
+      await db.insert(cities).values({
+        name: nameTrimmed,
+        countryId: countryId,
+      });
+    }
+  }

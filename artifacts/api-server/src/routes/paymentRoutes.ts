@@ -8,7 +8,8 @@ import { logger } from "../lib/logger";
 import { routeError } from "../lib/routeError";
 import { isAuthenticated } from "../replit_integrations/auth";
 import { getPaymentProvider, processPaymentEvent, applyRefundTotals } from "../lib/payments";
-import { FINANCE_ROLES, getUserId, canAccessBooking, requireRole } from "./routes";
+import { canAccessBooking } from "./shared";
+import { FINANCE_ROLES, getUserId, requireRole } from "../middleware/auth";
 
 // Checkout endpoints are authenticated but still rate-limited: they trigger
 // provider calls and row inserts, so per-IP throttling caps abuse.

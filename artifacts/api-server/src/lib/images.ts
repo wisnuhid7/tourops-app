@@ -3,6 +3,40 @@ import path from "path";
 import fs from "fs/promises";
 import { createHash } from "crypto";
 
+// Hard cap on a remotely-fetched image, independent of the upload limit, so a
+// hostile URL cannot stream unbounded bytes into memory (F-09).
+const MAX_REMOTE_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB
+const FETCH_TIMEOUT_MS = 15_000;
+
+// Read a fetch Response body but abort if it exceeds `max` bytes. Falls back to
+// arrayBuffer() for streams that don't expose a reader.
+async function readCappedBody(response: Response, max: number): Promise<Buffer> {
+  const lenHeader = response.headers?.get?.("content-length");
+  if (lenHeader && Number(lenHeader) > max) {
+    throw new Error(`Image exceeds maximum size of ${max} bytes`);
+  }
+  const body: any = (response as any).body;
+  if (body && typeof body.getReader === "function") {
+    const reader = body.getReader();
+    const chunks: Buffer[] = [];
+    let total = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.length;
+      if (total > max) {
+        try { await reader.cancel(); } catch {}
+        throw new Error(`Image exceeds maximum size of ${max} bytes`);
+      }
+      chunks.push(Buffer.from(value));
+    }
+    return Buffer.concat(chunks);
+  }
+  const buf = Buffer.from(await response.arrayBuffer());
+  if (buf.length > max) throw new Error(`Image exceeds maximum size of ${max} bytes`);
+  return buf;
+}
+
 
 export class ImageService {
   private readonly uploadDir = path.join(process.cwd(), "public", "uploads", "processed");
@@ -45,9 +79,18 @@ export class ImageService {
 
     try {
       // 2. Download Image
-      const response = await fetch(url);
+      // SECURITY (F-06): pin redirects off so a public URL that passed
+      // isSafeImageUrl cannot 302 into link-local/internal space AFTER the
+      // check; also cap the read size and bound the request with a timeout.
+      const fetchOptions = {
+        redirect: "error",
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        // Enforced by readCappedBody; surfaced on the options object intent.
+        size: MAX_REMOTE_IMAGE_BYTES,
+      };
+      const response = await fetch(url, fetchOptions as RequestInit);
       if (!response.ok) throw new Error(`Failed to fetch image: ${response.status}`);
-      const buffer = Buffer.from(await response.arrayBuffer());
+      const buffer = await readCappedBody(response, MAX_REMOTE_IMAGE_BYTES);
 
       // 3. Process with Sharp
       let pipeline = sharp(buffer).webp({ quality });
@@ -69,7 +112,10 @@ export class ImageService {
       return { path: relativePath, dominantColor: dominantHex, width: metadata.width, height: metadata.height };
     } catch (error) {
       console.error(`Image processing failed for ${url}:`, error);
-      return url; // Fallback to original URL on failure
+      // SECURITY (F-06): never return the caller-supplied URL here. The caller
+      // (assetsRoutes) would hand it to res.redirect(), creating an
+      // open-redirect primitive. Fail loudly instead.
+      throw error;
     }
   }
 

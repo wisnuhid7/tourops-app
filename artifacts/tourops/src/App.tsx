@@ -7,7 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import TourGenerator from "./pages/admin/tour-generator";
 import { ThemeProvider } from "@/components/theme-provider";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ErrorBoundary } from "@/components/error-boundary";
 import type { UserProfile } from "@workspace/db";
@@ -145,6 +145,15 @@ function AuthenticatedLayout() {
       <div className="flex h-screen w-full overflow-hidden">
         <AppSidebar />
         <main className="flex-1 overflow-auto bg-slate-50/30">
+          <header className="sticky top-0 z-20 flex h-14 items-center gap-3 border-b bg-white/95 px-4 shadow-sm backdrop-blur dark:bg-slate-950/95 md:hidden">
+            <SidebarTrigger
+              aria-label="Open navigation menu"
+              className="h-10 w-10"
+            />
+            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+              Navigation
+            </span>
+          </header>
           <ErrorBoundary>
           <Switch>
             {/* Admin Routes */}

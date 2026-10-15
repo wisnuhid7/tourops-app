@@ -1,53 +1,96 @@
 /**
- * xlsx-tour-utils.ts
+ * workbook.ts
  *
- * Pure functions extracted from the TourOps frontend components for use in
- * server-side tests.  These are replicated (not imported) because the source
- * files live in the tourops Vite/React package; importing them here would
- * drag in React/Vite resolution chains that are incompatible with the
- * api-server vitest environment.
+ * The shared tour spreadsheet contract: build and parse the Master Tour
+ * Template workbook.
  *
- * ⚠️  KEEP IN SYNC WITH:
+ * These three functions are byte-for-byte behaviour-preserving ports of:
+ *   • artifacts/tourops/src/components/tour-import-dialog.tsx → buildTemplate(), parseWorkbook()
  *   • artifacts/tourops/src/components/tour-export-button.tsx  → buildWorkbook()
- *   • artifacts/tourops/src/components/tour-import-dialog.tsx  → parseWorkbook()
  *
- * Any change to the cell layout, column order, or normalisation logic in the
- * client components MUST be reflected here, otherwise the spreadsheet-level
- * round-trip test will drift from reality.
+ * Do NOT change cell layout, column order, sheet order, defaults, or
+ * normalisation semantics without updating every consumer in the same change.
  */
 
 import * as XLSX from "xlsx";
+import {
+  DAYS_HEADERS,
+  DEPARTURES_HEADERS,
+  ITEMS_HEADERS,
+  SHEET_NAMES,
+  TOURS_HEADERS,
+} from "./headers";
+import { EXPORT_INSTRUCTIONS, TEMPLATE_INSTRUCTIONS } from "./instructions";
+import { boolFalse, boolTrue, list, num, str } from "./normalizers";
 
 // ---------------------------------------------------------------------------
-// buildWorkbook — mirrors tour-export-button.tsx:buildWorkbook()
-// Creates an xlsx workbook from the JSON array returned by GET /api/tours/export.
+// buildTemplate — blank Master Tour Template (Instructions/Tours/Days/Items/Departures)
+// Mirrors tour-import-dialog.tsx:buildTemplate()
+// ---------------------------------------------------------------------------
+export function buildTemplate(): XLSX.WorkBook {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.aoa_to_sheet(TEMPLATE_INSTRUCTIONS),
+    SHEET_NAMES.instructions,
+  );
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.aoa_to_sheet([
+      [...TOURS_HEADERS],
+      ["T1", "Example: Highlights of Israel – 5 Days", "A short example tour. Delete this row.", "cultural", "Israel", "Old City of Jerusalem; Dead Sea", "Hotels; Guide; Transport", "Flights; Travel insurance", "faith, history", "", "", "", "", 5],
+    ]),
+    SHEET_NAMES.tours,
+  );
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.aoa_to_sheet([
+      [...DAYS_HEADERS],
+      ["T1", 1, "Arrival in Tel Aviv", "IL", "Tel Aviv", "Welcome and transfer to the hotel.", "Airport pickup; Welcome dinner", ""],
+      ["T1", 2, "Jerusalem Old City", "IL", "Jerusalem", "Full day walking tour.", "Western Wall; Via Dolorosa", ""],
+    ]),
+    SHEET_NAMES.days,
+  );
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.aoa_to_sheet([
+      [...ITEMS_HEADERS],
+      ["T1", 1, "transport", "Airport transfer", "14:00", "15:00", 60, "USD", "false", "false", "", "", "", 0, "Private van"],
+      ["T1", 1, "hotel", "Overnight in Tel Aviv", "", "", "", "USD", "false", "false", "Jerusalem Hotel", "", "", 1, "Leave cost blank to use the catalog rate"],
+      ["T1", 2, "guide", "Licensed guide (full day)", "09:00", "17:00", 250, "USD", "false", "false", "", "", "Licensed Guide Name", 0, "Leave cost blank to use the catalog rate"],
+      ["T1", 2, "sight", "Entrance fees", "10:00", "", 25, "USD", "true", "false", "", "Sight Name", "", 1, ""],
+    ]),
+    SHEET_NAMES.items,
+  );
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.aoa_to_sheet([
+      [...DEPARTURES_HEADERS],
+      ["T1", "2026-03-15", "2026-03-19", 20, "", "TRUE"],
+      ["T1", "2026-04-12", "2026-04-16", 16, 1200, "TRUE"],
+    ]),
+    SHEET_NAMES.departures,
+  );
+  return wb;
+}
+
+// ---------------------------------------------------------------------------
+// buildWorkbook — export workbook from GET /api/tours/export JSON
+// Mirrors tour-export-button.tsx:buildWorkbook()
+// NOTE: intentionally omits a Departures sheet (matches existing behaviour),
+// so exported files round-trip tours/days/items only.
 // ---------------------------------------------------------------------------
 export function buildWorkbook(tours: any[]): XLSX.WorkBook {
   const wb = XLSX.utils.book_new();
 
-  const ITEM_TYPES = "arrival, departure, sight, hotel, guide, meal, transport, flight, custom";
+  // ── Instructions sheet (same as the blank template) ──────────────────────
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.aoa_to_sheet(EXPORT_INSTRUCTIONS),
+    SHEET_NAMES.instructions,
+  );
 
-  // Instructions sheet
-  const instructions = [
-    ["MASTER TOUR TEMPLATE — instructions"],
-    [""],
-    ["1. Fill the Tours sheet: one row per tour. 'ref' is any short code you invent (e.g. T1) to link the other sheets."],
-    ["2. Fill the Days sheet: one row per day, linked by tourRef. dayNumber starts at 1."],
-    ["3. Fill the Items sheet: one row per service on a day (hotel, guide, transport, sight entrance, meal...)."],
-    [`4. itemType must be one of: ${ITEM_TYPES}.`],
-    ["5. hotelName / sightName must match EXACTLY a name already registered in your catalogs. If cost is left blank, the catalog price is used."],
-    ["6. countries and tags are comma-separated lists (e.g. Israel, Jordan)."],
-    ["7. PRICES ARE CALCULATED AUTOMATICALLY by the pricing engine from the services you list here (hotels, guides, sights, transport)"],
-    ["   plus what you configure in the Pricing screens: company margin, free tour-leader policy, group-size bus costing,"],
-    ["   airfare per departure city and season, and taxes/fees. You do NOT need to fill any price on the Tours sheet."],
-    ["8. basePrice / childPrice / singleSupplement are OPTIONAL fallbacks, shown only while a tour has no pricing data yet. Leave them blank."],
-    ["9. Imported tours are created as DRAFTS — review them, set up pricing, then publish from the Tours page."],
-    ["10. Upload this file in Staff Portal → Tours → Import Excel."],
-  ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(instructions), "Instructions");
-
-  // Tours sheet
-  const toursHeader = ["ref", "title", "description", "category", "countries", "highlights", "inclusions", "exclusions", "tags", "imageUrl", "basePrice", "childPrice", "singleSupplement", "duration"];
+  // ── Tours sheet ───────────────────────────────────────────────────────────
   const toursRows = tours.map((t) => [
     t.ref,
     t.title,
@@ -64,20 +107,26 @@ export function buildWorkbook(tours: any[]): XLSX.WorkBook {
     t.singleSupplement,
     t.duration ?? "",
   ]);
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([toursHeader, ...toursRows]), "Tours");
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.aoa_to_sheet([[...TOURS_HEADERS], ...toursRows]),
+    SHEET_NAMES.tours,
+  );
 
-  // Days sheet
-  const daysHeader = ["tourRef", "dayNumber", "title", "countryCode", "city", "description", "activities", "imageUrl"];
+  // ── Days sheet ────────────────────────────────────────────────────────────
   const daysRows: any[][] = [];
   for (const t of tours) {
     for (const d of t.days ?? []) {
       daysRows.push([t.ref, d.dayNumber, d.title, d.countryCode, d.city, d.description, d.activities, d.imageUrl ?? ""]);
     }
   }
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([daysHeader, ...daysRows]), "Days");
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.aoa_to_sheet([[...DAYS_HEADERS], ...daysRows]),
+    SHEET_NAMES.days,
+  );
 
-  // Items sheet
-  const itemsHeader = ["tourRef", "dayNumber", "itemType", "title", "startTime", "endTime", "cost", "currency", "isOptional", "bookingRequired", "hotelName", "sightName", "guideName", "sortOrder", "description"];
+  // ── Items sheet ───────────────────────────────────────────────────────────
   const itemsRows: any[][] = [];
   for (const t of tours) {
     for (const d of t.days ?? []) {
@@ -102,15 +151,18 @@ export function buildWorkbook(tours: any[]): XLSX.WorkBook {
       }
     }
   }
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([itemsHeader, ...itemsRows]), "Items");
+  XLSX.utils.book_append_sheet(
+    wb,
+    XLSX.utils.aoa_to_sheet([[...ITEMS_HEADERS], ...itemsRows]),
+    SHEET_NAMES.items,
+  );
 
   return wb;
 }
 
 // ---------------------------------------------------------------------------
-// parseWorkbook — mirrors tour-import-dialog.tsx:parseWorkbook()
-// Parses a WorkBook produced by buildWorkbook (or the blank template) into
-// the JSON payload shape accepted by POST /api/tours/import.
+// parseWorkbook — parse a WorkBook into the POST /api/tours/import payload
+// Mirrors tour-import-dialog.tsx:parseWorkbook()
 // ---------------------------------------------------------------------------
 export function parseWorkbook(wb: XLSX.WorkBook): { tours: any[] } {
   const sheet = (name: string, required = true) => {
@@ -122,19 +174,20 @@ export function parseWorkbook(wb: XLSX.WorkBook): { tours: any[] } {
     return XLSX.utils.sheet_to_json<any>(ws, { defval: "" });
   };
 
-  const toursRows = sheet("Tours").filter((r: any) => String(r.title).trim() && !String(r.title).startsWith("Example:"));
-  const daysRows = sheet("Days");
-  const itemsRows = sheet("Items");
-  const departureRows = sheet("Departures", false);
+  const toursRows = sheet(SHEET_NAMES.tours).filter((r: any) => String(r.title).trim() && !String(r.title).startsWith("Example:"));
+  const daysRows = sheet(SHEET_NAMES.days);
+  const itemsRows = sheet(SHEET_NAMES.items);
+  const departureRows = sheet(SHEET_NAMES.departures, false);
   if (toursRows.length === 0) throw new Error("The Tours sheet has no rows to import (the example row is ignored).");
 
-  // Referential integrity checks
+  // Referential integrity BEFORE posting: orphan rows and bad day numbers
+  // must fail loudly, not be silently dropped.
   const tourRefs = new Set(toursRows.map((r: any) => String(r.ref || r.title).trim()));
   const problems: string[] = [];
   const dayKeys = new Set<string>();
   for (const d of daysRows) {
     const ref = String(d.tourRef ?? "").trim();
-    if (!ref && !String(d.title ?? "").trim()) continue;
+    if (!ref && !String(d.title ?? "").trim()) continue; // fully blank row
     if (!tourRefs.has(ref)) { problems.push(`Days row "${d.title || ref || "?"}": tourRef "${ref}" does not match any ref on the Tours sheet`); continue; }
     const n = Number(d.dayNumber);
     if (!Number.isInteger(n) || n < 1) { problems.push(`Days row "${d.title || "?"}" (tour ${ref}): dayNumber must be a whole number ≥ 1`); continue; }
@@ -150,16 +203,10 @@ export function parseWorkbook(wb: XLSX.WorkBook): { tours: any[] } {
   }
   for (const dep of departureRows) {
     const ref = String(dep.tourRef ?? "").trim();
-    if (!ref && !String(dep.startDate ?? "").trim()) continue;
+    if (!ref && !String(dep.startDate ?? "").trim()) continue; // fully blank row
     if (!tourRefs.has(ref)) problems.push(`Departures row (${dep.startDate || "?"}): tourRef "${ref}" does not match any ref on the Tours sheet`);
   }
   if (problems.length) throw new Error(problems.slice(0, 5).join(" • ") + (problems.length > 5 ? ` • …and ${problems.length - 5} more` : ""));
-
-  const list = (v: any) => String(v ?? "").split(",").map((s: string) => s.trim()).filter(Boolean);
-  const str = (v: any) => { const s = String(v ?? "").trim(); return s || undefined; };
-  const num = (v: any) => { const s = String(v ?? "").trim(); return s === "" ? undefined : s; };
-  const boolFalse = (v: any) => { const s = String(v ?? "").trim().toLowerCase(); return s === "true" || s === "1" || s === "yes"; };
-  const boolTrue = (v: any) => { const s = String(v ?? "").trim().toLowerCase(); return !(s === "false" || s === "no" || s === "0"); };
 
   return {
     tours: toursRows.map((r: any) => {

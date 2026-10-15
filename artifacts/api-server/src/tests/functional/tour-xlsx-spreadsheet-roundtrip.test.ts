@@ -19,8 +19,9 @@
  *   - countries/tags comma-join → split surviving as arrays
  *   - dayNumber integer encoding in xlsx surviving as exact integers
  *
- * buildWorkbook and parseWorkbook are replicated in
- * src/tests/helpers/xlsx-tour-utils.ts — see that file for the sync note.
+ * buildWorkbook and parseWorkbook now come from the shared workspace package
+ * @workspace/tour-spreadsheet — the single source of truth also used by the
+ * tourops client components, so this test exercises the real contract.
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -28,7 +29,7 @@ import request from "supertest";
 import express, { type Express } from "express";
 import { createServer } from "http";
 import * as XLSX from "xlsx";
-import { buildWorkbook, parseWorkbook } from "../helpers/xlsx-tour-utils";
+import { buildWorkbook, parseWorkbook } from "@workspace/tour-spreadsheet";
 
 // ---------------------------------------------------------------------------
 // Hoisted mutable state shared between vi.mock factories and individual tests.

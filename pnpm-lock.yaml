@@ -172,6 +172,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
+      '@workspace/tour-spreadsheet':
+        specifier: workspace:*
+        version: link:../../lib/tour-spreadsheet
       bcryptjs:
         specifier: ^2.4.3
         version: 2.4.3
@@ -624,6 +627,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
+      '@workspace/tour-spreadsheet':
+        specifier: workspace:*
+        version: link:../../lib/tour-spreadsheet
       autoprefixer:
         specifier: ^10.5.2
         version: 10.5.2(postcss@8.5.16)
@@ -745,6 +751,16 @@ importers:
       drizzle-kit:
         specifier: ^0.31.10
         version: 0.31.10
+
+  lib/tour-spreadsheet:
+    dependencies:
+      xlsx:
+        specifier: ^0.18.5
+        version: 0.18.5
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.9.4
 
   scripts:
     devDependencies:

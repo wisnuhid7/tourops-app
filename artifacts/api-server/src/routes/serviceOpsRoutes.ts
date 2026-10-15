@@ -22,7 +22,8 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { storage } from "../storage";
 import { routeError } from "../lib/routeError";
 import { isAuthenticated } from "../replit_integrations/auth";
-import { getUserId, requireRole, canAccessBooking } from "./routes";
+import { canAccessBooking } from "./shared";
+import { getUserId, requireRole } from "../middleware/auth";
 import { runTestSeed, resetTestData, runValidationOnly, latestSeedRun, testSeedBlockedReason, isTestEnvironment } from "../test-seed";
 import { runPaymentReminderJob } from "../lib/paymentReminderJob";
 

@@ -9,8 +9,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarProvider,
-  SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
@@ -51,6 +50,7 @@ export function AppSidebar() {
   const [location] = useLocation();
   const search = useSearch();
   const currentUrl = search ? `${location}?${search}` : location;
+  const { isMobile, setOpenMobile } = useSidebar();
   const { language, setLanguage, t } = useLanguage();
 
   const getNav = () => {
@@ -168,7 +168,13 @@ export function AppSidebar() {
                     tooltip={item.title} 
                     className="hover:bg-primary/5 active:scale-95 transition-all rounded-lg py-6 group"
                   >
-                    <Link href={item.url} className="flex items-center gap-3">
+                    <Link
+                      href={item.url}
+                      className="flex items-center gap-3"
+                      onClick={() => {
+                        if (isMobile) setOpenMobile(false);
+                      }}
+                    >
                       <div className={`p-2 rounded-md transition-colors ${isItemActive(item.url) ? 'bg-primary text-white shadow-md' : 'bg-slate-100 dark:bg-slate-900 group-hover:bg-primary/10 group-hover:text-primary'}`}>
                         <item.icon className="h-4 w-4" />
                       </div>

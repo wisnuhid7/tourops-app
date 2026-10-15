@@ -30,7 +30,8 @@ import { routeError } from "../lib/routeError";
 import { isAuthenticated } from "../replit_integrations/auth";
 import { authStorage } from "../replit_integrations/auth/storage";
 import { enqueueEmail } from "../lib/emailQueue";
-import { getUserId, requireRole, canAccessBooking } from "./routes";
+import { canAccessBooking } from "./shared";
+import { getUserId, requireRole } from "../middleware/auth";
 
 const OPS_ROLES = ["super_admin", "admin", "operations_manager"];
 const BOOKING_READ_STAFF = ["super_admin", "admin", "operations_manager", "support_agent", "accounting"];

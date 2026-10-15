@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useSearch } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -11,10 +11,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Upload, Pencil, Trash2, Globe, Building2, Plane, Landmark, Truck, TicketCheck, Wand2, Sparkles, Search, FileDown } from "lucide-react";
+import { Plus, Upload, Pencil, Trash2, Wand2, Sparkles, Search, FileDown } from "lucide-react";
 import type {
   Country, City, Airport, Sight, Hotel, TransportCompany, AirlineAgency, UserProfile,
 } from "@workspace/db";
@@ -1354,12 +1354,6 @@ export default function AdminMasterData() {
   const search = useSearch();
   const tabParam = new URLSearchParams(search).get("tab");
   const activeTab = tabParam && MASTER_DATA_TABS.includes(tabParam) ? tabParam : "countries";
-  const [tab, setTab] = useState(activeTab);
-  // Reconcile with the URL whenever it changes (including when ?tab is removed),
-  // falling back to the default for missing/invalid values.
-  useEffect(() => {
-    setTab(activeTab);
-  }, [activeTab]);
 
   return (
     <div className="p-6 space-y-6">
@@ -1368,17 +1362,7 @@ export default function AdminMasterData() {
         <p className="text-muted-foreground text-sm">Manage reference data for countries, cities, airports, sights, and service providers</p>
       </div>
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="flex flex-wrap gap-1">
-          <TabsTrigger value="countries" data-testid="tab-countries" className="gap-1.5"><Globe className="h-4 w-4" />Countries</TabsTrigger>
-          <TabsTrigger value="cities" data-testid="tab-cities" className="gap-1.5"><Building2 className="h-4 w-4" />Cities</TabsTrigger>
-          <TabsTrigger value="airports" data-testid="tab-airports" className="gap-1.5"><Plane className="h-4 w-4" />Airports</TabsTrigger>
-          <TabsTrigger value="sights" data-testid="tab-sights" className="gap-1.5"><Landmark className="h-4 w-4" />Sights</TabsTrigger>
-          <TabsTrigger value="transport" data-testid="tab-transport" className="gap-1.5"><Truck className="h-4 w-4" />Transport Companies</TabsTrigger>
-          <TabsTrigger value="airlines" data-testid="tab-airlines" className="gap-1.5"><TicketCheck className="h-4 w-4" />Airline Agencies</TabsTrigger>
-          <TabsTrigger value="hotels" data-testid="tab-hotels" className="gap-1.5"><Building2 className="h-4 w-4" />Hotels</TabsTrigger>
-        </TabsList>
-
+      <Tabs value={activeTab}>
         <TabsContent value="countries"><CountriesTab /></TabsContent>
         <TabsContent value="cities"><CitiesTab /></TabsContent>
         <TabsContent value="airports"><AirportsTab /></TabsContent>

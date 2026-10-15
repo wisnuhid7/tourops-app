@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useMemo, useState, useRef } from "react";
 import { getFullImageUrl } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -21,6 +21,9 @@ import {
 import type { HotelRate, TransportRate, GuideRate, SightsRate } from "@workspace/db";
 import * as XLSX from "xlsx";
 import { useLanguage } from "@/hooks/use-language";
+import type { ColDef, GetRowIdParams, ICellRendererParams } from "ag-grid-community";
+import { AgGridReact } from "ag-grid-react";
+import { agGridDefaultColDef, agGridTheme } from "@/lib/ag-grid-config";
 
 type RateStatus = "draft" | "active" | "archived";
 
@@ -190,6 +193,7 @@ const toStr = (v: any) => String(v);
 const toBool = (v: any) => String(v).toUpperCase() === "TRUE";
 const toIntOrNull = (v: any) => { const n = parseInt(v); return isNaN(n) ? null : n; };
 const toStrOrNull = (v: any) => { const s = String(v).trim(); return s === "" ? null : s; };
+const toGridDate = (value: string | null | undefined) => value ? new Date(`${value}T00:00:00`) : null;
 
 const hotelHeaderMapping: Record<string, { field: string; transform?: (v: any) => any }> = {
   "country_code": { field: "countryCode" },
@@ -291,6 +295,7 @@ function HotelRatesTab() {
     (!normalizedSearch || [r.hotelName, r.city, r.countryCode, r.hotelCode, r.roomType, r.mealPlan, r.notes]
       .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch))
   ) || [];
+  const filtersActive = Boolean(normalizedSearch) || statusFilter !== "all";
 
   const resetForm = () => {
     setCountryCode(""); setCity(""); setHotelName(""); setHotelCode(""); setRoomType("");
@@ -352,6 +357,84 @@ function HotelRatesTab() {
     else createMutation.mutate(d);
   };
 
+  const gridTheme = useMemo(() => agGridTheme, []);
+  const defaultColDef = useMemo<ColDef<HotelRate>>(() => agGridDefaultColDef, []);
+  const columnDefs = useMemo<ColDef<HotelRate>[]>(() => [
+    {
+      headerName: t("hotel_label"),
+      field: "hotelName",
+      minWidth: 220,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      cellRenderer: (params: ICellRendererParams<HotelRate>) => params.data ? <span className="font-medium" data-testid={`text-hotel-name-${params.data.id}`}>{params.data.hotelName}</span> : null,
+    },
+    {
+      headerName: t("city_label"),
+      minWidth: 150,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.city || "-",
+      cellRenderer: (params: ICellRendererParams<HotelRate>) => params.data ? <span className="text-muted-foreground">{params.data.city || "-"}</span> : null,
+    },
+    {
+      headerName: t("room_label"),
+      width: 110,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.roomType || "-",
+      cellRenderer: (params: ICellRendererParams<HotelRate>) => params.data ? <span className="text-muted-foreground">{params.data.roomType || "-"}</span> : null,
+    },
+    {
+      headerName: t("meal_label"),
+      width: 110,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.mealPlan || "-",
+      cellRenderer: (params: ICellRendererParams<HotelRate>) => params.data ? <span className="text-muted-foreground">{params.data.mealPlan || "-"}</span> : null,
+    },
+    {
+      headerName: t("price"),
+      width: 150,
+      filter: "agNumberColumnFilter",
+      valueGetter: (params) => params.data?.pricePerRoomPerNight ? Number(params.data.pricePerRoomPerNight) : null,
+      valueFormatter: (params) => params.data?.pricePerRoomPerNight ? `${params.data.currency || ""} ${params.data.pricePerRoomPerNight}` : "-",
+      cellRenderer: (params: ICellRendererParams<HotelRate>) => params.data ? <span data-testid={`text-hotel-price-${params.data.id}`}>{params.data.pricePerRoomPerNight ? `${params.data.currency || ""} ${params.data.pricePerRoomPerNight}` : "-"}</span> : null,
+    },
+    {
+      headerName: t("valid_label"),
+      width: 190,
+      filter: "agDateColumnFilter",
+      valueGetter: (params) => `${params.data?.validFrom || "?"} - ${params.data?.validTo || "?"}`,
+      filterValueGetter: (params) => toGridDate(params.data?.validFrom),
+      cellRenderer: (params: ICellRendererParams<HotelRate>) => params.data ? <span className="text-muted-foreground text-sm">{params.data.validFrom || "?"} - {params.data.validTo || "?"}</span> : null,
+    },
+    {
+      headerName: t("status"),
+      width: 130,
+      filter: "agTextColumnFilter",
+      filterValueGetter: (params) => params.data?.status === "active" ? t("status_active") : params.data?.status === "archived" ? t("status_archived") : t("status_draft"),
+      cellRenderer: (params: ICellRendererParams<HotelRate>) => params.data ? <StatusBadge status={params.data.status as RateStatus} /> : null,
+    },
+    {
+      headerName: t("actions"),
+      width: 170,
+      pinned: "right",
+      sortable: false,
+      filter: false,
+      resizable: false,
+      cellRenderer: (params: ICellRendererParams<HotelRate>) => {
+        if (!params.data) return null;
+        const rate = params.data;
+        return (
+          <div className="flex items-center gap-1">
+            <Button size="icon" variant="ghost" onClick={() => openEdit(rate)} data-testid={`button-edit-hotel-rate-${rate.id}`}><Pencil className="h-4 w-4" /></Button>
+            {rate.status !== "active" && <Button size="icon" variant="ghost" onClick={() => approveMutation.mutate(rate.id)} data-testid={`button-approve-hotel-rate-${rate.id}`}><CheckCircle className="h-4 w-4" /></Button>}
+            {rate.status !== "archived" && <Button size="icon" variant="ghost" onClick={() => archiveMutation.mutate(rate.id)} data-testid={`button-archive-hotel-rate-${rate.id}`}><Archive className="h-4 w-4" /></Button>}
+            <Button size="icon" variant="ghost" onClick={() => setDeleteId(rate.id)} data-testid={`button-delete-hotel-rate-${rate.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          </div>
+        );
+      },
+    },
+  ], [approveMutation, archiveMutation, openEdit, t]);
+
   if (isLoading) return <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>;
 
   return (
@@ -365,44 +448,20 @@ function HotelRatesTab() {
         <Button onClick={openCreate} data-testid="button-add-hotel-rate"><Plus className="h-4 w-4 mr-2" />{t("add_rate")}</Button>
         <Button variant="outline" onClick={() => setShowBulk(true)} data-testid="button-bulk-hotel"><Upload className="h-4 w-4 mr-2" />{t("bulk_upload")}</Button>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("hotel_label")}</TableHead>
-            <TableHead>{t("city_label")}</TableHead>
-            <TableHead>{t("room_label")}</TableHead>
-            <TableHead>{t("meal_label")}</TableHead>
-            <TableHead>{t("price")}</TableHead>
-            <TableHead>{t("valid_label")}</TableHead>
-            <TableHead>{t("status")}</TableHead>
-            <TableHead>{t("actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.map((r) => (
-            <TableRow key={r.id} data-testid={`row-hotel-rate-${r.id}`}>
-              <TableCell className="font-medium" data-testid={`text-hotel-name-${r.id}`}>{r.hotelName}</TableCell>
-              <TableCell className="text-muted-foreground">{r.city || "-"}</TableCell>
-              <TableCell className="text-muted-foreground">{r.roomType || "-"}</TableCell>
-              <TableCell className="text-muted-foreground">{r.mealPlan || "-"}</TableCell>
-              <TableCell data-testid={`text-hotel-price-${r.id}`}>{r.pricePerRoomPerNight ? `${r.currency || ""} ${r.pricePerRoomPerNight}` : "-"}</TableCell>
-              <TableCell className="text-muted-foreground text-sm">{r.validFrom || "?"} - {r.validTo || "?"}</TableCell>
-              <TableCell><StatusBadge status={r.status as RateStatus} /></TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => openEdit(r)} data-testid={`button-edit-hotel-rate-${r.id}`}><Pencil className="h-4 w-4" /></Button>
-                  {r.status !== "active" && <Button size="icon" variant="ghost" onClick={() => approveMutation.mutate(r.id)} data-testid={`button-approve-hotel-rate-${r.id}`}><CheckCircle className="h-4 w-4" /></Button>}
-                  {r.status !== "archived" && <Button size="icon" variant="ghost" onClick={() => archiveMutation.mutate(r.id)} data-testid={`button-archive-hotel-rate-${r.id}`}><Archive className="h-4 w-4" /></Button>}
-                  <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)} data-testid={`button-delete-hotel-rate-${r.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{normalizedSearch || statusFilter !== "all" ? t("no_results") : t("no_hotel_rates_found")}</TableCell></TableRow>
-          )}
-        </TableBody>
-      </Table>
+      {filtered.length > 0 ? (
+        <div data-testid="grid-rates-hotel" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}>
+          <AgGridReact<HotelRate>
+            theme={gridTheme}
+            rowData={filtered}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            getRowId={(params: GetRowIdParams<HotelRate>) => params.data.id}
+            suppressCellFocus
+          />
+        </div>
+      ) : (
+        <Table><TableBody><TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{filtersActive ? t("no_results") : t("no_hotel_rates_found")}</TableCell></TableRow></TableBody></Table>
+      )}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -515,6 +574,7 @@ function TransportRatesTab() {
     (!normalizedSearch || [r.vendorName, r.cityBase, r.countryCode, r.vendorCode, r.vehicleType, r.rateMode, r.routeFromCity, r.routeToCity, r.notes]
       .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch))
   ) || [];
+  const filtersActive = Boolean(normalizedSearch) || statusFilter !== "all";
 
   const resetForm = () => {
     setCountryCode(""); setCityBase(""); setVendorName(""); setVendorCode(""); setVehicleType("");
@@ -581,6 +641,84 @@ function TransportRatesTab() {
     else createMutation.mutate(d);
   };
 
+  const gridTheme = useMemo(() => agGridTheme, []);
+  const defaultColDef = useMemo<ColDef<TransportRate>>(() => agGridDefaultColDef, []);
+  const columnDefs = useMemo<ColDef<TransportRate>[]>(() => [
+    {
+      headerName: t("vendor_label"),
+      field: "vendorName",
+      minWidth: 220,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      cellRenderer: (params: ICellRendererParams<TransportRate>) => params.data ? <span className="font-medium" data-testid={`text-transport-vendor-${params.data.id}`}>{params.data.vendorName}</span> : null,
+    },
+    {
+      headerName: t("city_label"),
+      minWidth: 150,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.cityBase || "-",
+      cellRenderer: (params: ICellRendererParams<TransportRate>) => params.data ? <span className="text-muted-foreground">{params.data.cityBase || "-"}</span> : null,
+    },
+    {
+      headerName: t("vehicle_label"),
+      width: 140,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.vehicleType || "-",
+      cellRenderer: (params: ICellRendererParams<TransportRate>) => params.data ? <span className="text-muted-foreground">{params.data.vehicleType || "-"}</span> : null,
+    },
+    {
+      headerName: t("mode_label"),
+      width: 140,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.rateMode || "-",
+      cellRenderer: (params: ICellRendererParams<TransportRate>) => params.data ? <span className="text-muted-foreground">{params.data.rateMode || "-"}</span> : null,
+    },
+    {
+      headerName: t("price"),
+      width: 150,
+      filter: "agNumberColumnFilter",
+      valueGetter: (params) => params.data?.basePrice ? Number(params.data.basePrice) : null,
+      valueFormatter: (params) => params.data?.basePrice ? `${params.data.currency || ""} ${params.data.basePrice}` : "-",
+      cellRenderer: (params: ICellRendererParams<TransportRate>) => params.data ? <span data-testid={`text-transport-price-${params.data.id}`}>{params.data.basePrice ? `${params.data.currency || ""} ${params.data.basePrice}` : "-"}</span> : null,
+    },
+    {
+      headerName: t("valid_label"),
+      width: 190,
+      filter: "agDateColumnFilter",
+      valueGetter: (params) => `${params.data?.validFrom || "?"} - ${params.data?.validTo || "?"}`,
+      filterValueGetter: (params) => toGridDate(params.data?.validFrom),
+      cellRenderer: (params: ICellRendererParams<TransportRate>) => params.data ? <span className="text-muted-foreground text-sm">{params.data.validFrom || "?"} - {params.data.validTo || "?"}</span> : null,
+    },
+    {
+      headerName: t("status"),
+      width: 130,
+      filter: "agTextColumnFilter",
+      filterValueGetter: (params) => params.data?.status === "active" ? t("status_active") : params.data?.status === "archived" ? t("status_archived") : t("status_draft"),
+      cellRenderer: (params: ICellRendererParams<TransportRate>) => params.data ? <StatusBadge status={params.data.status as RateStatus} /> : null,
+    },
+    {
+      headerName: t("actions"),
+      width: 170,
+      pinned: "right",
+      sortable: false,
+      filter: false,
+      resizable: false,
+      cellRenderer: (params: ICellRendererParams<TransportRate>) => {
+        if (!params.data) return null;
+        const rate = params.data;
+        return (
+          <div className="flex items-center gap-1">
+            <Button size="icon" variant="ghost" onClick={() => openEdit(rate)} data-testid={`button-edit-transport-rate-${rate.id}`}><Pencil className="h-4 w-4" /></Button>
+            {rate.status !== "active" && <Button size="icon" variant="ghost" onClick={() => approveMutation.mutate(rate.id)} data-testid={`button-approve-transport-rate-${rate.id}`}><CheckCircle className="h-4 w-4" /></Button>}
+            {rate.status !== "archived" && <Button size="icon" variant="ghost" onClick={() => archiveMutation.mutate(rate.id)} data-testid={`button-archive-transport-rate-${rate.id}`}><Archive className="h-4 w-4" /></Button>}
+            <Button size="icon" variant="ghost" onClick={() => setDeleteId(rate.id)} data-testid={`button-delete-transport-rate-${rate.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          </div>
+        );
+      },
+    },
+  ], [approveMutation, archiveMutation, openEdit, t]);
+
   if (isLoading) return <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>;
 
   return (
@@ -594,44 +732,20 @@ function TransportRatesTab() {
         <Button onClick={openCreate} data-testid="button-add-transport-rate"><Plus className="h-4 w-4 mr-2" />{t("add_rate")}</Button>
         <Button variant="outline" onClick={() => setShowBulk(true)} data-testid="button-bulk-transport"><Upload className="h-4 w-4 mr-2" />{t("bulk_upload")}</Button>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("vendor_label")}</TableHead>
-            <TableHead>{t("city_label")}</TableHead>
-            <TableHead>{t("vehicle_label")}</TableHead>
-            <TableHead>{t("mode_label")}</TableHead>
-            <TableHead>{t("price")}</TableHead>
-            <TableHead>{t("valid_label")}</TableHead>
-            <TableHead>{t("status")}</TableHead>
-            <TableHead>{t("actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.map((r) => (
-            <TableRow key={r.id} data-testid={`row-transport-rate-${r.id}`}>
-              <TableCell className="font-medium" data-testid={`text-transport-vendor-${r.id}`}>{r.vendorName}</TableCell>
-              <TableCell className="text-muted-foreground">{r.cityBase || "-"}</TableCell>
-              <TableCell className="text-muted-foreground">{r.vehicleType || "-"}</TableCell>
-              <TableCell className="text-muted-foreground">{r.rateMode || "-"}</TableCell>
-              <TableCell data-testid={`text-transport-price-${r.id}`}>{r.basePrice ? `${r.currency || ""} ${r.basePrice}` : "-"}</TableCell>
-              <TableCell className="text-muted-foreground text-sm">{r.validFrom || "?"} - {r.validTo || "?"}</TableCell>
-              <TableCell><StatusBadge status={r.status as RateStatus} /></TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => openEdit(r)} data-testid={`button-edit-transport-rate-${r.id}`}><Pencil className="h-4 w-4" /></Button>
-                  {r.status !== "active" && <Button size="icon" variant="ghost" onClick={() => approveMutation.mutate(r.id)} data-testid={`button-approve-transport-rate-${r.id}`}><CheckCircle className="h-4 w-4" /></Button>}
-                  {r.status !== "archived" && <Button size="icon" variant="ghost" onClick={() => archiveMutation.mutate(r.id)} data-testid={`button-archive-transport-rate-${r.id}`}><Archive className="h-4 w-4" /></Button>}
-                  <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)} data-testid={`button-delete-transport-rate-${r.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{normalizedSearch || statusFilter !== "all" ? t("no_results") : t("no_transport_rates_found")}</TableCell></TableRow>
-          )}
-        </TableBody>
-      </Table>
+      {filtered.length > 0 ? (
+        <div data-testid="grid-rates-transport" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}>
+          <AgGridReact<TransportRate>
+            theme={gridTheme}
+            rowData={filtered}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            getRowId={(params: GetRowIdParams<TransportRate>) => params.data.id}
+            suppressCellFocus
+          />
+        </div>
+      ) : (
+        <Table><TableBody><TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{filtersActive ? t("no_results") : t("no_transport_rates_found")}</TableCell></TableRow></TableBody></Table>
+      )}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -744,6 +858,7 @@ function GuideRatesTab() {
     (!normalizedSearch || [r.guideName, r.cityBase, r.countryCode, r.guideCode, r.language, r.email, r.phone, r.licenseLevel, r.notes]
       .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch))
   ) || [];
+  const filtersActive = Boolean(normalizedSearch) || statusFilter !== "all";
 
   const resetForm = () => {
     setCountryCode(""); setCityBase(""); setGuideName(""); setGuideCode(""); setLanguage("");
@@ -842,6 +957,99 @@ function GuideRatesTab() {
     else createMutation.mutate(d);
   };
 
+  const gridTheme = useMemo(() => agGridTheme, []);
+  const defaultColDef = useMemo<ColDef<GuideRate>>(() => agGridDefaultColDef, []);
+  const columnDefs = useMemo<ColDef<GuideRate>[]>(() => [
+    {
+      headerName: t("guide_label"),
+      field: "guideName",
+      minWidth: 220,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      cellRenderer: (params: ICellRendererParams<GuideRate>) => params.data ? <span className="font-medium" data-testid={`text-guide-name-${params.data.id}`}>{params.data.guideName}</span> : null,
+    },
+    {
+      headerName: t("city_label"),
+      minWidth: 150,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.cityBase || "-",
+      cellRenderer: (params: ICellRendererParams<GuideRate>) => params.data ? <span className="text-muted-foreground">{params.data.cityBase || "-"}</span> : null,
+    },
+    {
+      headerName: t("language"),
+      width: 130,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.language || "-",
+      cellRenderer: (params: ICellRendererParams<GuideRate>) => params.data ? <span className="text-muted-foreground">{params.data.language || "-"}</span> : null,
+    },
+    {
+      headerName: t("unit_label"),
+      width: 130,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.rateUnit || "-",
+      cellRenderer: (params: ICellRendererParams<GuideRate>) => params.data ? <span className="text-muted-foreground">{params.data.rateUnit || "-"}</span> : null,
+    },
+    {
+      headerName: t("price"),
+      width: 150,
+      filter: "agNumberColumnFilter",
+      valueGetter: (params) => params.data?.price ? Number(params.data.price) : null,
+      valueFormatter: (params) => params.data?.price ? `${params.data.currency || ""} ${params.data.price}` : "-",
+      cellRenderer: (params: ICellRendererParams<GuideRate>) => params.data ? <span data-testid={`text-guide-price-${params.data.id}`}>{params.data.price ? `${params.data.currency || ""} ${params.data.price}` : "-"}</span> : null,
+    },
+    {
+      headerName: t("valid_label"),
+      width: 190,
+      filter: "agDateColumnFilter",
+      valueGetter: (params) => `${params.data?.validFrom || "?"} - ${params.data?.validTo || "?"}`,
+      filterValueGetter: (params) => toGridDate(params.data?.validFrom),
+      cellRenderer: (params: ICellRendererParams<GuideRate>) => params.data ? <span className="text-muted-foreground text-sm">{params.data.validFrom || "?"} - {params.data.validTo || "?"}</span> : null,
+    },
+    {
+      headerName: t("status"),
+      width: 180,
+      filter: "agTextColumnFilter",
+      filterValueGetter: (params) => params.data?.status === "active" ? t("status_active") : params.data?.status === "archived" ? t("status_archived") : t("status_draft"),
+      cellRenderer: (params: ICellRendererParams<GuideRate>) => {
+        if (!params.data) return null;
+        const rate = params.data;
+        return (
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={rate.status === "active"}
+              onCheckedChange={(checked) => statusMutation.mutate({ id: rate.id, status: checked ? "active" : "draft" })}
+              disabled={statusMutation.isPending}
+              aria-label={t("status")}
+              data-testid={`switch-guide-status-${rate.id}`}
+            />
+            <StatusBadge status={rate.status as RateStatus} />
+          </div>
+        );
+      },
+    },
+    {
+      headerName: t("actions"),
+      width: 170,
+      pinned: "right",
+      sortable: false,
+      filter: false,
+      resizable: false,
+      cellRenderer: (params: ICellRendererParams<GuideRate>) => {
+        if (!params.data) return null;
+        const rate = params.data;
+        return (
+          <div className="flex items-center gap-1">
+            <Button size="icon" variant="ghost" onClick={() => openEdit(rate)} data-testid={`button-edit-guide-rate-${rate.id}`}><Pencil className="h-4 w-4" /></Button>
+            {rate.status !== "active" && <Button size="icon" variant="ghost" onClick={() => approveMutation.mutate(rate.id)} data-testid={`button-approve-guide-rate-${rate.id}`}><CheckCircle className="h-4 w-4" /></Button>}
+            {rate.status !== "archived" && <Button size="icon" variant="ghost" onClick={() => archiveMutation.mutate(rate.id)} data-testid={`button-archive-guide-rate-${rate.id}`}><Archive className="h-4 w-4" /></Button>}
+            <Button size="icon" variant="ghost" onClick={() => setDeleteId(rate.id)} data-testid={`button-delete-guide-rate-${rate.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          </div>
+        );
+      },
+    },
+  ], [approveMutation, archiveMutation, openEdit, statusMutation, t]);
+
   if (isLoading) return <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>;
 
   return (
@@ -855,55 +1063,20 @@ function GuideRatesTab() {
         <Button onClick={openCreate} data-testid="button-add-guide-rate"><Plus className="h-4 w-4 mr-2" />{t("add_rate")}</Button>
         <Button variant="outline" onClick={() => setShowBulk(true)} data-testid="button-bulk-guide"><Upload className="h-4 w-4 mr-2" />{t("bulk_upload")}</Button>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("guide_label")}</TableHead>
-            <TableHead>{t("city_label")}</TableHead>
-            <TableHead>{t("language")}</TableHead>
-            <TableHead>{t("unit_label")}</TableHead>
-            <TableHead>{t("price")}</TableHead>
-            <TableHead>{t("valid_label")}</TableHead>
-            <TableHead>{t("status")}</TableHead>
-            <TableHead>{t("actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.map((r) => (
-            <TableRow key={r.id} data-testid={`row-guide-rate-${r.id}`}>
-              <TableCell className="font-medium" data-testid={`text-guide-name-${r.id}`}>{r.guideName}</TableCell>
-              <TableCell className="text-muted-foreground">{r.cityBase || "-"}</TableCell>
-              <TableCell className="text-muted-foreground">{r.language || "-"}</TableCell>
-              <TableCell className="text-muted-foreground">{r.rateUnit || "-"}</TableCell>
-              <TableCell data-testid={`text-guide-price-${r.id}`}>{r.price ? `${r.currency || ""} ${r.price}` : "-"}</TableCell>
-              <TableCell className="text-muted-foreground text-sm">{r.validFrom || "?"} - {r.validTo || "?"}</TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Switch
-                    checked={r.status === "active"}
-                    onCheckedChange={(checked) => statusMutation.mutate({ id: r.id, status: checked ? "active" : "draft" })}
-                    disabled={statusMutation.isPending}
-                    aria-label={t("status")}
-                    data-testid={`switch-guide-status-${r.id}`}
-                  />
-                  <StatusBadge status={r.status as RateStatus} />
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => openEdit(r)} data-testid={`button-edit-guide-rate-${r.id}`}><Pencil className="h-4 w-4" /></Button>
-                  {r.status !== "active" && <Button size="icon" variant="ghost" onClick={() => approveMutation.mutate(r.id)} data-testid={`button-approve-guide-rate-${r.id}`}><CheckCircle className="h-4 w-4" /></Button>}
-                  {r.status !== "archived" && <Button size="icon" variant="ghost" onClick={() => archiveMutation.mutate(r.id)} data-testid={`button-archive-guide-rate-${r.id}`}><Archive className="h-4 w-4" /></Button>}
-                  <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)} data-testid={`button-delete-guide-rate-${r.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{normalizedSearch || statusFilter !== "all" ? t("no_results") : t("no_guide_rates_found")}</TableCell></TableRow>
-          )}
-        </TableBody>
-      </Table>
+      {filtered.length > 0 ? (
+        <div data-testid="grid-rates-guide" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}>
+          <AgGridReact<GuideRate>
+            theme={gridTheme}
+            rowData={filtered}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            getRowId={(params: GetRowIdParams<GuideRate>) => params.data.id}
+            suppressCellFocus
+          />
+        </div>
+      ) : (
+        <Table><TableBody><TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{filtersActive ? t("no_results") : t("no_guide_rates_found")}</TableCell></TableRow></TableBody></Table>
+      )}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -1027,6 +1200,7 @@ function SightsRatesTab() {
     (!normalizedSearch || [r.attractionName, r.city, r.countryCode, r.attractionCode, r.ticketType, r.notes]
       .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch))
   ) || [];
+  const filtersActive = Boolean(normalizedSearch) || statusFilter !== "all";
 
   const resetForm = () => {
     setCountryCode(""); setCity(""); setAttractionName(""); setAttractionCode(""); setTicketType("");
@@ -1086,6 +1260,77 @@ function SightsRatesTab() {
     else createMutation.mutate(d);
   };
 
+  const gridTheme = useMemo(() => agGridTheme, []);
+  const defaultColDef = useMemo<ColDef<SightsRate>>(() => agGridDefaultColDef, []);
+  const columnDefs = useMemo<ColDef<SightsRate>[]>(() => [
+    {
+      headerName: t("attraction_label"),
+      field: "attractionName",
+      minWidth: 220,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      cellRenderer: (params: ICellRendererParams<SightsRate>) => params.data ? <span className="font-medium" data-testid={`text-sights-name-${params.data.id}`}>{params.data.attractionName}</span> : null,
+    },
+    {
+      headerName: t("city_label"),
+      minWidth: 150,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.city || "-",
+      cellRenderer: (params: ICellRendererParams<SightsRate>) => params.data ? <span className="text-muted-foreground">{params.data.city || "-"}</span> : null,
+    },
+    {
+      headerName: t("ticket_label"),
+      width: 150,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.ticketType || "-",
+      cellRenderer: (params: ICellRendererParams<SightsRate>) => params.data ? <span className="text-muted-foreground">{params.data.ticketType || "-"}</span> : null,
+    },
+    {
+      headerName: t("price"),
+      width: 150,
+      filter: "agNumberColumnFilter",
+      valueGetter: (params) => params.data?.pricePerPerson ? Number(params.data.pricePerPerson) : null,
+      valueFormatter: (params) => params.data?.pricePerPerson ? `${params.data.currency || ""} ${params.data.pricePerPerson}` : "-",
+      cellRenderer: (params: ICellRendererParams<SightsRate>) => params.data ? <span data-testid={`text-sights-price-${params.data.id}`}>{params.data.pricePerPerson ? `${params.data.currency || ""} ${params.data.pricePerPerson}` : "-"}</span> : null,
+    },
+    {
+      headerName: t("valid_label"),
+      width: 190,
+      filter: "agDateColumnFilter",
+      valueGetter: (params) => `${params.data?.validFrom || "?"} - ${params.data?.validTo || "?"}`,
+      filterValueGetter: (params) => toGridDate(params.data?.validFrom),
+      cellRenderer: (params: ICellRendererParams<SightsRate>) => params.data ? <span className="text-muted-foreground text-sm">{params.data.validFrom || "?"} - {params.data.validTo || "?"}</span> : null,
+    },
+    {
+      headerName: t("status"),
+      width: 130,
+      filter: "agTextColumnFilter",
+      filterValueGetter: (params) => params.data?.status === "active" ? t("status_active") : params.data?.status === "archived" ? t("status_archived") : t("status_draft"),
+      cellRenderer: (params: ICellRendererParams<SightsRate>) => params.data ? <StatusBadge status={params.data.status as RateStatus} /> : null,
+    },
+    {
+      headerName: t("actions"),
+      width: 170,
+      pinned: "right",
+      sortable: false,
+      filter: false,
+      resizable: false,
+      cellRenderer: (params: ICellRendererParams<SightsRate>) => {
+        if (!params.data) return null;
+        const rate = params.data;
+        return (
+          <div className="flex items-center gap-1">
+            <Button size="icon" variant="ghost" onClick={() => openEdit(rate)} data-testid={`button-edit-sights-rate-${rate.id}`}><Pencil className="h-4 w-4" /></Button>
+            {rate.status !== "active" && <Button size="icon" variant="ghost" onClick={() => approveMutation.mutate(rate.id)} data-testid={`button-approve-sights-rate-${rate.id}`}><CheckCircle className="h-4 w-4" /></Button>}
+            {rate.status !== "archived" && <Button size="icon" variant="ghost" onClick={() => archiveMutation.mutate(rate.id)} data-testid={`button-archive-sights-rate-${rate.id}`}><Archive className="h-4 w-4" /></Button>}
+            <Button size="icon" variant="ghost" onClick={() => setDeleteId(rate.id)} data-testid={`button-delete-sights-rate-${rate.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          </div>
+        );
+      },
+    },
+  ], [approveMutation, archiveMutation, openEdit, t]);
+
   if (isLoading) return <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>;
 
   return (
@@ -1099,42 +1344,20 @@ function SightsRatesTab() {
         <Button onClick={openCreate} data-testid="button-add-sights-rate"><Plus className="h-4 w-4 mr-2" />{t("add_rate")}</Button>
         <Button variant="outline" onClick={() => setShowBulk(true)} data-testid="button-bulk-sights"><Upload className="h-4 w-4 mr-2" />{t("bulk_upload")}</Button>
       </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("attraction_label")}</TableHead>
-            <TableHead>{t("city_label")}</TableHead>
-            <TableHead>{t("ticket_label")}</TableHead>
-            <TableHead>{t("price")}</TableHead>
-            <TableHead>{t("valid_label")}</TableHead>
-            <TableHead>{t("status")}</TableHead>
-            <TableHead>{t("actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.map((r) => (
-            <TableRow key={r.id} data-testid={`row-sights-rate-${r.id}`}>
-              <TableCell className="font-medium" data-testid={`text-sights-name-${r.id}`}>{r.attractionName}</TableCell>
-              <TableCell className="text-muted-foreground">{r.city || "-"}</TableCell>
-              <TableCell className="text-muted-foreground">{r.ticketType || "-"}</TableCell>
-              <TableCell data-testid={`text-sights-price-${r.id}`}>{r.pricePerPerson ? `${r.currency || ""} ${r.pricePerPerson}` : "-"}</TableCell>
-              <TableCell className="text-muted-foreground text-sm">{r.validFrom || "?"} - {r.validTo || "?"}</TableCell>
-              <TableCell><StatusBadge status={r.status as RateStatus} /></TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => openEdit(r)} data-testid={`button-edit-sights-rate-${r.id}`}><Pencil className="h-4 w-4" /></Button>
-                  {r.status !== "active" && <Button size="icon" variant="ghost" onClick={() => approveMutation.mutate(r.id)} data-testid={`button-approve-sights-rate-${r.id}`}><CheckCircle className="h-4 w-4" /></Button>}
-                  {r.status !== "archived" && <Button size="icon" variant="ghost" onClick={() => archiveMutation.mutate(r.id)} data-testid={`button-archive-sights-rate-${r.id}`}><Archive className="h-4 w-4" /></Button>}
-                  <Button size="icon" variant="ghost" onClick={() => setDeleteId(r.id)} data-testid={`button-delete-sights-rate-${r.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{normalizedSearch || statusFilter !== "all" ? t("no_results") : t("no_sights_rates_found")}</TableCell></TableRow>
-          )}
-        </TableBody>
-      </Table>
+      {filtered.length > 0 ? (
+        <div data-testid="grid-rates-sights" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}>
+          <AgGridReact<SightsRate>
+            theme={gridTheme}
+            rowData={filtered}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            getRowId={(params: GetRowIdParams<SightsRate>) => params.data.id}
+            suppressCellFocus
+          />
+        </div>
+      ) : (
+        <Table><TableBody><TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{filtersActive ? t("no_results") : t("no_sights_rates_found")}</TableCell></TableRow></TableBody></Table>
+      )}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">

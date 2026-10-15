@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,9 @@ import type {
   TransportBooking, TransportInvoice, TransportPayment, Tour, Country,
 } from "@workspace/db";
 import { useLanguage } from "@/hooks/use-language";
+import type { ColDef, GetRowIdParams, ICellRendererParams } from "ag-grid-community";
+import { AgGridReact } from "ag-grid-react";
+import { agGridDefaultColDef, agGridTheme } from "@/lib/ag-grid-config";
 
 interface PaginatedTransportResponse<T> {
   rows: T[];
@@ -34,6 +37,7 @@ const pressFeedback = "transition-[scale] duration-150 ease-out active:scale-[0.
 const allCompaniesValue = "__all_companies__";
 const allRoutesValue = "__all_routes__";
 const allCountriesValue = "__all_countries__";
+const toGridDate = (value: string | null | undefined) => value ? new Date(`${value}T00:00:00`) : null;
 
 function CompanySelector({
   value,
@@ -216,6 +220,89 @@ function CompaniesTab() {
     ].filter(Boolean).join(" ").toLowerCase();
     return matchesCountry && (!normalizedSearch || haystack.includes(normalizedSearch));
   }) ?? [];
+  const filtersActive = Boolean(normalizedSearch) || Boolean(countryFilter);
+
+  const gridTheme = useMemo(() => agGridTheme, []);
+  const defaultColDef = useMemo<ColDef<TransportCompany>>(() => agGridDefaultColDef, []);
+  const columnDefs = useMemo<ColDef<TransportCompany>[]>(() => [
+    {
+      headerName: t("name_label"),
+      field: "name",
+      minWidth: 220,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      cellRenderer: (params: ICellRendererParams<TransportCompany>) => params.data ? <span className="font-medium" data-testid={`text-company-name-${params.data.id}`}>{params.data.name}</span> : null,
+    },
+    {
+      headerName: t("country_label"),
+      minWidth: 160,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => countriesList?.find((country) => country.id === params.data?.countryId)?.name || "-",
+      cellRenderer: (params: ICellRendererParams<TransportCompany>) => params.data ? <span className="text-muted-foreground" data-testid={`text-company-country-${params.data.id}`}>{countriesList?.find((country) => country.id === params.data?.countryId)?.name || "-"}</span> : null,
+    },
+    {
+      headerName: t("contact_name_label"),
+      minWidth: 150,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.contactName || "-",
+    },
+    {
+      headerName: t("contact_phone_label"),
+      width: 150,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.contactPhone || "-",
+    },
+    {
+      headerName: t("contact_email_label"),
+      minWidth: 190,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.contactEmail || "-",
+    },
+    {
+      headerName: t("city_label"),
+      minWidth: 150,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.city ? `${params.data.city}${params.data.state ? `, ${params.data.state}` : ""}` : "-",
+    },
+    {
+      headerName: t("vehicle_types_label"),
+      minWidth: 170,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.vehicleTypes?.join(" ") || "-",
+      cellRenderer: (params: ICellRendererParams<TransportCompany>) => params.data?.vehicleTypes?.length ? (
+        <div className="flex flex-wrap gap-1">
+          {params.data.vehicleTypes.map((vehicleType) => <Badge key={vehicleType} variant="secondary">{vehicleType}</Badge>)}
+        </div>
+      ) : "-",
+    },
+    {
+      headerName: t("actions"),
+      width: 100,
+      pinned: "right",
+      sortable: false,
+      filter: false,
+      resizable: false,
+      cellRenderer: (params: ICellRendererParams<TransportCompany>) => {
+        if (!params.data) return null;
+        const company = params.data;
+        return (
+          <div className="flex items-center gap-1">
+            <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => openEdit(company)} data-testid={`button-edit-company-${company.id}`}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => setDeleteId(company.id)} data-testid={`button-delete-company-${company.id}`}>
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        );
+      },
+    },
+  ], [countriesList, openEdit, t]);
 
   return (
     <div className="space-y-4">
@@ -239,56 +326,20 @@ function CompaniesTab() {
         </Button>
       </div>
       {isLoading && <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>}
-      {!isLoading && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("name_label")}</TableHead>
-              <TableHead>{t("country_label")}</TableHead>
-              <TableHead>{t("contact_name_label")}</TableHead>
-              <TableHead>{t("contact_phone_label")}</TableHead>
-              <TableHead>{t("contact_email_label")}</TableHead>
-              <TableHead>{t("city_label")}</TableHead>
-              <TableHead>{t("vehicle_types_label")}</TableHead>
-              <TableHead>{t("actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredCompanies.map((company) => (
-              <TableRow key={company.id} data-testid={`row-company-${company.id}`}>
-                <TableCell className="font-medium" data-testid={`text-company-name-${company.id}`}>{company.name}</TableCell>
-                <TableCell className="text-muted-foreground" data-testid={`text-company-country-${company.id}`}>{getCountryName(company.countryId)}</TableCell>
-                <TableCell className="text-muted-foreground">{company.contactName || "-"}</TableCell>
-                <TableCell className="text-muted-foreground">{company.contactPhone || "-"}</TableCell>
-                <TableCell className="text-muted-foreground">{company.contactEmail || "-"}</TableCell>
-                <TableCell className="text-muted-foreground">{company.city ? `${company.city}${company.state ? `, ${company.state}` : ""}` : "-"}</TableCell>
-                <TableCell>
-                  {company.vehicleTypes && company.vehicleTypes.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {company.vehicleTypes.map((vt) => (
-                        <Badge key={vt} variant="secondary">{vt}</Badge>
-                      ))}
-                    </div>
-                  ) : "-"}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => openEdit(company)} data-testid={`button-edit-company-${company.id}`}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => setDeleteId(company.id)} data-testid={`button-delete-company-${company.id}`}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filteredCompanies.length === 0 && (
-              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{t("no_transport_companies_found")}</TableCell></TableRow>
-            )}
-          </TableBody>
-        </Table>
-      )}
+      {!isLoading && (filteredCompanies.length > 0 ? (
+        <div data-testid="grid-transport-companies" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}>
+          <AgGridReact<TransportCompany>
+            theme={gridTheme}
+            rowData={filteredCompanies}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            getRowId={(params: GetRowIdParams<TransportCompany>) => params.data.id}
+            suppressCellFocus
+          />
+        </div>
+      ) : (
+        <Table><TableBody><TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{filtersActive ? t("no_results") : t("no_transport_companies_found")}</TableCell></TableRow></TableBody></Table>
+      ))}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) { setEditItem(null); resetForm(); } }}>
         <DialogContent className={`${surfaceShadow} max-w-2xl max-h-[85vh] overflow-y-auto`}>
@@ -403,12 +454,80 @@ function BusTypesTab() {
     else createMutation.mutate(data);
   };
 
-  const getCompanyName = (id: string) => companies?.find((c) => c.id === id)?.name || id;
   const normalizedSearch = search.trim().toLowerCase();
   const filteredBusTypes = busTypes?.filter((bt) =>
     (!companyId || bt.companyId === companyId) &&
     (!normalizedSearch || bt.name.toLowerCase().includes(normalizedSearch))
   ) ?? [];
+  const filtersActive = Boolean(normalizedSearch) || Boolean(companyId);
+
+  const gridTheme = useMemo(() => agGridTheme, []);
+  const defaultColDef = useMemo<ColDef<BusType>>(() => agGridDefaultColDef, []);
+  const columnDefs = useMemo<ColDef<BusType>[]>(() => [
+    {
+      headerName: t("name_label"),
+      field: "name",
+      minWidth: 220,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      cellRenderer: (params: ICellRendererParams<BusType>) => params.data ? <span className="font-medium" data-testid={`text-bustype-name-${params.data.id}`}>{params.data.name}</span> : null,
+    },
+    {
+      headerName: t("company_label"),
+      minWidth: 180,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => companies?.find((company) => company.id === params.data?.companyId)?.name || params.data?.companyId || "-",
+      cellRenderer: (params: ICellRendererParams<BusType>) => params.data ? <span data-testid={`text-bustype-company-${params.data.id}`}>{companies?.find((company) => company.id === params.data?.companyId)?.name || params.data.companyId}</span> : null,
+    },
+    {
+      headerName: t("seats_label"),
+      field: "seats",
+      width: 100,
+      filter: "agNumberColumnFilter",
+      cellRenderer: (params: ICellRendererParams<BusType>) => params.data ? <span data-testid={`text-bustype-seats-${params.data.id}`}>{params.data.seats}</span> : null,
+    },
+    {
+      headerName: t("cost_per_day_header"),
+      width: 140,
+      filter: "agNumberColumnFilter",
+      valueGetter: (params) => params.data?.costPerDay != null ? Number(params.data.costPerDay) : null,
+      valueFormatter: (params) => params.data?.costPerDay || "-",
+    },
+    {
+      headerName: t("cost_per_mile_header"),
+      width: 140,
+      filter: "agNumberColumnFilter",
+      valueGetter: (params) => params.data?.costPerMile != null ? Number(params.data.costPerMile) : null,
+      valueFormatter: (params) => params.data?.costPerMile || "-",
+    },
+    {
+      headerName: t("description"),
+      minWidth: 220,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.description || "-",
+      cellRenderer: (params: ICellRendererParams<BusType>) => params.data?.description || "-",
+    },
+    {
+      headerName: t("actions"),
+      width: 100,
+      pinned: "right",
+      sortable: false,
+      filter: false,
+      resizable: false,
+      cellRenderer: (params: ICellRendererParams<BusType>) => {
+        if (!params.data) return null;
+        const busType = params.data;
+        return (
+          <div className="flex items-center gap-1">
+            <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => openEdit(busType)} data-testid={`button-edit-bus-type-${busType.id}`}><Pencil className="h-4 w-4" /></Button>
+            <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => setDeleteId(busType.id)} data-testid={`button-delete-bus-type-${busType.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          </div>
+        );
+      },
+    },
+  ], [companies, openEdit, t]);
 
   return (
     <div className="space-y-4">
@@ -426,42 +545,20 @@ function BusTypesTab() {
 
       {isLoading && <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>}
 
-      {!isLoading && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("name_label")}</TableHead>
-              <TableHead>{t("company_label")}</TableHead>
-              <TableHead>{t("seats_label")}</TableHead>
-              <TableHead>{t("cost_per_day_header")}</TableHead>
-              <TableHead>{t("cost_per_mile_header")}</TableHead>
-              <TableHead>{t("description")}</TableHead>
-              <TableHead>{t("actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredBusTypes.map((bt) => (
-              <TableRow key={bt.id} data-testid={`row-bus-type-${bt.id}`}>
-                <TableCell className="font-medium" data-testid={`text-bustype-name-${bt.id}`}>{bt.name}</TableCell>
-                <TableCell data-testid={`text-bustype-company-${bt.id}`}>{getCompanyName(bt.companyId)}</TableCell>
-                <TableCell data-testid={`text-bustype-seats-${bt.id}`}>{bt.seats}</TableCell>
-                <TableCell className="text-muted-foreground">{bt.costPerDay || "-"}</TableCell>
-                <TableCell className="text-muted-foreground">{bt.costPerMile || "-"}</TableCell>
-                <TableCell className="text-muted-foreground max-w-[200px] truncate">{bt.description || "-"}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => openEdit(bt)} data-testid={`button-edit-bus-type-${bt.id}`}><Pencil className="h-4 w-4" /></Button>
-                    <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => setDeleteId(bt.id)} data-testid={`button-delete-bus-type-${bt.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {filteredBusTypes.length === 0 && (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("no_bus_types_found")}</TableCell></TableRow>
-            )}
-          </TableBody>
-        </Table>
-      )}
+      {!isLoading && (filteredBusTypes.length > 0 ? (
+        <div data-testid="grid-transport-bus-types" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}>
+          <AgGridReact<BusType>
+            theme={gridTheme}
+            rowData={filteredBusTypes}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            getRowId={(params: GetRowIdParams<BusType>) => params.data.id}
+            suppressCellFocus
+          />
+        </div>
+      ) : (
+        <Table><TableBody><TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{filtersActive ? t("no_results") : t("no_bus_types_found")}</TableCell></TableRow></TableBody></Table>
+      ))}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
         <DialogContent className={`${surfaceShadow} max-h-[85vh] overflow-y-auto`}>
@@ -509,7 +606,6 @@ function RoutesTab() {
   });
 
   const { data: companies } = useQuery<TransportCompany[]>({ queryKey: ["/api/master/transport-companies"] });
-  const getCompanyName = (id: string) => companies?.find((c) => c.id === id)?.name || id;
 
   const resetForm = () => { setRtName(""); setRtDescription(""); setFromCity(""); setToCity(""); setDistanceMiles(""); setFormCompanyId(""); };
 
@@ -557,10 +653,82 @@ function RoutesTab() {
     else createMutation.mutate(data);
   };
 
+  const normalizedSearch = search.trim().toLowerCase();
   const filteredRoutes = routes?.filter((rt) =>
     (!companyId || rt.companyId === companyId) &&
-    (!search || rt.name.toLowerCase().includes(search.toLowerCase()) || (rt.fromCity || "").toLowerCase().includes(search.toLowerCase()) || (rt.toCity || "").toLowerCase().includes(search.toLowerCase()) || (rt.description || "").toLowerCase().includes(search.toLowerCase()))
-  );
+    (!normalizedSearch || rt.name.toLowerCase().includes(normalizedSearch) || (rt.fromCity || "").toLowerCase().includes(normalizedSearch) || (rt.toCity || "").toLowerCase().includes(normalizedSearch) || (rt.description || "").toLowerCase().includes(normalizedSearch))
+  ) ?? [];
+  const filtersActive = Boolean(normalizedSearch) || Boolean(companyId);
+
+  const gridTheme = useMemo(() => agGridTheme, []);
+  const defaultColDef = useMemo<ColDef<TransportRoute>>(() => agGridDefaultColDef, []);
+  const columnDefs = useMemo<ColDef<TransportRoute>[]>(() => [
+    {
+      headerName: t("company_label"),
+      minWidth: 180,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => companies?.find((company) => company.id === params.data?.companyId)?.name || params.data?.companyId || "-",
+      cellRenderer: (params: ICellRendererParams<TransportRoute>) => params.data ? <span data-testid={`text-route-company-${params.data.id}`}>{companies?.find((company) => company.id === params.data?.companyId)?.name || params.data.companyId}</span> : null,
+    },
+    {
+      headerName: t("name_label"),
+      field: "name",
+      minWidth: 220,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      cellRenderer: (params: ICellRendererParams<TransportRoute>) => params.data ? <span className="font-medium" data-testid={`text-route-name-${params.data.id}`}>{params.data.name}</span> : null,
+    },
+    {
+      headerName: t("from_label"),
+      minWidth: 150,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.fromCity || "-",
+      cellRenderer: (params: ICellRendererParams<TransportRoute>) => params.data ? <span data-testid={`text-route-from-${params.data.id}`}>{params.data.fromCity || "-"}</span> : null,
+    },
+    {
+      headerName: t("to_label"),
+      minWidth: 150,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.toCity || "-",
+      cellRenderer: (params: ICellRendererParams<TransportRoute>) => params.data ? <span data-testid={`text-route-to-${params.data.id}`}>{params.data.toCity || "-"}</span> : null,
+    },
+    {
+      headerName: t("distance_mi"),
+      width: 120,
+      filter: "agNumberColumnFilter",
+      valueGetter: (params) => params.data?.distanceMiles != null ? Number(params.data.distanceMiles) : null,
+      valueFormatter: (params) => params.data?.distanceMiles || "-",
+    },
+    {
+      headerName: t("description"),
+      minWidth: 220,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.description || "-",
+      cellRenderer: (params: ICellRendererParams<TransportRoute>) => params.data?.description || "-",
+    },
+    {
+      headerName: t("actions"),
+      width: 100,
+      pinned: "right",
+      sortable: false,
+      filter: false,
+      resizable: false,
+      cellRenderer: (params: ICellRendererParams<TransportRoute>) => {
+        if (!params.data) return null;
+        const route = params.data;
+        return (
+          <div className="flex items-center gap-1">
+            <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => openEdit(route)} data-testid={`button-edit-route-${route.id}`}><Pencil className="h-4 w-4" /></Button>
+            <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => setDeleteId(route.id)} data-testid={`button-delete-route-${route.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          </div>
+        );
+      },
+    },
+  ], [companies, openEdit, t]);
 
   return (
     <div className="space-y-4">
@@ -578,42 +746,20 @@ function RoutesTab() {
 
       {isLoading && <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>}
 
-      {!isLoading && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("company_label")}</TableHead>
-              <TableHead>{t("name_label")}</TableHead>
-              <TableHead>{t("from_label")}</TableHead>
-              <TableHead>{t("to_label")}</TableHead>
-              <TableHead>{t("distance_mi")}</TableHead>
-              <TableHead>{t("description")}</TableHead>
-              <TableHead>{t("actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredRoutes?.map((rt) => (
-              <TableRow key={rt.id} data-testid={`row-route-${rt.id}`}>
-                <TableCell data-testid={`text-route-company-${rt.id}`}>{getCompanyName(rt.companyId)}</TableCell>
-                <TableCell className="font-medium" data-testid={`text-route-name-${rt.id}`}>{rt.name}</TableCell>
-                <TableCell data-testid={`text-route-from-${rt.id}`}>{rt.fromCity || "-"}</TableCell>
-                <TableCell data-testid={`text-route-to-${rt.id}`}>{rt.toCity || "-"}</TableCell>
-                <TableCell className="text-muted-foreground">{rt.distanceMiles || "-"}</TableCell>
-                <TableCell className="text-muted-foreground max-w-[200px] truncate">{rt.description || "-"}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => openEdit(rt)} data-testid={`button-edit-route-${rt.id}`}><Pencil className="h-4 w-4" /></Button>
-                    <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => setDeleteId(rt.id)} data-testid={`button-delete-route-${rt.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {(!filteredRoutes || filteredRoutes.length === 0) && (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("no_routes_found")}</TableCell></TableRow>
-            )}
-          </TableBody>
-        </Table>
-      )}
+      {!isLoading && (filteredRoutes.length > 0 ? (
+        <div data-testid="grid-transport-routes" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}>
+          <AgGridReact<TransportRoute>
+            theme={gridTheme}
+            rowData={filteredRoutes}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            getRowId={(params: GetRowIdParams<TransportRoute>) => params.data.id}
+            suppressCellFocus
+          />
+        </div>
+      ) : (
+        <Table><TableBody><TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{filtersActive ? t("no_results") : t("no_routes_found")}</TableCell></TableRow></TableBody></Table>
+      ))}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
         <DialogContent className={`${surfaceShadow} max-h-[85vh] overflow-y-auto`}>
@@ -676,11 +822,13 @@ function RoutePricingTab() {
   const formBusTypes = busTypes?.filter((b) => b.companyId === formCompanyId);
   const filterRoutes = routes?.filter((r) => !companyId || r.companyId === companyId);
 
-  const filteredPricing = pricing?.filter((p) =>
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtersActive = Boolean(normalizedSearch) || Boolean(companyId) || Boolean(routeId);
+  const filteredPricingRows = pricing?.filter((p) =>
     (!companyId || routeOf(p.routeId)?.companyId === companyId) &&
     (!routeId || p.routeId === routeId) &&
-    (!search || getRouteName(p.routeId).toLowerCase().includes(search.toLowerCase()) || getBusTypeName(p.busTypeId).toLowerCase().includes(search.toLowerCase()) || String(p.costPerTrip || "").toLowerCase().includes(search.toLowerCase()) || (p.notes || "").toLowerCase().includes(search.toLowerCase()))
-  );
+    (!normalizedSearch || getRouteName(p.routeId).toLowerCase().includes(normalizedSearch) || getBusTypeName(p.busTypeId).toLowerCase().includes(normalizedSearch) || String(p.costPerTrip || "").toLowerCase().includes(normalizedSearch) || (p.notes || "").toLowerCase().includes(normalizedSearch))
+  ) ?? [];
 
   const resetForm = () => { setFormCompanyId(""); setFormRouteId(""); setBusTypeId(""); setCostPerTrip(""); setPricingNotes(""); };
 
@@ -724,6 +872,83 @@ function RoutePricingTab() {
     else createMutation.mutate(data);
   };
 
+  const gridTheme = useMemo(() => agGridTheme, []);
+  const defaultColDef = useMemo<ColDef<TransportRoutePricing>>(() => agGridDefaultColDef, []);
+  const columnDefs = useMemo<ColDef<TransportRoutePricing>[]>(() => [
+    {
+      headerName: t("company_label"),
+      minWidth: 180,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => {
+        const data = params.data;
+        return data?.routeId ? companies?.find((company) => company.id === routeOf(data.routeId)?.companyId)?.name || "-" : "-";
+      },
+      cellRenderer: (params: ICellRendererParams<TransportRoutePricing>) => {
+        if (!params.data) return null;
+        const pricingEntry = params.data;
+        return <span data-testid={`text-pricing-company-${pricingEntry.id}`}>{companies?.find((company) => company.id === routeOf(pricingEntry.routeId)?.companyId)?.name || "-"}</span>;
+      },
+    },
+    {
+      headerName: t("route_label"),
+      minWidth: 180,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.routeId ? routeOf(params.data.routeId)?.name || params.data.routeId : "-",
+      cellRenderer: (params: ICellRendererParams<TransportRoutePricing>) => params.data ? <span data-testid={`text-pricing-route-${params.data.id}`}>{routeOf(params.data.routeId)?.name || params.data.routeId}</span> : null,
+    },
+    {
+      headerName: t("bus_type_label"),
+      minWidth: 180,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => {
+        const data = params.data;
+        return data?.busTypeId ? busTypes?.find((busType) => busType.id === data.busTypeId)?.name || data.busTypeId : "-";
+      },
+      cellRenderer: (params: ICellRendererParams<TransportRoutePricing>) => {
+        if (!params.data) return null;
+        const pricingEntry = params.data;
+        return <span className="font-medium" data-testid={`text-pricing-bustype-${pricingEntry.id}`}>{busTypes?.find((busType) => busType.id === pricingEntry.busTypeId)?.name || pricingEntry.busTypeId}</span>;
+      },
+    },
+    {
+      headerName: t("cost_per_trip"),
+      width: 140,
+      filter: "agNumberColumnFilter",
+      valueGetter: (params) => params.data?.costPerTrip != null ? Number(params.data.costPerTrip) : null,
+      valueFormatter: (params) => params.data?.costPerTrip ?? "",
+      cellRenderer: (params: ICellRendererParams<TransportRoutePricing>) => params.data ? <span data-testid={`text-pricing-cost-${params.data.id}`}>{params.data.costPerTrip}</span> : null,
+    },
+    {
+      headerName: t("notes"),
+      minWidth: 220,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.notes || "-",
+      cellRenderer: (params: ICellRendererParams<TransportRoutePricing>) => params.data?.notes || "-",
+    },
+    {
+      headerName: t("actions"),
+      width: 100,
+      pinned: "right",
+      sortable: false,
+      filter: false,
+      resizable: false,
+      cellRenderer: (params: ICellRendererParams<TransportRoutePricing>) => {
+        if (!params.data) return null;
+        const pricingEntry = params.data;
+        return (
+          <div className="flex items-center gap-1">
+            <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => openEdit(pricingEntry)} data-testid={`button-edit-pricing-${pricingEntry.id}`}><Pencil className="h-4 w-4" /></Button>
+            <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => setDeleteId(pricingEntry.id)} data-testid={`button-delete-pricing-${pricingEntry.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+          </div>
+        );
+      },
+    },
+  ], [busTypes, companies, openEdit, routes, t]);
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
@@ -750,40 +975,20 @@ function RoutePricingTab() {
 
       {isLoading && <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>}
 
-      {!isLoading && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("company_label")}</TableHead>
-              <TableHead>{t("route_label")}</TableHead>
-              <TableHead>{t("bus_type_label")}</TableHead>
-              <TableHead>{t("cost_per_trip")}</TableHead>
-              <TableHead>{t("notes")}</TableHead>
-              <TableHead>{t("actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredPricing?.map((p) => (
-              <TableRow key={p.id} data-testid={`row-pricing-${p.id}`}>
-                <TableCell data-testid={`text-pricing-company-${p.id}`}>{getCompanyName(routeOf(p.routeId)?.companyId)}</TableCell>
-                <TableCell data-testid={`text-pricing-route-${p.id}`}>{getRouteName(p.routeId)}</TableCell>
-                <TableCell className="font-medium" data-testid={`text-pricing-bustype-${p.id}`}>{getBusTypeName(p.busTypeId)}</TableCell>
-                <TableCell data-testid={`text-pricing-cost-${p.id}`}>{p.costPerTrip}</TableCell>
-                <TableCell className="text-muted-foreground max-w-[200px] truncate">{p.notes || "-"}</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => openEdit(p)} data-testid={`button-edit-pricing-${p.id}`}><Pencil className="h-4 w-4" /></Button>
-                    <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => setDeleteId(p.id)} data-testid={`button-delete-pricing-${p.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {(!filteredPricing || filteredPricing.length === 0) && (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{t("no_pricing_entries_found")}</TableCell></TableRow>
-            )}
-          </TableBody>
-        </Table>
-      )}
+      {!isLoading && (filteredPricingRows.length > 0 ? (
+        <div data-testid="grid-transport-pricing" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}>
+          <AgGridReact<TransportRoutePricing>
+            theme={gridTheme}
+            rowData={filteredPricingRows}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            getRowId={(params: GetRowIdParams<TransportRoutePricing>) => params.data.id}
+            suppressCellFocus
+          />
+        </div>
+      ) : (
+        <Table><TableBody><TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{filtersActive ? t("no_results") : t("no_pricing_entries_found")}</TableCell></TableRow></TableBody></Table>
+      ))}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
         <DialogContent className={`${surfaceShadow} max-h-[85vh] overflow-y-auto`}>
@@ -919,15 +1124,102 @@ function BookingsTab() {
     return null;
   };
 
+  const normalizedSearch = search.trim().toLowerCase();
   const filteredBookings = bookings?.rows.filter((bk) =>
-    !search ||
-    getCompanyName(bk.companyId).toLowerCase().includes(search.toLowerCase()) ||
-    getTourTitle(bk.tourId).toLowerCase().includes(search.toLowerCase()) ||
-    (bk.serviceDate || "").toLowerCase().includes(search.toLowerCase()) ||
-    (bk.serviceEndDate || "").toLowerCase().includes(search.toLowerCase()) ||
-    String(bk.costQuoted || "").toLowerCase().includes(search.toLowerCase()) ||
-    (t(`booking_status_${bk.status || "requested"}` as any) || "").toLowerCase().includes(search.toLowerCase())
-  );
+    !normalizedSearch ||
+    getCompanyName(bk.companyId).toLowerCase().includes(normalizedSearch) ||
+    getTourTitle(bk.tourId).toLowerCase().includes(normalizedSearch) ||
+    (bk.serviceDate || "").toLowerCase().includes(normalizedSearch) ||
+    (bk.serviceEndDate || "").toLowerCase().includes(normalizedSearch) ||
+    String(bk.costQuoted || "").toLowerCase().includes(normalizedSearch) ||
+    (t(`booking_status_${bk.status || "requested"}` as any) || "").toLowerCase().includes(normalizedSearch)
+  ) ?? [];
+  const filtersActive = Boolean(normalizedSearch) || Boolean(companyId);
+
+  const gridTheme = useMemo(() => agGridTheme, []);
+  const defaultColDef = useMemo<ColDef<TransportBooking>>(() => agGridDefaultColDef, []);
+  const columnDefs = useMemo<ColDef<TransportBooking>[]>(() => [
+    {
+      headerName: t("company_label"),
+      minWidth: 180,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => companies?.find((company) => company.id === params.data?.companyId)?.name || params.data?.companyId || "-",
+      cellRenderer: (params: ICellRendererParams<TransportBooking>) => params.data ? <span className="font-medium" data-testid={`text-booking-company-${params.data.id}`}>{companies?.find((company) => company.id === params.data?.companyId)?.name || params.data.companyId}</span> : null,
+    },
+    {
+      headerName: t("tour_label"),
+      minWidth: 180,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => tours?.find((tour) => tour.id === params.data?.tourId)?.title || "-",
+      cellRenderer: (params: ICellRendererParams<TransportBooking>) => params.data ? <span data-testid={`text-booking-tour-${params.data.id}`}>{tours?.find((tour) => tour.id === params.data?.tourId)?.title || "-"}</span> : null,
+    },
+    {
+      headerName: t("service_date"),
+      minWidth: 150,
+      flex: 1,
+      filter: "agDateColumnFilter",
+      valueGetter: (params) => params.data?.serviceDate || "-",
+      filterValueGetter: (params) => toGridDate(params.data?.serviceDate),
+    },
+    {
+      headerName: t("end_date"),
+      minWidth: 150,
+      flex: 1,
+      filter: "agDateColumnFilter",
+      valueGetter: (params) => params.data?.serviceEndDate || "-",
+      filterValueGetter: (params) => toGridDate(params.data?.serviceEndDate),
+    },
+    {
+      headerName: t("cost_label"),
+      width: 140,
+      filter: "agNumberColumnFilter",
+      valueGetter: (params) => params.data?.costQuoted != null ? Number(params.data.costQuoted) : null,
+      valueFormatter: (params) => params.data?.costQuoted || "-",
+      cellRenderer: (params: ICellRendererParams<TransportBooking>) => params.data ? <span data-testid={`text-booking-cost-${params.data.id}`}>{params.data.costQuoted || "-"}</span> : null,
+    },
+    {
+      headerName: t("status"),
+      width: 140,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.status || "requested",
+      filterValueGetter: (params) => t(`booking_status_${params.data?.status || "requested"}` as any),
+      cellRenderer: (params: ICellRendererParams<TransportBooking>) => {
+        if (!params.data) return null;
+        const booking = params.data;
+        const status = booking.status || "requested";
+        return <Badge variant={statusVariant(booking.status)} data-testid={`badge-booking-status-${booking.id}`}>{t(`booking_status_${status}` as any)}</Badge>;
+      },
+    },
+    {
+      headerName: t("actions"),
+      width: 180,
+      pinned: "right",
+      sortable: false,
+      filter: false,
+      resizable: false,
+      cellRenderer: (params: ICellRendererParams<TransportBooking>) => {
+        if (!params.data) return null;
+        const booking = params.data;
+        const next = nextStatus(booking.status);
+        return (
+          <div className="flex items-center gap-1">
+            {next && (
+              <Button className={pressFeedback} size="sm" variant="outline" onClick={() => statusMutation.mutate({ id: booking.id, status: next })} disabled={statusMutation.isPending} data-testid={`button-advance-booking-${booking.id}`}>
+                <Check className="h-4 w-4" />{t(`booking_status_${next}` as any)}
+              </Button>
+            )}
+            {booking.status === "requested" && (
+              <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => statusMutation.mutate({ id: booking.id, status: "cancelled" })} disabled={statusMutation.isPending} data-testid={`button-cancel-booking-${booking.id}`}>
+                <X className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
+          </div>
+        );
+      },
+    },
+  ], [companies, statusMutation, t, tours]);
 
   return (
     <div className="space-y-4">
@@ -945,50 +1237,20 @@ function BookingsTab() {
 
       {isLoading && <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>}
 
-      {!isLoading && (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("company_label")}</TableHead>
-              <TableHead>{t("tour_label")}</TableHead>
-              <TableHead>{t("service_date")}</TableHead>
-              <TableHead>{t("end_date")}</TableHead>
-              <TableHead>{t("cost_label")}</TableHead>
-              <TableHead>{t("status")}</TableHead>
-              <TableHead>{t("actions")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredBookings?.map((bk) => (
-              <TableRow key={bk.id} data-testid={`row-booking-${bk.id}`}>
-                <TableCell className="font-medium" data-testid={`text-booking-company-${bk.id}`}>{getCompanyName(bk.companyId)}</TableCell>
-                <TableCell data-testid={`text-booking-tour-${bk.id}`}>{getTourTitle(bk.tourId)}</TableCell>
-                <TableCell className="text-muted-foreground">{bk.serviceDate || "-"}</TableCell>
-                <TableCell className="text-muted-foreground">{bk.serviceEndDate || "-"}</TableCell>
-                <TableCell data-testid={`text-booking-cost-${bk.id}`}>{bk.costQuoted || "-"}</TableCell>
-                <TableCell><Badge variant={statusVariant(bk.status)} data-testid={`badge-booking-status-${bk.id}`}>{t(`booking_status_${bk.status || "requested"}` as any)}</Badge></TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    {nextStatus(bk.status) && (
-                      <Button className={pressFeedback} size="sm" variant="outline" onClick={() => statusMutation.mutate({ id: bk.id, status: nextStatus(bk.status)! })} disabled={statusMutation.isPending} data-testid={`button-advance-booking-${bk.id}`}>
-                        <Check className="h-4 w-4" />{t(`booking_status_${nextStatus(bk.status)}` as any)}
-                      </Button>
-                    )}
-                    {bk.status === "requested" && (
-                      <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => statusMutation.mutate({ id: bk.id, status: "cancelled" })} disabled={statusMutation.isPending} data-testid={`button-cancel-booking-${bk.id}`}>
-                        <X className="h-4 w-4 text-destructive" />
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-            {(!filteredBookings || filteredBookings.length === 0) && (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("no_bookings_found")}</TableCell></TableRow>
-            )}
-          </TableBody>
-        </Table>
-      )}
+      {!isLoading && (filteredBookings.length > 0 ? (
+        <div data-testid="grid-transport-bookings" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}>
+          <AgGridReact<TransportBooking>
+            theme={gridTheme}
+            rowData={filteredBookings}
+            columnDefs={columnDefs}
+            defaultColDef={defaultColDef}
+            getRowId={(params: GetRowIdParams<TransportBooking>) => params.data.id}
+            suppressCellFocus
+          />
+        </div>
+      ) : (
+        <Table><TableBody><TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{filtersActive ? t("no_results") : t("no_bookings_found")}</TableCell></TableRow></TableBody></Table>
+      ))}
 
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span data-testid="text-bookings-pagination-info">{t("total_label")}: {bookings?.total ?? 0}</span>
@@ -1146,15 +1408,126 @@ function InvoicesPaymentsTab() {
     });
   };
 
-  const getCompanyName = (id: string) => companies?.find((c) => c.id === id)?.name || id;
-  const getTourTitle = (id: string | null) => tours?.find((t) => t.id === id)?.title || "-";
+  const gridTheme = useMemo(() => agGridTheme, []);
+  const invoiceDefaultColDef = useMemo<ColDef<TransportInvoice>>(() => agGridDefaultColDef, []);
+  const invoiceColumnDefs = useMemo<ColDef<TransportInvoice>[]>(() => [
+    {
+      headerName: t("invoice_number_header"),
+      minWidth: 180,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      field: "invoiceNumber",
+      cellRenderer: (params: ICellRendererParams<TransportInvoice>) => params.data ? <span className="font-medium" data-testid={`text-invoice-number-${params.data.id}`}>{params.data.invoiceNumber}</span> : null,
+    },
+    {
+      headerName: t("company_label"),
+      minWidth: 180,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => companies?.find((company) => company.id === params.data?.companyId)?.name || params.data?.companyId || "-",
+      cellRenderer: (params: ICellRendererParams<TransportInvoice>) => params.data ? <span data-testid={`text-invoice-company-${params.data.id}`}>{companies?.find((company) => company.id === params.data?.companyId)?.name || params.data.companyId}</span> : null,
+    },
+    {
+      headerName: t("service_details"),
+      minWidth: 220,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.serviceDetails || "-",
+      cellRenderer: (params: ICellRendererParams<TransportInvoice>) => params.data?.serviceDetails || "-",
+    },
+    {
+      headerName: t("amount_label"),
+      width: 140,
+      filter: "agNumberColumnFilter",
+      valueGetter: (params) => params.data?.amount != null ? Number(params.data.amount) : null,
+      valueFormatter: (params) => params.data?.amount ?? "",
+      cellRenderer: (params: ICellRendererParams<TransportInvoice>) => params.data ? <span data-testid={`text-invoice-amount-${params.data.id}`}>{params.data.amount}</span> : null,
+    },
+    {
+      headerName: t("status"),
+      width: 140,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.status || "submitted",
+      filterValueGetter: (params) => t(`transport_invoice_status_${params.data?.status || "submitted"}` as any),
+      cellRenderer: (params: ICellRendererParams<TransportInvoice>) => {
+        if (!params.data) return null;
+        const status = params.data.status || "submitted";
+        const variant = status === "approved" ? "default" : status === "paid" ? "outline" : status === "rejected" ? "destructive" : "secondary";
+        return <Badge variant={variant} data-testid={`badge-invoice-status-${params.data.id}`}>{t(`transport_invoice_status_${status}` as any)}</Badge>;
+      },
+    },
+    {
+      headerName: t("actions"),
+      width: 180,
+      pinned: "right",
+      sortable: false,
+      filter: false,
+      resizable: false,
+      cellRenderer: (params: ICellRendererParams<TransportInvoice>) => {
+        if (!params.data) return null;
+        const invoice = params.data;
+        return invoice.status === "submitted" ? (
+          <div className="flex items-center gap-1">
+            <Button className={pressFeedback} size="sm" variant="outline" onClick={() => updateInvoiceMutation.mutate({ id: invoice.id, status: "approved" })} disabled={updateInvoiceMutation.isPending} data-testid={`button-approve-invoice-${invoice.id}`}>
+              <Check className="h-4 w-4" />{t("approve")}
+            </Button>
+            <Button className={pressFeedback} size="sm" variant="ghost" onClick={() => updateInvoiceMutation.mutate({ id: invoice.id, status: "rejected" })} disabled={updateInvoiceMutation.isPending} data-testid={`button-reject-invoice-${invoice.id}`}>
+              <X className="h-4 w-4 text-destructive" />
+            </Button>
+          </div>
+        ) : null;
+      },
+    },
+  ], [companies, t, updateInvoiceMutation]);
 
-  const invoiceStatusVariant = (s: string | null): "default" | "secondary" | "outline" | "destructive" => {
-    if (s === "approved") return "default";
-    if (s === "paid") return "outline";
-    if (s === "rejected") return "destructive";
-    return "secondary";
-  };
+  const paymentDefaultColDef = useMemo<ColDef<TransportPayment>>(() => agGridDefaultColDef, []);
+  const paymentColumnDefs = useMemo<ColDef<TransportPayment>[]>(() => [
+    {
+      headerName: t("company_label"),
+      minWidth: 180,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => companies?.find((company) => company.id === params.data?.companyId)?.name || params.data?.companyId || "-",
+      cellRenderer: (params: ICellRendererParams<TransportPayment>) => params.data ? <span className="font-medium" data-testid={`text-payment-company-${params.data.id}`}>{companies?.find((company) => company.id === params.data?.companyId)?.name || params.data.companyId}</span> : null,
+    },
+    {
+      headerName: t("tour_label"),
+      minWidth: 180,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => tours?.find((tour) => tour.id === params.data?.tourId)?.title || "-",
+      cellRenderer: (params: ICellRendererParams<TransportPayment>) => params.data ? <span data-testid={`text-payment-tour-${params.data.id}`}>{tours?.find((tour) => tour.id === params.data?.tourId)?.title || "-"}</span> : null,
+    },
+    {
+      headerName: t("amount_label"),
+      width: 140,
+      filter: "agNumberColumnFilter",
+      valueGetter: (params) => params.data?.amount != null ? Number(params.data.amount) : null,
+      valueFormatter: (params) => params.data?.amount ?? "",
+      cellRenderer: (params: ICellRendererParams<TransportPayment>) => params.data ? <span data-testid={`text-payment-amount-${params.data.id}`}>{params.data.amount}</span> : null,
+    },
+    {
+      headerName: t("date"),
+      width: 140,
+      filter: "agDateColumnFilter",
+      valueGetter: (params) => params.data?.paymentDate || "-",
+      filterValueGetter: (params) => toGridDate(params.data?.paymentDate),
+    },
+    {
+      headerName: t("method_label"),
+      minWidth: 150,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.paymentMethod || "-",
+    },
+    {
+      headerName: t("reference_label"),
+      minWidth: 170,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data?.reference || "-",
+    },
+  ], [companies, t, tours]);
 
   return (
     <div className="space-y-6">
@@ -1168,48 +1541,20 @@ function InvoicesPaymentsTab() {
 
         {invoicesLoading && <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>}
 
-        {!invoicesLoading && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("invoice_number_header")}</TableHead>
-                <TableHead>{t("company_label")}</TableHead>
-                <TableHead>{t("service_details")}</TableHead>
-                <TableHead>{t("amount_label")}</TableHead>
-                <TableHead>{t("status")}</TableHead>
-                <TableHead>{t("actions")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {invoices?.rows.map((inv) => (
-                <TableRow key={inv.id} data-testid={`row-invoice-${inv.id}`}>
-                  <TableCell className="font-medium" data-testid={`text-invoice-number-${inv.id}`}>{inv.invoiceNumber}</TableCell>
-                  <TableCell data-testid={`text-invoice-company-${inv.id}`}>{getCompanyName(inv.companyId)}</TableCell>
-                  <TableCell className="text-muted-foreground max-w-[200px] truncate">{inv.serviceDetails || "-"}</TableCell>
-                  <TableCell data-testid={`text-invoice-amount-${inv.id}`}>{inv.amount}</TableCell>
-                  <TableCell><Badge variant={invoiceStatusVariant(inv.status)} data-testid={`badge-invoice-status-${inv.id}`}>{t(`transport_invoice_status_${inv.status}` as any)}</Badge></TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      {inv.status === "submitted" && (
-                        <>
-                          <Button className={pressFeedback} size="sm" variant="outline" onClick={() => updateInvoiceMutation.mutate({ id: inv.id, status: "approved" })} disabled={updateInvoiceMutation.isPending} data-testid={`button-approve-invoice-${inv.id}`}>
-                            <Check className="h-4 w-4" />{t("approve")}
-                          </Button>
-                          <Button className={pressFeedback} size="sm" variant="ghost" onClick={() => updateInvoiceMutation.mutate({ id: inv.id, status: "rejected" })} disabled={updateInvoiceMutation.isPending} data-testid={`button-reject-invoice-${inv.id}`}>
-                            <X className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {(!invoices || invoices.total === 0) && (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{t("no_invoices_found")}</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        )}
+        {!invoicesLoading && ((invoices?.rows?.length ?? 0) > 0 ? (
+          <div data-testid="grid-transport-invoices" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}>
+            <AgGridReact<TransportInvoice>
+              theme={gridTheme}
+              rowData={invoices?.rows ?? []}
+              columnDefs={invoiceColumnDefs}
+              defaultColDef={invoiceDefaultColDef}
+              getRowId={(params: GetRowIdParams<TransportInvoice>) => params.data.id}
+              suppressCellFocus
+            />
+          </div>
+        ) : (
+          <Table><TableBody><TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{t("no_invoices_found")}</TableCell></TableRow></TableBody></Table>
+        ))}
 
         <div className="flex items-center justify-between text-sm text-muted-foreground mt-3">
           <span data-testid="text-invoices-pagination-info">{t("total_label")}: {invoices?.total ?? 0}</span>
@@ -1231,35 +1576,20 @@ function InvoicesPaymentsTab() {
 
         {paymentsLoading && <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>}
 
-        {!paymentsLoading && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("company_label")}</TableHead>
-                <TableHead>{t("tour_label")}</TableHead>
-                <TableHead>{t("amount_label")}</TableHead>
-                <TableHead>{t("date")}</TableHead>
-                <TableHead>{t("method_label")}</TableHead>
-                <TableHead>{t("reference_label")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {payments?.rows.map((pay) => (
-                <TableRow key={pay.id} data-testid={`row-payment-${pay.id}`}>
-                  <TableCell className="font-medium" data-testid={`text-payment-company-${pay.id}`}>{getCompanyName(pay.companyId)}</TableCell>
-                  <TableCell data-testid={`text-payment-tour-${pay.id}`}>{getTourTitle(pay.tourId)}</TableCell>
-                  <TableCell data-testid={`text-payment-amount-${pay.id}`}>{pay.amount}</TableCell>
-                  <TableCell className="text-muted-foreground">{pay.paymentDate || "-"}</TableCell>
-                  <TableCell className="text-muted-foreground">{pay.paymentMethod || "-"}</TableCell>
-                  <TableCell className="text-muted-foreground">{pay.reference || "-"}</TableCell>
-                </TableRow>
-              ))}
-              {(!payments || payments.total === 0) && (
-                <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{t("no_payments_found")}</TableCell></TableRow>
-              )}
-            </TableBody>
-          </Table>
-        )}
+        {!paymentsLoading && ((payments?.rows?.length ?? 0) > 0 ? (
+          <div data-testid="grid-transport-payments" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}>
+            <AgGridReact<TransportPayment>
+              theme={gridTheme}
+              rowData={payments?.rows ?? []}
+              columnDefs={paymentColumnDefs}
+              defaultColDef={paymentDefaultColDef}
+              getRowId={(params: GetRowIdParams<TransportPayment>) => params.data.id}
+              suppressCellFocus
+            />
+          </div>
+        ) : (
+          <Table><TableBody><TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{t("no_payments_found")}</TableCell></TableRow></TableBody></Table>
+        ))}
 
         <div className="flex items-center justify-between text-sm text-muted-foreground mt-3">
           <span data-testid="text-payments-pagination-info">{t("total_label")}: {payments?.total ?? 0}</span>

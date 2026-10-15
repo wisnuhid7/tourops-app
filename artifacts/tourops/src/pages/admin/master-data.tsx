@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useSearch } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -22,6 +22,9 @@ import { CheckCircle } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
 import { HotelFormFields, emptyHotelFormValues, hotelToFormValues, hotelFormToPayload, type HotelFormValues } from "@/components/hotel-form-fields";
 import { CityFormFields, emptyCityFormValues, cityToFormValues, cityFormToPayload, type CityFormValues } from "@/components/city-form-fields";
+import type { ColDef, GetRowIdParams, ICellRendererParams } from "ag-grid-community";
+import { AgGridReact } from "ag-grid-react";
+import { agGridDefaultColDef, agGridTheme } from "@/lib/ag-grid-config";
 
 const SIGHT_CATEGORIES = ["museum", "landmark", "park", "religious", "entertainment", "nature", "historical", "other"];
 const allCountriesFilter = "__all_countries__";
@@ -325,6 +328,56 @@ function CountriesTab() {
     !normalizedSearch || [item.name, item.code, item.iso3, item.capitalCity, item.continent]
       .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch)
   );
+  const filtersActive = Boolean(normalizedSearch);
+
+  const gridTheme = useMemo(() => agGridTheme, []);
+  const defaultColDef = useMemo<ColDef<Country>>(() => agGridDefaultColDef, []);
+  const columnDefs = useMemo<ColDef<Country>[]>(() => [
+    {
+      headerName: t("flag_label"),
+      width: 80,
+      filter: false,
+      cellRenderer: (params: ICellRendererParams<Country>) => params.data ? (
+        params.data.flagUrl ? <img src={`/api/images/proxy?url=${encodeURIComponent(params.data.flagUrl)}&width=64`} alt={params.data.name} className="w-8 h-5 object-cover rounded shadow-sm" /> : <div className="w-8 h-5 bg-muted rounded flex items-center justify-center text-[10px] text-muted-foreground">??</div>
+      ) : null,
+    },
+    {
+      headerName: t("code_label"),
+      minWidth: 130,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => params.data ? `${params.data.code} ${params.data.iso3 || ""}` : "",
+      cellRenderer: (params: ICellRendererParams<Country>) => params.data ? <span className="font-medium" data-testid={`text-country-code-${params.data.id}`}>{params.data.code} <span className="text-xs text-muted-foreground ml-1">({params.data.iso3 || ""})</span></span> : null,
+    },
+    {
+      headerName: t("name_label"),
+      minWidth: 200,
+      flex: 1,
+      filter: "agTextColumnFilter",
+      field: "name",
+      cellRenderer: (params: ICellRendererParams<Country>) => params.data ? <span data-testid={`text-country-name-${params.data.id}`}>{params.data.name}</span> : null,
+    },
+    { headerName: t("capital_label"), minWidth: 160, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data?.capitalCity || "-" },
+    { headerName: t("continent_label"), minWidth: 140, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data?.continent || "-" },
+    {
+      headerName: t("population_label"),
+      width: 130,
+      filter: "agNumberColumnFilter",
+      valueGetter: (params) => params.data?.population ?? null,
+      valueFormatter: (params) => params.data?.population ? params.data.population.toLocaleString() : "-",
+    },
+    {
+      headerName: t("status"),
+      width: 120,
+      filter: "agTextColumnFilter",
+      valueGetter: (params) => !!params.data?.isActive,
+      filterValueGetter: (params) => params.data?.isActive ? t("active_label") : t("inactive_label"),
+      cellRenderer: (params: ICellRendererParams<Country>) => params.data ? <Badge variant={params.data.isActive ? "default" : "secondary"}>{params.data.isActive ? t("active_label") : t("inactive_label")}</Badge> : null,
+    },
+    {
+      headerName: t("actions"), width: 100, pinned: "right", sortable: false, filter: false, resizable: false,
+      cellRenderer: (params: ICellRendererParams<Country>) => params.data ? <div className="flex items-center gap-1"><Button size="icon" variant="ghost" onClick={() => openEdit(params.data!)} data-testid={`button-edit-country-${params.data.id}`}><Pencil className="h-4 w-4" /></Button><Button size="icon" variant="ghost" onClick={() => setDeleteId(params.data!.id)} data-testid={`button-delete-country-${params.data.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button></div> : null,
+    },
+  ], [openEdit, t]);
 
   const resetForm = () => { 
     setCode(""); setIso3(""); setName(""); setCapitalCity(""); setContinent(""); 
@@ -332,7 +385,7 @@ function CountriesTab() {
     setPhoneCode(""); setPopulation(""); setLatitude(""); setLongitude(""); setIsActive(true); 
   };
 
-  const openEdit = (item: Country) => {
+  function openEdit(item: Country) {
     setEditItem(item);
     setCode(item.code); setIso3(item.iso3 || ""); setName(item.name); 
     setCapitalCity(item.capitalCity || ""); setContinent(item.continent || "");
@@ -341,7 +394,7 @@ function CountriesTab() {
     setLatitude(String(item.latitude || "")); setLongitude(String(item.longitude || ""));
     setIsActive(item.isActive ?? true);
     setShowForm(true);
-  };
+  }
 
   const openCreate = () => { setEditItem(null); resetForm(); setShowForm(true); };
 
@@ -400,52 +453,7 @@ function CountriesTab() {
         </div>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-16">{t("flag_label")}</TableHead>
-            <TableHead>{t("code_label")}</TableHead>
-            <TableHead>{t("name_label")}</TableHead>
-            <TableHead>{t("capital_label")}</TableHead>
-            <TableHead>{t("continent_label")}</TableHead>
-            <TableHead>{t("population_label")}</TableHead>
-            <TableHead>{t("status")}</TableHead>
-            <TableHead>{t("actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.map((item) => (
-            <TableRow key={item.id} data-testid={`row-country-${item.id}`}>
-              <TableCell>
-                {item.flagUrl ? (
-                  <img src={`/api/images/proxy?url=${encodeURIComponent(item.flagUrl)}&width=64`} alt={item.name} className="w-8 h-5 object-cover rounded shadow-sm" />
-                ) : (
-                  <div className="w-8 h-5 bg-muted rounded flex items-center justify-center text-[10px] text-muted-foreground">??</div>
-                )}
-              </TableCell>
-              <TableCell className="font-medium" data-testid={`text-country-code-${item.id}`}>
-                {item.code} <span className="text-xs text-muted-foreground ml-1">({item.iso3 || ""})</span>
-              </TableCell>
-              <TableCell data-testid={`text-country-name-${item.id}`}>{item.name}</TableCell>
-              <TableCell className="text-muted-foreground text-sm">{item.capitalCity || "-"}</TableCell>
-              <TableCell className="text-muted-foreground text-sm">{item.continent || "-"}</TableCell>
-              <TableCell className="text-muted-foreground text-sm">
-                {item.population ? item.population.toLocaleString() : "-"}
-              </TableCell>
-              <TableCell><Badge variant={item.isActive ? "default" : "secondary"}>{item.isActive ? t("active_label") : t("inactive_label")}</Badge></TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => openEdit(item)} data-testid={`button-edit-country-${item.id}`}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => setDeleteId(item.id)} data-testid={`button-delete-country-${item.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{normalizedSearch ? t("no_results") : t("no_countries_found")}</TableCell></TableRow>
-          )}
-        </TableBody>
-      </Table>
+      {filtered.length > 0 ? <div data-testid="grid-master-countries" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}><AgGridReact<Country> theme={gridTheme} rowData={filtered} columnDefs={columnDefs} defaultColDef={defaultColDef} getRowId={(params: GetRowIdParams<Country>) => params.data.id} suppressCellFocus /></div> : <Table><TableBody><TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">{filtersActive ? t("no_results") : t("no_countries_found")}</TableCell></TableRow></TableBody></Table>}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
         <DialogContent className="flex flex-col max-h-[85vh]">
@@ -514,14 +522,38 @@ function CitiesTab() {
     (!normalizedSearch || [item.name, getCountryName(item.countryId)]
       .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch))
   );
+  const filtersActive = Boolean(normalizedSearch) || countryFilter !== allCountriesFilter;
+
+  const gridTheme = useMemo(() => agGridTheme, []);
+  const defaultColDef = useMemo<ColDef<City>>(() => agGridDefaultColDef, []);
+  const columnDefs = useMemo<ColDef<City>[]>(() => [
+    {
+      headerName: t("name_label"), field: "name", minWidth: 220, flex: 1, filter: "agTextColumnFilter",
+      cellRenderer: (params: ICellRendererParams<City>) => params.data ? <span className="font-medium" data-testid={`text-city-name-${params.data.id}`}>{params.data.name} {params.data.isCapital && <Badge variant="outline" className="ml-2 text-[10px] uppercase">{t("capital_label")}</Badge>}</span> : null,
+    },
+    { headerName: t("country"), minWidth: 180, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data ? getCountryName(params.data.countryId) : "-" },
+    { headerName: t("population_label"), width: 130, filter: "agNumberColumnFilter", valueGetter: (params) => params.data?.population ?? null, valueFormatter: (params) => params.data?.population ? params.data.population.toLocaleString() : "-" },
+    { headerName: t("coordinates_label"), minWidth: 180, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data?.latitude && params.data?.longitude ? `${parseFloat(params.data.latitude).toFixed(4)}, ${parseFloat(params.data.longitude).toFixed(4)}` : "-" },
+    { headerName: t("rank_label"), width: 100, filter: "agNumberColumnFilter", valueGetter: (params) => params.data?.cityRank ?? 0 },
+    {
+      headerName: t("status"), width: 120, filter: "agTextColumnFilter",
+      valueGetter: (params) => !!params.data?.isActive,
+      filterValueGetter: (params) => params.data?.isActive ? t("active_label") : t("inactive_label"),
+      cellRenderer: (params: ICellRendererParams<City>) => params.data ? <Badge variant={params.data.isActive ? "default" : "secondary"}>{params.data.isActive ? t("active_label") : t("inactive_label")}</Badge> : null,
+    },
+    {
+      headerName: t("actions"), width: 100, pinned: "right", sortable: false, filter: false, resizable: false,
+      cellRenderer: (params: ICellRendererParams<City>) => params.data ? <div className="flex items-center gap-1"><Button size="icon" variant="ghost" onClick={() => openEdit(params.data!)} data-testid={`button-edit-city-${params.data.id}`}><Pencil className="h-4 w-4" /></Button><Button size="icon" variant="ghost" onClick={() => setDeleteId(params.data!.id)} data-testid={`button-delete-city-${params.data.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button></div> : null,
+    },
+  ], [countriesList, openEdit, t]);
 
   const resetForm = () => setForm(emptyCityFormValues);
 
-  const openEdit = (item: City) => {
+  function openEdit(item: City) {
     setEditItem(item);
     setForm(cityToFormValues(item));
     setShowForm(true);
-  };
+  }
 
   const openCreate = () => { setEditItem(null); resetForm(); setShowForm(true); };
 
@@ -573,46 +605,7 @@ function CitiesTab() {
         </div>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("name_label")}</TableHead>
-            <TableHead>{t("country")}</TableHead>
-            <TableHead>{t("population_label")}</TableHead>
-            <TableHead>{t("coordinates_label")}</TableHead>
-            <TableHead>{t("rank_label")}</TableHead>
-            <TableHead>{t("status")}</TableHead>
-            <TableHead>{t("actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.map((item) => (
-            <TableRow key={item.id} data-testid={`row-city-${item.id}`}>
-              <TableCell className="font-medium" data-testid={`text-city-name-${item.id}`}>
-                {item.name} {item.isCapital && <Badge variant="outline" className="ml-2 text-[10px] uppercase">{t("capital_label")}</Badge>}
-              </TableCell>
-              <TableCell className="text-muted-foreground">{getCountryName(item.countryId)}</TableCell>
-              <TableCell className="text-muted-foreground text-sm">
-                {item.population ? item.population.toLocaleString() : "-"}
-              </TableCell>
-              <TableCell className="text-muted-foreground text-[10px] font-mono">
-                {item.latitude && item.longitude ? `${parseFloat(item.latitude).toFixed(4)}, ${parseFloat(item.longitude).toFixed(4)}` : "-"}
-              </TableCell>
-              <TableCell className="text-muted-foreground text-sm">{item.cityRank || 0}</TableCell>
-              <TableCell><Badge variant={item.isActive ? "default" : "secondary"}>{item.isActive ? t("active_label") : t("inactive_label")}</Badge></TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => openEdit(item)} data-testid={`button-edit-city-${item.id}`}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => setDeleteId(item.id)} data-testid={`button-delete-city-${item.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{normalizedSearch || countryFilter !== allCountriesFilter ? t("no_results") : t("no_cities_found")}</TableCell></TableRow>
-          )}
-        </TableBody>
-      </Table>
+      {filtered.length > 0 ? <div data-testid="grid-master-cities" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}><AgGridReact<City> theme={gridTheme} rowData={filtered} columnDefs={columnDefs} defaultColDef={defaultColDef} getRowId={(params: GetRowIdParams<City>) => params.data.id} suppressCellFocus /></div> : <Table><TableBody><TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{filtersActive ? t("no_results") : t("no_cities_found")}</TableCell></TableRow></TableBody></Table>}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
         <DialogContent className="flex flex-col max-h-[85vh]">
@@ -658,12 +651,28 @@ function AirportsTab() {
     !normalizedSearch || [item.code, item.name, getCityName(item.cityId)]
       .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch)
   );
+  const filtersActive = Boolean(normalizedSearch);
+
+  const gridTheme = useMemo(() => agGridTheme, []);
+  const defaultColDef = useMemo<ColDef<Airport>>(() => agGridDefaultColDef, []);
+  const columnDefs = useMemo<ColDef<Airport>[]>(() => [
+    { headerName: t("iata_code_label"), minWidth: 120, filter: "agTextColumnFilter", field: "code", cellRenderer: (params: ICellRendererParams<Airport>) => params.data ? <span className="font-medium" data-testid={`text-airport-code-${params.data.id}`}>{params.data.code}</span> : null },
+    { headerName: t("name_label"), minWidth: 240, flex: 1, filter: "agTextColumnFilter", field: "name", cellRenderer: (params: ICellRendererParams<Airport>) => params.data ? <span data-testid={`text-airport-name-${params.data.id}`}>{params.data.name}</span> : null },
+    { headerName: t("city_label"), minWidth: 180, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data ? getCityName(params.data.cityId) : "-" },
+    {
+      headerName: t("status"), width: 120, filter: "agTextColumnFilter",
+      valueGetter: (params) => !!params.data?.isActive,
+      filterValueGetter: (params) => params.data?.isActive ? t("active_label") : t("inactive_label"),
+      cellRenderer: (params: ICellRendererParams<Airport>) => params.data ? <Badge variant={params.data.isActive ? "default" : "secondary"}>{params.data.isActive ? t("active_label") : t("inactive_label")}</Badge> : null,
+    },
+    { headerName: t("actions"), width: 100, pinned: "right", sortable: false, filter: false, resizable: false, cellRenderer: (params: ICellRendererParams<Airport>) => params.data ? <div className="flex items-center gap-1"><Button size="icon" variant="ghost" onClick={() => openEdit(params.data!)} data-testid={`button-edit-airport-${params.data.id}`}><Pencil className="h-4 w-4" /></Button><Button size="icon" variant="ghost" onClick={() => setDeleteId(params.data!.id)} data-testid={`button-delete-airport-${params.data.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button></div> : null },
+  ], [citiesList, openEdit, t]);
 
   const resetForm = () => { setCode(""); setName(""); setCityId(""); setIsActive(true); };
 
-  const openEdit = (item: Airport) => {
+  function openEdit(item: Airport) {
     setEditItem(item); setCode(item.code); setName(item.name); setCityId(item.cityId); setIsActive(item.isActive ?? true); setShowForm(true);
-  };
+  }
 
   const openCreate = () => { setEditItem(null); resetForm(); setShowForm(true); };
 
@@ -704,36 +713,7 @@ function AirportsTab() {
         </div>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("iata_code_label")}</TableHead>
-            <TableHead>{t("name_label")}</TableHead>
-            <TableHead>{t("city_label")}</TableHead>
-            <TableHead>{t("status")}</TableHead>
-            <TableHead>{t("actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.map((item) => (
-            <TableRow key={item.id} data-testid={`row-airport-${item.id}`}>
-              <TableCell className="font-medium" data-testid={`text-airport-code-${item.id}`}>{item.code}</TableCell>
-              <TableCell data-testid={`text-airport-name-${item.id}`}>{item.name}</TableCell>
-              <TableCell className="text-muted-foreground">{getCityName(item.cityId)}</TableCell>
-              <TableCell><Badge variant={item.isActive ? "default" : "secondary"}>{item.isActive ? t("active_label") : t("inactive_label")}</Badge></TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => openEdit(item)} data-testid={`button-edit-airport-${item.id}`}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => setDeleteId(item.id)} data-testid={`button-delete-airport-${item.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">{normalizedSearch ? t("no_results") : t("no_airports_found")}</TableCell></TableRow>
-          )}
-        </TableBody>
-      </Table>
+      {filtered.length > 0 ? <div data-testid="grid-master-airports" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}><AgGridReact<Airport> theme={gridTheme} rowData={filtered} columnDefs={columnDefs} defaultColDef={defaultColDef} getRowId={(params: GetRowIdParams<Airport>) => params.data.id} suppressCellFocus /></div> : <Table><TableBody><TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">{filtersActive ? t("no_results") : t("no_airports_found")}</TableCell></TableRow></TableBody></Table>}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
         <DialogContent>
@@ -847,6 +827,22 @@ export function SightsTab() {
     else createMutation.mutate(data);
   };
 
+  const filtersActive = Boolean(normalizedSearch) || cityFilter !== allCitiesFilter;
+  const gridTheme = useMemo(() => agGridTheme, []);
+  const defaultColDef = useMemo<ColDef<Sight>>(() => agGridDefaultColDef, []);
+  const columnDefs = useMemo<ColDef<Sight>[]>(() => [
+    { headerName: t("name_label"), field: "name", minWidth: 220, flex: 1, filter: "agTextColumnFilter", cellRenderer: (params: ICellRendererParams<Sight>) => params.data ? <span className="font-medium" data-testid={`text-sight-name-${params.data.id}`}>{params.data.name}</span> : null },
+    { headerName: t("city_label"), minWidth: 170, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data ? getCityName(params.data.cityId) : "-" },
+    { headerName: t("category"), width: 130, filter: "agTextColumnFilter", valueGetter: (params) => params.data?.category || "other", cellRenderer: (params: ICellRendererParams<Sight>) => params.data ? <Badge variant="outline">{params.data.category || "other"}</Badge> : null },
+    { headerName: "Detailed Description", minWidth: 240, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data?.longDescription || "—", cellRenderer: (params: ICellRendererParams<Sight>) => params.data ? <span className="text-muted-foreground text-sm" data-testid={`text-sight-long-desc-${params.data.id}`}>{params.data.longDescription ? (params.data.longDescription.length > 100 ? params.data.longDescription.slice(0, 100) + "..." : params.data.longDescription) : <span className="text-muted-foreground/50">—</span>}</span> : null },
+    { headerName: t("ticket_head_label"), width: 120, filter: "agTextColumnFilter", valueGetter: (params) => !!params.data?.ticketRequired, filterValueGetter: (params) => params.data?.ticketRequired ? "Yes" : "No", cellRenderer: (params: ICellRendererParams<Sight>) => params.data?.ticketRequired ? "Yes" : "No" },
+    { headerName: t("individual_cost"), width: 140, filter: "agNumberColumnFilter", valueGetter: (params) => params.data?.individualTicketCost != null ? Number(params.data.individualTicketCost) : null, valueFormatter: (params) => params.data?.individualTicketCost || "-", cellRenderer: (params: ICellRendererParams<Sight>) => params.data ? <span className="text-muted-foreground" data-testid={`text-sight-individual-cost-${params.data.id}`}>{params.data.individualTicketCost || "-"}</span> : null },
+    { headerName: t("group_cost"), width: 140, filter: "agNumberColumnFilter", valueGetter: (params) => params.data?.groupTicketCost != null ? Number(params.data.groupTicketCost) : null, valueFormatter: (params) => params.data?.groupTicketCost || "-", cellRenderer: (params: ICellRendererParams<Sight>) => params.data ? <span className="text-muted-foreground" data-testid={`text-sight-group-cost-${params.data.id}`}>{params.data.groupTicketCost || "-"}</span> : null },
+    { headerName: t("duration"), minWidth: 130, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data?.estimatedDuration || "-" },
+    { headerName: t("status"), width: 120, filter: "agTextColumnFilter", valueGetter: (params) => !!params.data?.isActive, filterValueGetter: (params) => params.data?.isActive ? "Active" : "Inactive", cellRenderer: (params: ICellRendererParams<Sight>) => params.data?.isActive ? "Active" : "Inactive" },
+    { headerName: t("actions"), width: 120, pinned: "right", sortable: false, filter: false, resizable: false, cellRenderer: (params: ICellRendererParams<Sight>) => { if (!params.data) return null; const sight = params.data; return <div className="flex items-center gap-1"><Button size="icon" variant="ghost" onClick={() => openEdit(sight)} data-testid={`button-edit-sight-${sight.id}`}><Pencil className="h-4 w-4" /></Button><Button size="icon" variant="ghost" onClick={() => enrichMutation.mutate(sight.id)} disabled={enrichMutation.isPending} title="Enrich with AI"><Sparkles className={`h-4 w-4 ${enrichMutation.isPending ? "animate-pulse" : "text-primary"}`} /></Button><Button size="icon" variant="ghost" onClick={() => setDeleteId(sight.id)} data-testid={`button-delete-sight-${sight.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>; } },
+  ], [citiesList, enrichMutation, openEdit, t]);
+
   if (isLoading) return <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>;
 
   return (
@@ -871,55 +867,7 @@ export function SightsTab() {
         </div>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("name_label")}</TableHead>
-            <TableHead>{t("city_label")}</TableHead>
-            <TableHead>{t("category")}</TableHead>
-            <TableHead className="min-w-[200px]">Detailed Description</TableHead>
-            <TableHead>{t("ticket_head_label")}</TableHead>
-            <TableHead>{t("individual_cost")}</TableHead>
-            <TableHead>{t("group_cost")}</TableHead>
-            <TableHead>{t("duration")}</TableHead>
-            <TableHead>{t("status")}</TableHead>
-            <TableHead>{t("actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.map((item) => (
-            <TableRow key={item.id} data-testid={`row-sight-${item.id}`}>
-              <TableCell className="font-medium" data-testid={`text-sight-name-${item.id}`}>{item.name}</TableCell>
-              <TableCell className="text-muted-foreground">{getCityName(item.cityId)}</TableCell>
-              <TableCell><Badge variant="outline">{item.category || "other"}</Badge></TableCell>
-              <TableCell className="text-muted-foreground text-sm max-w-[300px]" data-testid={`text-sight-long-desc-${item.id}`}>{item.longDescription ? (item.longDescription.length > 100 ? item.longDescription.slice(0, 100) + "..." : item.longDescription) : <span className="text-muted-foreground/50">—</span>}</TableCell>
-              <TableCell>{item.ticketRequired ? "Yes" : "No"}</TableCell>
-              <TableCell className="text-muted-foreground" data-testid={`text-sight-individual-cost-${item.id}`}>{item.individualTicketCost || "-"}</TableCell>
-              <TableCell className="text-muted-foreground" data-testid={`text-sight-group-cost-${item.id}`}>{item.groupTicketCost || "-"}</TableCell>
-              <TableCell className="text-muted-foreground">{item.estimatedDuration || "-"}</TableCell>
-              <TableCell><Badge variant={item.isActive ? "default" : "secondary"}>{item.isActive ? "Active" : "Inactive"}</Badge></TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => openEdit(item)} data-testid={`button-edit-sight-${item.id}`}><Pencil className="h-4 w-4" /></Button>
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    onClick={() => enrichMutation.mutate(item.id)} 
-                    disabled={enrichMutation.isPending}
-                    title="Enrich with AI"
-                  >
-                    <Sparkles className={`h-4 w-4 ${enrichMutation.isPending ? "animate-pulse" : "text-primary"}`} />
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={() => setDeleteId(item.id)} data-testid={`button-delete-sight-${item.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">{normalizedSearch || cityFilter !== allCitiesFilter ? t("no_results") : "No sights found"}</TableCell></TableRow>
-          )}
-        </TableBody>
-      </Table>
+      {filtered.length > 0 ? <div data-testid="grid-master-sights" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}><AgGridReact<Sight> theme={gridTheme} rowData={filtered} columnDefs={columnDefs} defaultColDef={defaultColDef} getRowId={(params: GetRowIdParams<Sight>) => params.data.id} suppressCellFocus /></div> : <Table><TableBody><TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">{filtersActive ? t("no_results") : "No sights found"}</TableCell></TableRow></TableBody></Table>}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
         <DialogContent className="max-w-lg flex flex-col max-h-[85vh]">
@@ -1045,6 +993,18 @@ function TransportCompaniesTab() {
     else createMutation.mutate(data);
   };
 
+  const filtersActive = Boolean(normalizedSearch);
+  const gridTheme = useMemo(() => agGridTheme, []);
+  const defaultColDef = useMemo<ColDef<TransportCompany>>(() => agGridDefaultColDef, []);
+  const columnDefs = useMemo<ColDef<TransportCompany>[]>(() => [
+    { headerName: t("name_label"), field: "name", minWidth: 220, flex: 1, filter: "agTextColumnFilter", cellRenderer: (params: ICellRendererParams<TransportCompany>) => params.data ? <span className="font-medium" data-testid={`text-transport-name-${params.data.id}`}>{params.data.name}</span> : null },
+    { headerName: t("country_label"), minWidth: 170, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data?.countryId ? getCountryName(params.data.countryId) : "-" },
+    { headerName: t("vehicle_types_label"), minWidth: 190, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data?.vehicleTypes?.join(" ") || "-", cellRenderer: (params: ICellRendererParams<TransportCompany>) => params.data?.vehicleTypes?.length ? <div className="flex flex-wrap gap-1">{params.data.vehicleTypes.map((vehicleType) => <Badge key={vehicleType} variant="outline" className="text-xs">{vehicleType}</Badge>)}</div> : <span className="text-muted-foreground">-</span> },
+    { headerName: t("contact_label"), minWidth: 170, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data?.contactName || "-" },
+    { headerName: t("status"), width: 120, filter: "agTextColumnFilter", valueGetter: (params) => !!params.data?.isActive, filterValueGetter: (params) => params.data?.isActive ? "Active" : "Inactive", cellRenderer: (params: ICellRendererParams<TransportCompany>) => params.data?.isActive ? <Badge variant="default">Active</Badge> : <Badge variant="secondary">Inactive</Badge> },
+    { headerName: t("actions"), width: 100, pinned: "right", sortable: false, filter: false, resizable: false, cellRenderer: (params: ICellRendererParams<TransportCompany>) => { if (!params.data) return null; const company = params.data; return <div className="flex items-center gap-1"><Button size="icon" variant="ghost" onClick={() => openEdit(company)} data-testid={`button-edit-transport-${company.id}`}><Pencil className="h-4 w-4" /></Button><Button size="icon" variant="ghost" onClick={() => setDeleteId(company.id)} data-testid={`button-delete-transport-${company.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>; } },
+  ], [countriesList, openEdit, t]);
+
   if (isLoading) return <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>;
 
   return (
@@ -1058,43 +1018,7 @@ function TransportCompaniesTab() {
         </div>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("name_label")}</TableHead>
-            <TableHead>{t("country_label")}</TableHead>
-            <TableHead>{t("vehicle_types_label")}</TableHead>
-            <TableHead>{t("contact_label")}</TableHead>
-            <TableHead>{t("status")}</TableHead>
-            <TableHead>{t("actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.map((item) => (
-            <TableRow key={item.id} data-testid={`row-transport-${item.id}`}>
-              <TableCell className="font-medium" data-testid={`text-transport-name-${item.id}`}>{item.name}</TableCell>
-              <TableCell className="text-muted-foreground">{item.countryId ? getCountryName(item.countryId) : "-"}</TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-1">
-                  {(item.vehicleTypes || []).map((v) => <Badge key={v} variant="outline" className="text-xs">{v}</Badge>)}
-                  {(!item.vehicleTypes || item.vehicleTypes.length === 0) && <span className="text-muted-foreground">-</span>}
-                </div>
-              </TableCell>
-              <TableCell className="text-muted-foreground text-sm">{item.contactName || "-"}</TableCell>
-              <TableCell><Badge variant={item.isActive ? "default" : "secondary"}>{item.isActive ? "Active" : "Inactive"}</Badge></TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => openEdit(item)} data-testid={`button-edit-transport-${item.id}`}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => setDeleteId(item.id)} data-testid={`button-delete-transport-${item.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{normalizedSearch ? t("no_results") : "No transport companies found"}</TableCell></TableRow>
-          )}
-        </TableBody>
-      </Table>
+      {filtered.length > 0 ? <div data-testid="grid-master-transport-companies" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}><AgGridReact<TransportCompany> theme={gridTheme} rowData={filtered} columnDefs={columnDefs} defaultColDef={defaultColDef} getRowId={(params: GetRowIdParams<TransportCompany>) => params.data.id} suppressCellFocus /></div> : <Table><TableBody><TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{filtersActive ? t("no_results") : "No transport companies found"}</TableCell></TableRow></TableBody></Table>}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
         <DialogContent className="max-w-lg">
@@ -1209,6 +1133,18 @@ function AirlineAgenciesTab() {
     else createMutation.mutate(data);
   };
 
+  const filtersActive = Boolean(normalizedSearch);
+  const gridTheme = useMemo(() => agGridTheme, []);
+  const defaultColDef = useMemo<ColDef<AirlineAgency>>(() => agGridDefaultColDef, []);
+  const columnDefs = useMemo<ColDef<AirlineAgency>[]>(() => [
+    { headerName: t("name_label"), field: "name", minWidth: 220, flex: 1, filter: "agTextColumnFilter", cellRenderer: (params: ICellRendererParams<AirlineAgency>) => params.data ? <span className="font-medium" data-testid={`text-airline-agency-name-${params.data.id}`}>{params.data.name}</span> : null },
+    { headerName: t("countries_label"), minWidth: 190, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data?.countryIds?.join(" ") || "-", cellRenderer: (params: ICellRendererParams<AirlineAgency>) => params.data?.countryIds?.length ? <div className="flex flex-wrap gap-1">{params.data.countryIds.map((countryId) => <Badge key={countryId} variant="outline" className="text-xs">{countryId}</Badge>)}</div> : <span className="text-muted-foreground">-</span> },
+    { headerName: t("contact_label"), minWidth: 170, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data?.contactName || "-" },
+    { headerName: t("specializations_label"), minWidth: 200, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data?.specializations?.join(" ") || "-", cellRenderer: (params: ICellRendererParams<AirlineAgency>) => params.data?.specializations?.length ? <div className="flex flex-wrap gap-1">{params.data.specializations.map((specialization) => <Badge key={specialization} variant="outline" className="text-xs">{specialization}</Badge>)}</div> : <span className="text-muted-foreground">-</span> },
+    { headerName: t("status"), width: 120, filter: "agTextColumnFilter", valueGetter: (params) => !!params.data?.isActive, filterValueGetter: (params) => params.data?.isActive ? "Active" : "Inactive", cellRenderer: (params: ICellRendererParams<AirlineAgency>) => params.data?.isActive ? <Badge variant="default">Active</Badge> : <Badge variant="secondary">Inactive</Badge> },
+    { headerName: t("actions"), width: 100, pinned: "right", sortable: false, filter: false, resizable: false, cellRenderer: (params: ICellRendererParams<AirlineAgency>) => { if (!params.data) return null; const agency = params.data; return <div className="flex items-center gap-1"><Button size="icon" variant="ghost" onClick={() => openEdit(agency)} data-testid={`button-edit-airline-agency-${agency.id}`}><Pencil className="h-4 w-4" /></Button><Button size="icon" variant="ghost" onClick={() => setDeleteId(agency.id)} data-testid={`button-delete-airline-agency-${agency.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>; } },
+  ], [openEdit, t]);
+
   if (isLoading) return <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>;
 
   return (
@@ -1222,48 +1158,7 @@ function AirlineAgenciesTab() {
         </div>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("name_label")}</TableHead>
-            <TableHead>{t("countries_label")}</TableHead>
-            <TableHead>{t("contact_label")}</TableHead>
-            <TableHead>{t("specializations_label")}</TableHead>
-            <TableHead>{t("status")}</TableHead>
-            <TableHead>{t("actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.map((item) => (
-            <TableRow key={item.id} data-testid={`row-airline-agency-${item.id}`}>
-              <TableCell className="font-medium" data-testid={`text-airline-agency-name-${item.id}`}>{item.name}</TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-1">
-                  {(item.countryIds || []).map((c) => <Badge key={c} variant="outline" className="text-xs">{c}</Badge>)}
-                  {(!item.countryIds || item.countryIds.length === 0) && <span className="text-muted-foreground">-</span>}
-                </div>
-              </TableCell>
-              <TableCell className="text-muted-foreground text-sm">{item.contactName || "-"}</TableCell>
-              <TableCell>
-                <div className="flex flex-wrap gap-1">
-                  {(item.specializations || []).map((s) => <Badge key={s} variant="outline" className="text-xs">{s}</Badge>)}
-                  {(!item.specializations || item.specializations.length === 0) && <span className="text-muted-foreground">-</span>}
-                </div>
-              </TableCell>
-              <TableCell><Badge variant={item.isActive ? "default" : "secondary"}>{item.isActive ? "Active" : "Inactive"}</Badge></TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" onClick={() => openEdit(item)} data-testid={`button-edit-airline-agency-${item.id}`}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => setDeleteId(item.id)} data-testid={`button-delete-airline-agency-${item.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{normalizedSearch ? t("no_results") : "No airline agencies found"}</TableCell></TableRow>
-          )}
-        </TableBody>
-      </Table>
+      {filtered.length > 0 ? <div data-testid="grid-master-airline-agencies" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}><AgGridReact<AirlineAgency> theme={gridTheme} rowData={filtered} columnDefs={columnDefs} defaultColDef={defaultColDef} getRowId={(params: GetRowIdParams<AirlineAgency>) => params.data.id} suppressCellFocus /></div> : <Table><TableBody><TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{filtersActive ? t("no_results") : "No airline agencies found"}</TableCell></TableRow></TableBody></Table>}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
         <DialogContent className="max-w-lg">
@@ -1359,6 +1254,54 @@ function HotelsTab() {
     else createMutation.mutate(data);
   };
 
+  const filtersActive = Boolean(normalizedSearch) || cityFilter !== allCitiesFilter;
+  const gridTheme = useMemo(() => agGridTheme, []);
+  const defaultColDef = useMemo<ColDef<Hotel>>(() => agGridDefaultColDef, []);
+  const columnDefs = useMemo<ColDef<Hotel>[]>(() => [
+    { headerName: t("name_label"), field: "name", minWidth: 220, flex: 1, filter: "agTextColumnFilter" },
+    { headerName: t("city_label"), minWidth: 180, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data ? getCityName(params.data.cityId) : "-" },
+    { headerName: t("stars_label"), width: 110, filter: "agNumberColumnFilter", valueGetter: (params) => params.data?.starRating ?? null, valueFormatter: (params) => `${params.value ?? ""} ⭐` },
+    {
+      headerName: t("base_price_label"), minWidth: 260, flex: 1, filter: "agTextColumnFilter",
+      valueGetter: (params) => {
+        const item = params.data;
+        if (!item) return "—";
+        return [item.roomRateMatrimonial, item.roomRateDouble, item.roomRateTriple].some((rate: any) => rate)
+          ? `M ${item.roomRateMatrimonial ?? "—"} / D ${item.roomRateDouble ?? "—"} / T ${item.roomRateTriple ?? "—"} ${item.currency}`
+          : item.basePrice ? `${item.basePrice} ${item.currency}` : "—";
+      },
+    },
+    {
+      headerName: t("google_maps_url_label"), minWidth: 150, flex: 1, filter: "agTextColumnFilter",
+      valueGetter: (params) => (params.data as any)?.googleMapsUrl || "-",
+      cellRenderer: (params: ICellRendererParams<Hotel>) => params.data ? ((params.data as any).googleMapsUrl ? <a href={(params.data as any).googleMapsUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline" data-testid={`link-hotel-map-${params.data.id}`}>{t("view_map")}</a> : "-") : null,
+    },
+    {
+      headerName: t("status"), minWidth: 150, flex: 1, filter: "agTextColumnFilter",
+      valueGetter: (params) => {
+        const status = params.data?.status;
+        return status === "approved" ? t("approved_status") : status === "draft" ? t("pending_approval") : status || "";
+      },
+      filterValueGetter: (params) => {
+        const status = params.data?.status;
+        return status === "approved" ? t("approved_status") : status === "draft" ? t("pending_approval") : status || "";
+      },
+      cellRenderer: (params: ICellRendererParams<Hotel>) => {
+        if (!params.data) return null;
+        const status = params.data.status;
+        return <Badge variant={status === "approved" || status === "published" ? "default" : "secondary"} className="capitalize">{status === "approved" ? t("approved_status") : status === "draft" ? t("pending_approval") : status}</Badge>;
+      },
+    },
+    {
+      headerName: t("actions"), width: 150, pinned: "right", sortable: false, filter: false, resizable: false,
+      cellRenderer: (params: ICellRendererParams<Hotel>) => {
+        if (!params.data) return null;
+        const hotel = params.data;
+        return <div className="flex items-center gap-1">{canApprove && hotel.status === "draft" && <Button size="icon" variant="ghost" className="text-emerald-600" onClick={() => approveMutation.mutate(hotel.id)} data-testid={`button-approve-hotel-${hotel.id}`}><CheckCircle className="h-4 w-4" /></Button>}<Button size="icon" variant="ghost" onClick={() => openEdit(hotel)} data-testid={`button-edit-hotel-${hotel.id}`}><Pencil className="h-4 w-4" /></Button><Button size="icon" variant="ghost" onClick={() => setDeleteId(hotel.id)} data-testid={`button-delete-hotel-${hotel.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>;
+      },
+    },
+  ], [approveMutation, canApprove, citiesList, openEdit, t]);
+
   if (isLoading) return <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>;
 
   return (
@@ -1382,59 +1325,7 @@ function HotelsTab() {
         </div>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("name_label")}</TableHead>
-            <TableHead>{t("city_label")}</TableHead>
-            <TableHead>{t("stars_label")}</TableHead>
-            <TableHead>{t("base_price_label")}</TableHead>
-            <TableHead>{t("google_maps_url_label")}</TableHead>
-            <TableHead>{t("status")}</TableHead>
-            <TableHead>{t("actions")}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filtered.map((item) => (
-            <TableRow key={item.id}>
-              <TableCell className="font-medium">{item.name}</TableCell>
-              <TableCell className="text-muted-foreground">{getCityName(item.cityId)}</TableCell>
-              <TableCell>{item.starRating} ⭐</TableCell>
-              <TableCell className="font-mono text-xs">
-                {[item.roomRateMatrimonial, item.roomRateDouble, item.roomRateTriple].some((r: any) => r)
-                  ? `M ${item.roomRateMatrimonial ?? "—"} / D ${item.roomRateDouble ?? "—"} / T ${item.roomRateTriple ?? "—"} ${item.currency}`
-                  : item.basePrice ? `${item.basePrice} ${item.currency}` : "—"}
-              </TableCell>
-              <TableCell className="text-muted-foreground text-sm">
-                {(item as any).googleMapsUrl ? (
-                  <a href={(item as any).googleMapsUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline" data-testid={`link-hotel-map-${item.id}`}>
-                    {t("view_map")}
-                  </a>
-                ) : "-"}
-              </TableCell>
-              <TableCell>
-                <Badge variant={item.status === "approved" || item.status === "published" ? "default" : "secondary"} className="capitalize">
-                  {item.status === "approved" ? t("approved_status") : item.status === "draft" ? t("pending_approval") : item.status}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  {canApprove && item.status === "draft" && (
-                    <Button size="icon" variant="ghost" className="text-emerald-600" onClick={() => approveMutation.mutate(item.id)} data-testid={`button-approve-hotel-${item.id}`}>
-                      <CheckCircle className="h-4 w-4" />
-                    </Button>
-                  )}
-                  <Button size="icon" variant="ghost" onClick={() => openEdit(item)} data-testid={`button-edit-hotel-${item.id}`}><Pencil className="h-4 w-4" /></Button>
-                  <Button size="icon" variant="ghost" onClick={() => setDeleteId(item.id)} data-testid={`button-delete-hotel-${item.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {filtered.length === 0 && (
-            <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{normalizedSearch || cityFilter !== allCitiesFilter ? t("no_results") : "No hotels found"}</TableCell></TableRow>
-          )}
-        </TableBody>
-      </Table>
+      {filtered.length > 0 ? <div data-testid="grid-master-hotels" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}><AgGridReact<Hotel> theme={gridTheme} rowData={filtered} columnDefs={columnDefs} defaultColDef={defaultColDef} getRowId={(params: GetRowIdParams<Hotel>) => params.data.id} suppressCellFocus /></div> : <Table><TableBody><TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{filtersActive ? t("no_results") : "No hotels found"}</TableCell></TableRow></TableBody></Table>}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
         <DialogContent className="flex flex-col max-h-[85vh]">

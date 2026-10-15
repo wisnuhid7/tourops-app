@@ -10,11 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { Link, useLocation } from "wouter";
-import { Search, BookOpen, Filter, ArrowRight, Users, Calendar, MapPin, CheckSquare, Square, Plus, Trash2, Settings } from "lucide-react";
+import { Search, BookOpen, ArrowRight, Users, Calendar, Plus, Trash2, Settings } from "lucide-react";
 import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES } from "@/lib/constants";
 import type { Booking, UserProfile } from "@workspace/db";
 import * as XLSX from "xlsx";
-import { Download, Zap } from "lucide-react";
+import { Download } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -127,18 +127,6 @@ export default function AdminBookings() {
       toast({ title: t("booking_deleted") });
     },
     onError: () => toast({ title: t("failed_to_delete_booking"), variant: "destructive" }),
-  });
-
-  const bulkInitMutation = useMutation({
-    mutationFn: (ids: string[]) => apiRequest("POST", "/api/bookings/bulk-initialize", { bookingIds: ids }),
-    onSuccess: (res) => {
-      res.json().then(data => {
-        queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
-        setSelectedIds([]);
-        toast({ title: t("success"), description: `${t("initialized_workflows_prefix")} ${data.initialized} ${t("initialized_workflows_suffix")}` });
-      });
-    },
-    onError: () => toast({ title: t("bulk_operation_failed"), variant: "destructive" }),
   });
 
   const toggleSelect = (id: string) => {
@@ -324,18 +312,6 @@ export default function AdminBookings() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          )}
-          {selectedIds.length > 0 && (
-            <Button
-              variant="default"
-              size="sm"
-              className="bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-600/20"
-              onClick={() => bulkInitMutation.mutate(selectedIds)}
-              disabled={bulkInitMutation.isPending}
-            >
-              <Zap className="h-4 w-4 mr-2" />
-              {bulkInitMutation.isPending ? t("initializing") : `${t("initialize_prefix")} ${selectedIds.length} ${t("workflows_suffix")}`}
-            </Button>
           )}
           <Button variant="outline" size="sm" onClick={handleExport} disabled={filtered.length === 0}>
             <Download className="h-4 w-4 mr-2" />

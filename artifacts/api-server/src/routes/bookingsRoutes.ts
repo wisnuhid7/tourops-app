@@ -387,33 +387,6 @@ export function registerBookingsRoutes(app: Express): void {
     } catch (e: any) { routeError(res, e); }
   });
 
-  app.post("/api/bookings/bulk-initialize", isAuthenticated, async (req, res) => {
-    try {
-      if (!await requireRole(req, res, ADMIN_ROLES)) return;
-      const { bookingIds } = req.body;
-      if (!Array.isArray(bookingIds)) {
-        return res.status(400).json({ message: "bookingIds must be an array" });
-      }
-      let initialized = 0;
-      for (const id of bookingIds) {
-        await initializeBookingWorkflows(id);
-        const wfs = await storage.getWorkflows(id);
-        for (const wf of wfs) {
-          let assignedUserId = undefined;
-          if (wf.serviceType === "airline") assignedUserId = "user-airline_supplier-1";
-          else if (wf.serviceType === "hotel") assignedUserId = "user-hotel_manager-1";
-          else if (wf.serviceType === "transport") assignedUserId = "user-transport_manager-1";
-          
-          if (assignedUserId) {
-            await storage.updateWorkflow(wf.id, { assignedUserId, status: "assigned" });
-          }
-        }
-        initialized++;
-      }
-      res.json({ initialized });
-    } catch (e: any) { routeError(res, e); }
-  });
-
   app.post("/api/bookings/join", isAuthenticated, async (req, res) => {
     try {
       const userId = getUserId(req);

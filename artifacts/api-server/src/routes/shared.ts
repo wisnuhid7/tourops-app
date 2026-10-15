@@ -130,34 +130,10 @@ export async function canAccessBooking(userId: string, bookingId: string) {
 }
 
 export async function initializeBookingWorkflows(bookingId: string) {
-  const existingWfs = await storage.getWorkflows(bookingId);
-  if (existingWfs && existingWfs.length > 0) return; // Prevent duplicate generation
-
-  const services: ("airline" | "hotel" | "transport" | "guide" | "sights")[] = ["airline", "hotel", "transport"];
-
-  for (const service of services) {
-    const wf = await storage.createWorkflow({
-      bookingId,
-      serviceType: service,
-      status: "not_assigned",
-    });
-
-    const steps = [
-      { code: "REQ", name: `Request ${service.toUpperCase()} Choice` },
-      { code: "CONF", name: "Booking Confirmed with Supplier" },
-      { code: "DOC", name: "Issuing Document/Voucher" },
-    ];
-
-    for (let i = 0; i < steps.length; i++) {
-      await storage.createWorkflowStep({
-        workflowId: wf.id,
-        stepOrder: i + 1,
-        stepCode: steps[i].code,
-        stepName: steps[i].name,
-        status: "pending",
-      });
-    }
-  }
+  // Keep workflow creation in storage so initialization is idempotent and uses
+  // the canonical service-specific steps. It checks each service type
+  // independently, allowing partially initialized bookings to be repaired.
+  await storage.initializeBookingWorkflows(bookingId);
 }
 
 // Guard for public-facing tour sub-resources: an unpublished (draft) tour and

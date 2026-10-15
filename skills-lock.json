@@ -169,6 +169,12 @@
       "skillPath": "skills/exploratory-testing/SKILL.md",
       "computedHash": "da0c461f95642d67d621b550e73677094ed02990b51bf66fd9b927ade1a6ab2e"
     },
+    "grill-me": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/productivity/grill-me/SKILL.md",
+      "computedHash": "9cdbb4b8f7a3aeaef82e6230c9e823500d4a8a1214c726cf342cf9829d34fc7d"
+    },
     "interface-review": {
       "source": "jakubkrehel/skills",
       "sourceType": "github",

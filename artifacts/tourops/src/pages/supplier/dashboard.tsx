@@ -36,6 +36,11 @@ import { format } from "date-fns";
 import { useLanguage } from "@/hooks/use-language";
 import { SupplierServiceRequests } from "@/components/supplier-service-requests";
 import { HotelFormFields, emptyHotelFormValues, hotelToFormValues, hotelFormToPayload, type HotelFormValues } from "@/components/hotel-form-fields";
+import type { ColDef, GetRowIdParams, ICellRendererParams } from "ag-grid-community";
+import { AgGridReact } from "ag-grid-react";
+import { agGridDefaultColDef, agGridTheme } from "@/lib/ag-grid-config";
+
+const toGridDate = (value: string | null | undefined) => value ? new Date(`${value}T00:00:00`) : null;
 
 export default function SupplierDashboard() {
   const { t } = useLanguage();
@@ -77,9 +82,24 @@ export default function SupplierDashboard() {
   useEffect(() => { setActiveTab(initialTab); }, [initialTab]);
 
   const { data: hotelRates } = useQuery<any[]>({ queryKey: ["/api/rates/hotel"] });
+  const [hotelRateSearch, setHotelRateSearch] = useState("");
+  const normalizedHotelRateSearch = hotelRateSearch.trim().toLowerCase();
+  const filteredHotelRates = (hotelRates || []).filter((rate) => [rate.hotelName, rate.roomType, rate.currency, rate.pricePerRoomPerNight, rate.validFrom, rate.validTo, rate.status].filter(Boolean).join(" ").toLowerCase().includes(normalizedHotelRateSearch));
   const canRegisterHotels = profile?.role === "hotel_manager" || profile?.role === "admin" || profile?.role === "super_admin";
   const { data: hotels } = useQuery<any[]>({ queryKey: ["/api/hotels"], enabled: canRegisterHotels });
   const { data: cities } = useQuery<any[]>({ queryKey: ["/api/master/cities"], enabled: canRegisterHotels });
+  const [hotelSearch, setHotelSearch] = useState("");
+  const normalizedHotelSearch = hotelSearch.trim().toLowerCase();
+  const filteredHotels = (hotels || []).filter((hotel) => [
+    hotel.name,
+    hotel.starRating != null ? String(hotel.starRating) : "",
+    hotel.basePrice,
+    hotel.roomRateMatrimonial,
+    hotel.roomRateDouble,
+    hotel.roomRateTriple,
+    hotel.currency,
+    hotel.status,
+  ].filter(Boolean).join(" ").toLowerCase().includes(normalizedHotelSearch));
 
   const [hotelDialogOpen, setHotelDialogOpen] = useState(false);
   const [editingHotelId, setEditingHotelId] = useState<string | null>(null);
@@ -132,9 +152,28 @@ export default function SupplierDashboard() {
     else registerHotel.mutate(payload);
   };
 
+  const hotelGridTheme = useMemo(() => agGridTheme, []);
+  const hotelDefaultColDef = useMemo<ColDef<any>>(() => agGridDefaultColDef, []);
+  const hotelColumnDefs = useMemo<ColDef<any>[]>(() => [
+    { headerName: t("hotel_name"), field: "name", minWidth: 220, flex: 1, filter: "agTextColumnFilter" },
+    { headerName: t("stars_label"), width: 110, filter: "agNumberColumnFilter", valueGetter: (params) => params.data?.starRating ?? null, valueFormatter: (params) => `${params.value ?? ""} ⭐` },
+    { headerName: t("base_price_label"), minWidth: 260, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => { const h = params.data; if (!h) return "-"; return [h.roomRateMatrimonial, h.roomRateDouble, h.roomRateTriple].some((r: any) => r) ? `M ${h.roomRateMatrimonial ?? "—"} / D ${h.roomRateDouble ?? "—"} / T ${h.roomRateTriple ?? "—"} ${h.currency}` : h.basePrice ? `${h.currency} ${h.basePrice}` : "-"; } },
+    { headerName: t("status"), minWidth: 150, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => { const status = params.data?.status; return status === "approved" ? t("approved_status") : status === "draft" ? t("pending_approval") : status || ""; }, filterValueGetter: (params) => { const status = params.data?.status; return status === "approved" ? t("approved_status") : status === "draft" ? t("pending_approval") : status || ""; }, cellRenderer: (params: ICellRendererParams<any>) => { const status = params.data?.status; return <Badge variant={status === "approved" || status === "published" ? "default" : "secondary"} className="capitalize">{status === "approved" ? t("approved_status") : status === "draft" ? t("pending_approval") : status}</Badge>; } },
+    { headerName: t("actions"), width: 100, pinned: "right", sortable: false, filter: false, resizable: false, cellRenderer: (params: ICellRendererParams<any>) => params.data ? <div className="flex items-center gap-1"><Button size="icon" variant="ghost" onClick={() => openEditHotel(params.data)} data-testid={`button-edit-hotel-${params.data.id}`}><Pencil className="h-4 w-4" /></Button><Button size="icon" variant="ghost" onClick={() => setDeleteHotelId(params.data.id)} data-testid={`button-delete-hotel-${params.data.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button></div> : null },
+  ], [openEditHotel, t]);
+
   const { data: guideRates } = useQuery<any[]>({ queryKey: ["/api/rates/guide"] });
   const { data: sightsRates } = useQuery<any[]>({ queryKey: ["/api/rates/sights"] });
   const { data: airlineRates } = useQuery<any[]>({ queryKey: ["/api/rates/airline"] });
+  const [guideSearch, setGuideSearch] = useState("");
+  const [sightsSearch, setSightsSearch] = useState("");
+  const [airlineSearch, setAirlineSearch] = useState("");
+  const normalizedGuideSearch = guideSearch.trim().toLowerCase();
+  const normalizedSightsSearch = sightsSearch.trim().toLowerCase();
+  const normalizedAirlineSearch = airlineSearch.trim().toLowerCase();
+  const filteredGuideRates = (guideRates || []).filter((rate) => [rate.guideName, rate.language, rate.currency, rate.price, rate.validFrom, rate.validTo, rate.status].filter(Boolean).join(" ").toLowerCase().includes(normalizedGuideSearch));
+  const filteredSightsRates = (sightsRates || []).filter((rate) => [rate.attractionName, rate.ticketType, rate.currency, rate.pricePerPerson, rate.validFrom, rate.validTo, rate.status].filter(Boolean).join(" ").toLowerCase().includes(normalizedSightsSearch));
+  const filteredAirlineRates = (airlineRates || []).filter((rate) => [rate.airlineName, rate.routeFrom, rate.routeTo, rate.currency, rate.price, rate.validFrom, rate.validTo, rate.status].filter(Boolean).join(" ").toLowerCase().includes(normalizedAirlineSearch));
 
   const saveRate = useMutation({
     mutationFn: ({ type, id, data }: { type: string, id?: string, data: any }) => {
@@ -221,6 +260,53 @@ export default function SupplierDashboard() {
     setSelectedAirline(rate?.airlineName || "");
     setRateDialogOpen(true);
   };
+
+  const hotelRateGridTheme = useMemo(() => agGridTheme, []);
+  const hotelRateDefaultColDef = useMemo<ColDef<any>>(() => agGridDefaultColDef, []);
+  const hotelRateColumnDefs = useMemo<ColDef<any>[]>(() => [
+    { headerName: t("hotel_name"), field: "hotelName", minWidth: 220, flex: 1, filter: "agTextColumnFilter" },
+    { headerName: t("room_type"), minWidth: 150, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data?.roomType || "-" },
+    { headerName: t("rate_label"), width: 150, filter: "agNumberColumnFilter", valueGetter: (params) => params.data?.pricePerRoomPerNight != null ? Number(params.data.pricePerRoomPerNight) : null, valueFormatter: (params) => params.data ? `${params.data.currency} ${params.data.pricePerRoomPerNight}` : "" },
+    { headerName: t("validity_label"), minWidth: 190, flex: 1, filter: "agDateColumnFilter", valueGetter: (params) => `${params.data?.validFrom || ""} to ${params.data?.validTo || ""}`, filterValueGetter: (params) => toGridDate(params.data?.validFrom) },
+    { headerName: t("status"), width: 130, filter: "agTextColumnFilter", field: "status", filterValueGetter: (params) => params.data?.status || "", cellRenderer: (params: ICellRendererParams<any>) => <Badge variant="outline" className="capitalize">{params.data?.status}</Badge> },
+    { headerName: t("actions"), width: 110, pinned: "right", sortable: false, filter: false, resizable: false, cellRenderer: (params: ICellRendererParams<any>) => params.data ? <div className="flex justify-end gap-2"><Button variant="ghost" size="icon" onClick={() => openRateDialog("hotel", params.data)}><Plus className="h-4 w-4 rotate-45" /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => { if (confirm(t("confirm_delete_rate"))) deleteRate.mutate({ type: "hotel", id: params.data.id }); }}><Trash2 className="h-4 w-4" /></Button></div> : null },
+  ], [deleteRate, openRateDialog, t]);
+
+  const guideRateGridTheme = useMemo(() => agGridTheme, []);
+  const guideRateDefaultColDef = useMemo<ColDef<any>>(() => agGridDefaultColDef, []);
+  const guideRateColumnDefs = useMemo<ColDef<any>[]>(() => [
+    { headerName: t("guide_name"), field: "guideName", minWidth: 220, flex: 1, filter: "agTextColumnFilter" },
+    { headerName: t("language"), minWidth: 130, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data?.language || "-" },
+    { headerName: t("rate_label"), width: 150, filter: "agNumberColumnFilter", valueGetter: (params) => params.data?.price != null ? Number(params.data.price) : null, valueFormatter: (params) => params.data ? `${params.data.currency} ${params.data.price}` : "" },
+    { headerName: t("validity_label"), minWidth: 190, flex: 1, filter: "agDateColumnFilter", valueGetter: (params) => `${params.data?.validFrom || ""} to ${params.data?.validTo || ""}`, filterValueGetter: (params) => toGridDate(params.data?.validFrom) },
+    {
+      headerName: t("status"), minWidth: 180, flex: 1, filter: "agTextColumnFilter", field: "status", filterValueGetter: (params) => params.data?.status || "",
+      cellRenderer: (params: ICellRendererParams<any>) => params.data ? <div className="flex items-center gap-2"><Switch checked={params.data.status === "active"} onCheckedChange={(checked) => guideStatusMutation.mutate({ id: params.data.id, status: checked ? "active" : "draft" })} disabled={guideStatusMutation.isPending || params.data.status === "archived"} aria-label={t("status")} data-testid={`switch-guide-status-${params.data.id}`} /><Badge variant="outline" className="capitalize">{params.data.status}</Badge></div> : null,
+    },
+    { headerName: t("actions"), width: 100, pinned: "right", sortable: false, filter: false, resizable: false, cellRenderer: (params: ICellRendererParams<any>) => params.data ? <div className="flex justify-end gap-2"><Button variant="ghost" size="icon" onClick={() => openRateDialog("guide", params.data)} data-testid={`button-edit-guide-${params.data.id}`}><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" data-testid={`button-delete-guide-${params.data.id}`} onClick={() => { if (confirm(t("delete_guide_confirm"))) deleteRate.mutate({ type: "guide", id: params.data.id }); }}><Trash2 className="h-4 w-4" /></Button></div> : null },
+  ], [deleteRate, guideStatusMutation, openRateDialog, t]);
+
+  const sightsRateGridTheme = useMemo(() => agGridTheme, []);
+  const sightsRateDefaultColDef = useMemo<ColDef<any>>(() => agGridDefaultColDef, []);
+  const sightsRateColumnDefs = useMemo<ColDef<any>[]>(() => [
+    { headerName: t("attraction_label"), field: "attractionName", minWidth: 220, flex: 1, filter: "agTextColumnFilter" },
+    { headerName: t("ticket_type_label"), minWidth: 160, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data?.ticketType || "-" },
+    { headerName: t("price"), width: 150, filter: "agNumberColumnFilter", valueGetter: (params) => params.data?.pricePerPerson != null ? Number(params.data.pricePerPerson) : null, valueFormatter: (params) => params.data ? `${params.data.currency} ${params.data.pricePerPerson}` : "" },
+    { headerName: t("validity_label"), minWidth: 190, flex: 1, filter: "agDateColumnFilter", valueGetter: (params) => `${params.data?.validFrom || ""} to ${params.data?.validTo || ""}`, filterValueGetter: (params) => toGridDate(params.data?.validFrom) },
+    { headerName: t("status"), minWidth: 180, flex: 1, filter: "agTextColumnFilter", field: "status", filterValueGetter: (params) => params.data?.status || "", cellRenderer: (params: ICellRendererParams<any>) => params.data ? <div className="flex items-center gap-2"><Switch checked={params.data.status === "active"} onCheckedChange={(checked) => sightsStatusMutation.mutate({ id: params.data.id, status: checked ? "active" : "draft" })} disabled={sightsStatusMutation.isPending || params.data.status === "archived"} aria-label={t("status")} data-testid={`switch-sights-status-${params.data.id}`} /><Badge variant="outline" className="capitalize">{params.data.status}</Badge></div> : null },
+    { headerName: t("actions"), width: 100, pinned: "right", sortable: false, filter: false, resizable: false, cellRenderer: (params: ICellRendererParams<any>) => params.data ? <div className="flex justify-end gap-2"><Button variant="ghost" size="icon" onClick={() => openRateDialog("sights", params.data)} data-testid={`button-edit-sights-${params.data.id}`}><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" data-testid={`button-delete-sights-${params.data.id}`} onClick={() => { if (confirm(t("confirm_delete_rate"))) deleteRate.mutate({ type: "sights", id: params.data.id }); }}><Trash2 className="h-4 w-4" /></Button></div> : null },
+  ], [deleteRate, openRateDialog, sightsStatusMutation, t]);
+
+  const airlineRateGridTheme = useMemo(() => agGridTheme, []);
+  const airlineRateDefaultColDef = useMemo<ColDef<any>>(() => agGridDefaultColDef, []);
+  const airlineRateColumnDefs = useMemo<ColDef<any>[]>(() => [
+    { headerName: t("airline_label"), field: "airlineName", minWidth: 220, flex: 1, filter: "agTextColumnFilter" },
+    { headerName: t("route_label"), minWidth: 220, flex: 1, filter: "agTextColumnFilter", valueGetter: (params) => params.data ? `${params.data.routeFrom || "-"} → ${params.data.routeTo || "-"}` : "-" },
+    { headerName: t("rate_label"), width: 150, filter: "agNumberColumnFilter", valueGetter: (params) => params.data?.price != null ? Number(params.data.price) : null, valueFormatter: (params) => params.data ? `${params.data.currency} ${params.data.price}` : "" },
+    { headerName: t("validity_label"), minWidth: 190, flex: 1, filter: "agDateColumnFilter", valueGetter: (params) => `${params.data?.validFrom || ""} to ${params.data?.validTo || ""}`, filterValueGetter: (params) => toGridDate(params.data?.validFrom) },
+    { headerName: t("status"), minWidth: 180, flex: 1, filter: "agTextColumnFilter", field: "status", filterValueGetter: (params) => params.data?.status || "", cellRenderer: (params: ICellRendererParams<any>) => params.data ? <div className="flex items-center gap-2"><Switch checked={params.data.status === "active"} onCheckedChange={(checked) => airlineStatusMutation.mutate({ id: params.data.id, status: checked ? "active" : "draft" })} disabled={airlineStatusMutation.isPending || params.data.status === "archived"} aria-label={t("status")} data-testid={`switch-airline-status-${params.data.id}`} /><Badge variant="outline" className="capitalize">{params.data.status}</Badge></div> : null },
+    { headerName: t("actions"), width: 120, pinned: "right", sortable: false, filter: false, resizable: false, cellRenderer: (params: ICellRendererParams<any>) => params.data ? <div className="flex justify-end gap-2"><Button variant="ghost" size="icon" onClick={() => openRateDialog("airline", params.data)} data-testid={`button-edit-airline-rate-${params.data.id}`}><Pencil className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => { if (confirm(t("confirm_delete_rate"))) deleteRate.mutate({ type: "airline", id: params.data.id }); }}><Trash2 className="h-4 w-4" /></Button></div> : null },
+  ], [airlineStatusMutation, deleteRate, openRateDialog, t]);
 
   // Sights rate dialog: attraction must come from the Sights Catalog (no free text)
   const [selectedAttraction, setSelectedAttraction] = useState("");
@@ -537,46 +623,8 @@ export default function SupplierDashboard() {
             <Button size="sm" onClick={openCreateHotel}><Plus className="h-4 w-4 mr-2" /> {t("register_hotel")}</Button>
           </CardHeader>
           <CardContent>
-            <div className="border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("hotel_name")}</TableHead>
-                    <TableHead>{t("stars_label")}</TableHead>
-                    <TableHead>{t("base_price_label")}</TableHead>
-                    <TableHead>{t("status")}</TableHead>
-                    <TableHead className="text-right">{t("actions")}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {hotels?.map(h => (
-                    <TableRow key={h.id}>
-                      <TableCell className="font-medium">{h.name}</TableCell>
-                      <TableCell>{h.starRating} ⭐</TableCell>
-                      <TableCell>
-                        {[h.roomRateMatrimonial, h.roomRateDouble, h.roomRateTriple].some((r: any) => r)
-                          ? `M ${h.roomRateMatrimonial ?? "—"} / D ${h.roomRateDouble ?? "—"} / T ${h.roomRateTriple ?? "—"} ${h.currency}`
-                          : h.basePrice ? `${h.currency} ${h.basePrice}` : "-"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={h.status === "approved" || h.status === "published" ? "default" : "secondary"} className="capitalize">
-                          {h.status === "approved" ? t("approved_status") : h.status === "draft" ? t("pending_approval") : h.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button size="icon" variant="ghost" onClick={() => openEditHotel(h)} data-testid={`button-edit-hotel-${h.id}`}><Pencil className="h-4 w-4" /></Button>
-                          <Button size="icon" variant="ghost" onClick={() => setDeleteHotelId(h.id)} data-testid={`button-delete-hotel-${h.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {(!hotels || hotels.length === 0) && (
-                    <TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">{t("no_hotels_found")}</TableCell></TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+            <div className="relative max-w-sm mb-3"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input className="pl-9" placeholder={t("search_hotels_placeholder")} value={hotelSearch} onChange={(e) => setHotelSearch(e.target.value)} data-testid="input-search-hotels" /></div>
+            {filteredHotels.length > 0 ? <div data-testid="grid-supplier-hotels" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}><AgGridReact<any> theme={hotelGridTheme} rowData={filteredHotels} columnDefs={hotelColumnDefs} defaultColDef={hotelDefaultColDef} getRowId={(params: GetRowIdParams<any>) => params.data.id} suppressCellFocus /></div> : <Table><TableBody><TableRow><TableCell colSpan={5} className="text-center py-10 text-muted-foreground">{normalizedHotelSearch ? t("no_results") : t("no_hotels_found")}</TableCell></TableRow></TableBody></Table>}
           </CardContent>
         </Card>
       </TabsContent>
@@ -625,43 +673,11 @@ export default function SupplierDashboard() {
               <CardDescription>{t("manage_room_types_pricing")}</CardDescription>
             </div>
             <Button size="sm" onClick={() => openRateDialog("hotel")}><Plus className="h-4 w-4 mr-2" /> {t("create_rate")}</Button>
-          </CardHeader>
-          <CardContent>
-             <div className="border rounded-md">
-               <Table>
-                 <TableHeader>
-                   <TableRow>
-                     <TableHead>{t("hotel_name")}</TableHead>
-                     <TableHead>{t("room_type")}</TableHead>
-                     <TableHead>{t("rate_label")}</TableHead>
-                     <TableHead>{t("validity_label")}</TableHead>
-                     <TableHead>{t("status")}</TableHead>
-                     <TableHead className="text-right">{t("actions")}</TableHead>
-                   </TableRow>
-                 </TableHeader>
-                 <TableBody>
-                   {hotelRates?.map(r => (
-                     <TableRow key={r.id}>
-                       <TableCell className="font-medium">{r.hotelName}</TableCell>
-                       <TableCell>{r.roomType}</TableCell>
-                       <TableCell>{r.currency} {r.pricePerRoomPerNight}</TableCell>
-                       <TableCell>{r.validFrom} to {r.validTo}</TableCell>
-                       <TableCell><Badge variant="outline" className="capitalize">{r.status}</Badge></TableCell>
-                       <TableCell className="text-right flex justify-end gap-2">
-                         <Button variant="ghost" size="icon" onClick={() => openRateDialog("hotel", r)}><Plus className="h-4 w-4 rotate-45" /></Button>
-                         <Button variant="ghost" size="icon" className="text-destructive" onClick={() => {
-                           if(confirm(t("confirm_delete_rate"))) deleteRate.mutate({ type: "hotel", id: r.id });
-                         }}><Trash2 className="h-4 w-4" /></Button>
-                       </TableCell>
-                     </TableRow>
-                   ))}
-                   {(!hotelRates || hotelRates.length === 0) && (
-                     <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">{t("no_rates_found_message")}</TableCell></TableRow>
-                   )}
-                 </TableBody>
-               </Table>
-             </div>
-          </CardContent>
+           </CardHeader>
+           <CardContent>
+             <div className="relative max-w-sm mb-3"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input className="pl-9" placeholder={t("search_hotel_rates_placeholder")} value={hotelRateSearch} onChange={(e) => setHotelRateSearch(e.target.value)} data-testid="input-search-hotel-rates" /></div>
+             {filteredHotelRates.length > 0 ? <div data-testid="grid-supplier-hotel-rates" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}><AgGridReact<any> theme={hotelRateGridTheme} rowData={filteredHotelRates} columnDefs={hotelRateColumnDefs} defaultColDef={hotelRateDefaultColDef} getRowId={(params: GetRowIdParams<any>) => params.data.id} suppressCellFocus /></div> : <Table><TableBody><TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">{normalizedHotelRateSearch ? t("no_results") : t("no_rates_found_message")}</TableCell></TableRow></TableBody></Table>}
+           </CardContent>
         </Card>
       </TabsContent>
 
@@ -673,54 +689,11 @@ export default function SupplierDashboard() {
               <CardDescription>{t("manage_service_rates_availability")}</CardDescription>
             </div>
             <Button size="sm" onClick={() => openRateDialog("guide")}><Plus className="h-4 w-4 mr-2" /> {t("create_rate")}</Button>
-          </CardHeader>
-          <CardContent>
-             <div className="border rounded-md">
-               <Table>
-                 <TableHeader>
-                   <TableRow>
-                     <TableHead>{t("guide_name")}</TableHead>
-                     <TableHead>{t("language")}</TableHead>
-                     <TableHead>{t("rate_label")}</TableHead>
-                     <TableHead>{t("validity_label")}</TableHead>
-                     <TableHead>{t("status")}</TableHead>
-                     <TableHead className="text-right">{t("actions")}</TableHead>
-                   </TableRow>
-                 </TableHeader>
-                 <TableBody>
-                   {guideRates?.map(r => (
-                     <TableRow key={r.id}>
-                       <TableCell className="font-medium">{r.guideName}</TableCell>
-                       <TableCell>{r.language}</TableCell>
-                       <TableCell>{r.currency} {r.price}</TableCell>
-                       <TableCell>{r.validFrom} to {r.validTo}</TableCell>
-                       <TableCell>
-                         <div className="flex items-center gap-2">
-                           <Switch
-                           checked={r.status === "active"}
-                           onCheckedChange={(checked) => guideStatusMutation.mutate({ id: r.id, status: checked ? "active" : "draft" })}
-                           disabled={guideStatusMutation.isPending || r.status === "archived"}
-                           aria-label={t("status")}
-                           data-testid={`switch-guide-status-${r.id}`}
-                           />
-                           <Badge variant="outline" className="capitalize">{r.status}</Badge>
-                         </div>
-                       </TableCell>
-                       <TableCell className="text-right flex justify-end gap-2">
-                         <Button variant="ghost" size="icon" onClick={() => openRateDialog("guide", r)} data-testid={`button-edit-guide-${r.id}`}><Pencil className="h-4 w-4" /></Button>
-                         <Button variant="ghost" size="icon" className="text-destructive" data-testid={`button-delete-guide-${r.id}`} onClick={() => {
-                           if(confirm(t("delete_guide_confirm"))) deleteRate.mutate({ type: "guide", id: r.id });
-                         }}><Trash2 className="h-4 w-4" /></Button>
-                       </TableCell>
-                     </TableRow>
-                   ))}
-                   {(!guideRates || guideRates.length === 0) && (
-                     <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">{t("no_rates_found_message")}</TableCell></TableRow>
-                   )}
-                 </TableBody>
-               </Table>
-             </div>
-          </CardContent>
+           </CardHeader>
+           <CardContent>
+             <div className="relative max-w-sm mb-3"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input className="pl-9" placeholder={t("search_guide_rates_placeholder")} value={guideSearch} onChange={(e) => setGuideSearch(e.target.value)} data-testid="input-search-guide-rates" /></div>
+             {filteredGuideRates.length > 0 ? <div data-testid="grid-supplier-guide-rates" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}><AgGridReact<any> theme={guideRateGridTheme} rowData={filteredGuideRates} columnDefs={guideRateColumnDefs} defaultColDef={guideRateDefaultColDef} getRowId={(params: GetRowIdParams<any>) => params.data.id} suppressCellFocus /></div> : <Table><TableBody><TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">{normalizedGuideSearch ? t("no_results") : t("no_rates_found_message")}</TableCell></TableRow></TableBody></Table>}
+           </CardContent>
         </Card>
       </TabsContent>
 
@@ -744,54 +717,11 @@ export default function SupplierDashboard() {
               <CardDescription>{t("manage_ticket_prices_slots")}</CardDescription>
             </div>
             <Button size="sm" onClick={() => openRateDialog("sights")}><Plus className="h-4 w-4 mr-2" /> {t("create_rate")}</Button>
-          </CardHeader>
-          <CardContent>
-             <div className="border rounded-md">
-               <Table>
-                 <TableHeader>
-                   <TableRow>
-                     <TableHead>{t("attraction_label")}</TableHead>
-                     <TableHead>{t("ticket_type_label")}</TableHead>
-                     <TableHead>{t("price")}</TableHead>
-                     <TableHead>{t("validity_label")}</TableHead>
-                     <TableHead>{t("status")}</TableHead>
-                     <TableHead className="text-right">{t("actions")}</TableHead>
-                   </TableRow>
-                 </TableHeader>
-                 <TableBody>
-                   {sightsRates?.map(r => (
-                     <TableRow key={r.id}>
-                       <TableCell className="font-medium">{r.attractionName}</TableCell>
-                       <TableCell>{r.ticketType}</TableCell>
-                       <TableCell>{r.currency} {r.pricePerPerson}</TableCell>
-                       <TableCell>{r.validFrom} to {r.validTo}</TableCell>
-                       <TableCell>
-                         <div className="flex items-center gap-2">
-                           <Switch
-                             checked={r.status === "active"}
-                             onCheckedChange={(checked) => sightsStatusMutation.mutate({ id: r.id, status: checked ? "active" : "draft" })}
-                             disabled={sightsStatusMutation.isPending || r.status === "archived"}
-                             aria-label={t("status")}
-                             data-testid={`switch-sights-status-${r.id}`}
-                           />
-                           <Badge variant="outline" className="capitalize">{r.status}</Badge>
-                         </div>
-                       </TableCell>
-                       <TableCell className="text-right flex justify-end gap-2">
-                         <Button variant="ghost" size="icon" onClick={() => openRateDialog("sights", r)} data-testid={`button-edit-sights-${r.id}`}><Pencil className="h-4 w-4" /></Button>
-                         <Button variant="ghost" size="icon" className="text-destructive" data-testid={`button-delete-sights-${r.id}`} onClick={() => {
-                           if(confirm(t("confirm_delete_rate"))) deleteRate.mutate({ type: "sights", id: r.id });
-                         }}><Trash2 className="h-4 w-4" /></Button>
-                       </TableCell>
-                     </TableRow>
-                   ))}
-                   {(!sightsRates || sightsRates.length === 0) && (
-                     <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">{t("no_rates_found_message")}</TableCell></TableRow>
-                   )}
-                 </TableBody>
-               </Table>
-             </div>
-          </CardContent>
+           </CardHeader>
+           <CardContent>
+             <div className="relative max-w-sm mb-3"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input className="pl-9" placeholder={t("search_sights_rates_placeholder")} value={sightsSearch} onChange={(e) => setSightsSearch(e.target.value)} data-testid="input-search-sights-rates" /></div>
+             {filteredSightsRates.length > 0 ? <div data-testid="grid-supplier-sights-rates" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}><AgGridReact<any> theme={sightsRateGridTheme} rowData={filteredSightsRates} columnDefs={sightsRateColumnDefs} defaultColDef={sightsRateDefaultColDef} getRowId={(params: GetRowIdParams<any>) => params.data.id} suppressCellFocus /></div> : <Table><TableBody><TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">{normalizedSightsSearch ? t("no_results") : t("no_rates_found_message")}</TableCell></TableRow></TableBody></Table>}
+           </CardContent>
         </Card>
       </TabsContent>
 
@@ -825,54 +755,11 @@ export default function SupplierDashboard() {
               <CardDescription>{t("manage_ticket_fares_route_cabin")}</CardDescription>
             </div>
             <Button size="sm" onClick={() => openRateDialog("airline")}><Plus className="h-4 w-4 mr-2" /> {t("create_rate")}</Button>
-          </CardHeader>
-          <CardContent>
-             <div className="border rounded-md">
-               <Table>
-                 <TableHeader>
-                   <TableRow>
-                     <TableHead>{t("airline_label")}</TableHead>
-                     <TableHead>{t("route_label")}</TableHead>
-                     <TableHead>{t("rate_label")}</TableHead>
-                     <TableHead>{t("validity_label")}</TableHead>
-                     <TableHead>{t("status")}</TableHead>
-                     <TableHead className="text-right">{t("actions")}</TableHead>
-                   </TableRow>
-                 </TableHeader>
-                 <TableBody>
-                   {airlineRates?.map(r => (
-                     <TableRow key={r.id}>
-                       <TableCell className="font-medium">{r.airlineName}</TableCell>
-                       <TableCell>{r.routeFrom} → {r.routeTo}</TableCell>
-                       <TableCell>{r.currency} {r.price}</TableCell>
-                       <TableCell>{r.validFrom} to {r.validTo}</TableCell>
-                       <TableCell>
-                         <div className="flex items-center gap-2">
-                           <Switch
-                             checked={r.status === "active"}
-                             onCheckedChange={(checked) => airlineStatusMutation.mutate({ id: r.id, status: checked ? "active" : "draft" })}
-                             disabled={airlineStatusMutation.isPending || r.status === "archived"}
-                             aria-label={t("status")}
-                             data-testid={`switch-airline-status-${r.id}`}
-                           />
-                           <Badge variant="outline" className="capitalize">{r.status}</Badge>
-                         </div>
-                       </TableCell>
-                       <TableCell className="text-right flex justify-end gap-2">
-                         <Button variant="ghost" size="icon" onClick={() => openRateDialog("airline", r)} data-testid={`button-edit-airline-rate-${r.id}`}><Pencil className="h-4 w-4" /></Button>
-                         <Button variant="ghost" size="icon" className="text-destructive" onClick={() => {
-                           if(confirm(t("confirm_delete_rate"))) deleteRate.mutate({ type: "airline", id: r.id });
-                         }}><Trash2 className="h-4 w-4" /></Button>
-                       </TableCell>
-                     </TableRow>
-                   ))}
-                   {(!airlineRates || airlineRates.length === 0) && (
-                     <TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">{t("no_rates_found_message")}</TableCell></TableRow>
-                   )}
-                 </TableBody>
-               </Table>
-             </div>
-          </CardContent>
+           </CardHeader>
+           <CardContent>
+             <div className="relative max-w-sm mb-3"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" /><Input className="pl-9" placeholder={t("search_airline_agencies_placeholder")} value={airlineSearch} onChange={(e) => setAirlineSearch(e.target.value)} data-testid="input-search-airline-rates" /></div>
+             {filteredAirlineRates.length > 0 ? <div data-testid="grid-supplier-airline-rates" style={{ width: "100%", height: "calc(100vh - 320px)", minHeight: 320 }}><AgGridReact<any> theme={airlineRateGridTheme} rowData={filteredAirlineRates} columnDefs={airlineRateColumnDefs} defaultColDef={airlineRateDefaultColDef} getRowId={(params: GetRowIdParams<any>) => params.data.id} suppressCellFocus /></div> : <Table><TableBody><TableRow><TableCell colSpan={6} className="text-center py-10 text-muted-foreground">{normalizedAirlineSearch ? t("no_results") : t("no_rates_found_message")}</TableCell></TableRow></TableBody></Table>}
+           </CardContent>
         </Card>
       </TabsContent>
     </Tabs>

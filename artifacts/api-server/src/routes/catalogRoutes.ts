@@ -3,7 +3,7 @@ import { routeError } from "../lib/routeError";
 import { storage } from "../storage";
 import { scraperService } from "../lib/scrapers";
 import { hotelService } from "../lib/hotel";
-import { aiService } from "../lib/ai";
+import { aiService, AI_ENABLED } from "../lib/ai";
 import { isAuthenticated } from "../replit_integrations/auth";
 import { cities, countries, hotels } from "@workspace/db";
 import { ALL_STAFF_ROLES, SIGHTS_MANAGE_ROLES, TOUR_BUILDER_ROLES, requireRole } from "../middleware/auth";
@@ -118,6 +118,9 @@ export function registerCatalogRoutes(app: Express): void {
   app.post("/api/admin/ai/enrich-sight/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, ALL_STAFF_ROLES)) return;
+      if (!AI_ENABLED) {
+        return res.status(503).json({ message: "AI is not configured on the server. Add OPENAI_API_KEY to artifacts/api-server/.env and restart the API." });
+      }
       const sight = await storage.getSight(req.params.id as string);
       if (!sight) return res.status(404).json({ message: "Sight not found" });
       const enriched = await aiService.enrichSightDescription(sight.name, sight.description || "");

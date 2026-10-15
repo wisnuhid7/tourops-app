@@ -12,11 +12,19 @@ const openai = new OpenAI({
 });
 
 // True when a usable AI backend is configured (integration proxy or raw key).
-const AI_ENABLED = !!(
+export const AI_ENABLED = !!(
   (process.env.AI_INTEGRATIONS_OPENAI_BASE_URL &&
     process.env.AI_INTEGRATIONS_OPENAI_API_KEY) ||
   process.env.OPENAI_API_KEY
 );
+
+// Model id. The Replit AI Integrations proxy exposes "gpt-5"; a raw OpenAI key
+// uses a broadly-available default. Override with AI_MODEL (or OPENAI_MODEL)
+// when your account/proxy expects a different model.
+const AI_MODEL =
+  process.env.AI_MODEL ||
+  process.env.OPENAI_MODEL ||
+  (process.env.AI_INTEGRATIONS_OPENAI_BASE_URL ? "gpt-5" : "gpt-4o-mini");
 
 export interface TourGenerationParams {
   destination: string;
@@ -130,7 +138,7 @@ export class AIService {
       }
 
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: AI_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
@@ -152,6 +160,10 @@ export class AIService {
    * Enriches a sight's description.
    */
   async enrichSightDescription(name: string, currentDescription: string) {
+    if (!AI_ENABLED) {
+      throw new Error("AI backend is not configured on the server (set OPENAI_API_KEY in artifacts/api-server/.env and restart).");
+    }
+
     const prompt = `
       As a professional travel copywriter, rewrite and enrich the description for the following tourist attraction:
       Name: ${name}
@@ -163,11 +175,13 @@ export class AIService {
 
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: AI_MODEL,
         messages: [{ role: "user", content: prompt }]
       });
 
-      return response.choices[0].message.content;
+      const content = response.choices[0].message.content;
+      if (!content) throw new Error("AI returned empty content");
+      return content;
     } catch (error) {
       console.error("AI enrichment failed:", error);
       throw new Error("Failed to enrich description with AI");
@@ -202,7 +216,7 @@ export class AIService {
 
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: AI_MODEL,
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" }
       });
@@ -242,7 +256,7 @@ export class AIService {
 
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: AI_MODEL,
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" }
       });
@@ -298,7 +312,7 @@ export class AIService {
 
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: AI_MODEL,
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
       });
@@ -352,7 +366,7 @@ export class AIService {
 
     try {
       const response = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: AI_MODEL,
         messages: [{ role: "user", content: prompt }],
         response_format: { type: "json_object" },
       });

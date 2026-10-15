@@ -703,7 +703,9 @@ export const busTypes = pgTable("bus_types", {
   costPerMile: numeric("cost_per_mile"),
   description: text("description"),
   isActive: boolean("is_active").default(true),
-});
+}, (table) => ({
+  companyIdIdx: index("bus_types_company_id_idx").on(table.companyId),
+}));
 export const insertBusTypeSchema = createInsertSchema(busTypes).omit({ id: true });
 export type InsertBusType = z.infer<typeof insertBusTypeSchema>;
 export type BusType = typeof busTypes.$inferSelect;
@@ -717,7 +719,9 @@ export const transportRoutes = pgTable("transport_routes", {
   toCity: text("to_city"),
   distanceMiles: numeric("distance_miles"),
   isActive: boolean("is_active").default(true),
-});
+}, (table) => ({
+  companyIdIdx: index("transport_routes_company_id_idx").on(table.companyId),
+}));
 export const insertTransportRouteSchema = createInsertSchema(transportRoutes).omit({ id: true });
 export type InsertTransportRoute = z.infer<typeof insertTransportRouteSchema>;
 export type TransportRoute = typeof transportRoutes.$inferSelect;
@@ -728,7 +732,9 @@ export const transportRoutePricing = pgTable("transport_route_pricing", {
   busTypeId: varchar("bus_type_id").notNull(),
   costPerTrip: numeric("cost_per_trip").notNull(),
   notes: text("notes"),
-});
+}, (table) => ({
+  routeIdIdx: index("transport_route_pricing_route_id_idx").on(table.routeId),
+}));
 export const insertTransportRoutePricingSchema = createInsertSchema(transportRoutePricing).omit({ id: true });
 export type InsertTransportRoutePricing = z.infer<typeof insertTransportRoutePricingSchema>;
 export type TransportRoutePricing = typeof transportRoutePricing.$inferSelect;
@@ -749,7 +755,10 @@ export const transportBookings = pgTable("transport_bookings", {
   confirmedAt: timestamp("confirmed_at"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  companyIdIdx: index("transport_bookings_company_id_idx").on(table.companyId),
+  createdAtIdx: index("transport_bookings_created_at_idx").on(table.createdAt),
+}));
 export const insertTransportBookingSchema = createInsertSchema(transportBookings).omit({ id: true, createdAt: true, confirmedAt: true });
 export type InsertTransportBooking = z.infer<typeof insertTransportBookingSchema>;
 export type TransportBooking = typeof transportBookings.$inferSelect;
@@ -767,7 +776,10 @@ export const transportInvoices = pgTable("transport_invoices", {
   submittedAt: timestamp("submitted_at").defaultNow(),
   approvedAt: timestamp("approved_at"),
   notes: text("notes"),
-});
+}, (table) => ({
+  companyIdIdx: index("transport_invoices_company_id_idx").on(table.companyId),
+  submittedAtIdx: index("transport_invoices_submitted_at_idx").on(table.submittedAt),
+}));
 export const insertTransportInvoiceSchema = createInsertSchema(transportInvoices).omit({ id: true, submittedAt: true, approvedAt: true });
 export type InsertTransportInvoice = z.infer<typeof insertTransportInvoiceSchema>;
 export type TransportInvoice = typeof transportInvoices.$inferSelect;
@@ -783,7 +795,10 @@ export const transportPayments = pgTable("transport_payments", {
   reference: text("reference"),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  companyIdIdx: index("transport_payments_company_id_idx").on(table.companyId),
+  createdAtIdx: index("transport_payments_created_at_idx").on(table.createdAt),
+}));
 export const insertTransportPaymentSchema = createInsertSchema(transportPayments).omit({ id: true, createdAt: true });
 export type InsertTransportPayment = z.infer<typeof insertTransportPaymentSchema>;
 export type TransportPayment = typeof transportPayments.$inferSelect;

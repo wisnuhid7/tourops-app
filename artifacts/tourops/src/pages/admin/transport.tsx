@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import {
   Building2, Bus, Route, DollarSign, CalendarCheck, FileText,
-  Plus, Pencil, Trash2, Check, X, CreditCard,
+  Plus, Pencil, Trash2, Check, X, CreditCard, ChevronLeft, ChevronRight, Search,
 } from "lucide-react";
 import type {
   TransportCompany, BusType, TransportRoute, TransportRoutePricing,
@@ -23,23 +23,40 @@ import type {
 } from "@workspace/db";
 import { useLanguage } from "@/hooks/use-language";
 
+interface PaginatedTransportResponse<T> {
+  rows: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+const surfaceShadow = "border-transparent shadow-[0px_0px_0px_1px_oklch(0_0_0_/_0.06),0px_1px_2px_-1px_oklch(0_0_0_/_0.06),0px_2px_4px_0px_oklch(0_0_0_/_0.04)] dark:shadow-[0_0_0_1px_oklch(1_0_0_/_0.08)]";
+const pressFeedback = "transition-[scale] duration-150 ease-out active:scale-[0.96]";
+const allCompaniesValue = "__all_companies__";
+
 function CompanySelector({
   value,
   onChange,
   testId,
+  allowAll = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   testId: string;
+  allowAll?: boolean;
 }) {
   const { t } = useLanguage();
   const { data: companies } = useQuery<TransportCompany[]>({ queryKey: ["/api/master/transport-companies"] });
   return (
-    <Select value={value} onValueChange={onChange}>
+    <Select
+      value={allowAll && !value ? allCompaniesValue : value}
+      onValueChange={(nextValue) => onChange(allowAll && nextValue === allCompaniesValue ? "" : nextValue)}
+    >
       <SelectTrigger data-testid={testId}>
         <SelectValue placeholder={t("select_company_placeholder")} />
       </SelectTrigger>
       <SelectContent>
+        {allowAll && <SelectItem value={allCompaniesValue}>{t("all_companies")}</SelectItem>}
         {companies?.map((c) => (
           <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
         ))}
@@ -64,7 +81,7 @@ function DeleteConfirmDialog({
   const { t } = useLanguage();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className={surfaceShadow}>
         <DialogHeader>
           <DialogTitle>{t("delete")} {entityName}</DialogTitle>
         </DialogHeader>
@@ -186,20 +203,20 @@ function CompaniesTab() {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Button onClick={() => { setEditItem(null); resetForm(); setShowForm(true); }} data-testid="button-add-company">
-          <Plus className="h-4 w-4 mr-2" />{t("add_company")}
+        <Button className={pressFeedback} onClick={() => { setEditItem(null); resetForm(); setShowForm(true); }} data-testid="button-add-company">
+          <Plus className="h-4 w-4" />{t("add_company")}
         </Button>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {companies?.map((company) => (
-          <Card key={company.id} data-testid={`card-company-${company.id}`}>
+          <Card className={surfaceShadow} key={company.id} data-testid={`card-company-${company.id}`}>
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
               <CardTitle className="text-base">{company.name}</CardTitle>
               <div className="flex items-center gap-1">
-                <Button size="icon" variant="ghost" onClick={() => openEdit(company)} data-testid={`button-edit-company-${company.id}`}>
+                <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => openEdit(company)} data-testid={`button-edit-company-${company.id}`}>
                   <Pencil className="h-4 w-4" />
                 </Button>
-                <Button size="icon" variant="ghost" onClick={() => setDeleteId(company.id)} data-testid={`button-delete-company-${company.id}`}>
+                <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => setDeleteId(company.id)} data-testid={`button-delete-company-${company.id}`}>
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </div>
@@ -228,7 +245,7 @@ function CompaniesTab() {
       </div>
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) { setEditItem(null); resetForm(); } }}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className={`${surfaceShadow} max-w-2xl max-h-[85vh] overflow-y-auto`}>
           <DialogHeader><DialogTitle>{editItem ? t("edit_company_profile") : t("add_company")}</DialogTitle></DialogHeader>
           <div className="grid gap-4 md:grid-cols-2">
             <div><Label>{t("name_label")} *</Label><Input value={name} onChange={(e) => setName(e.target.value)} data-testid="input-company-name" /></div>
@@ -275,10 +292,12 @@ function BusTypesTab() {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState("");
+  const [search, setSearch] = useState("");
   const [editItem, setEditItem] = useState<BusType | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  const [formCompanyId, setFormCompanyId] = useState("");
   const [btName, setBtName] = useState("");
   const [seats, setSeats] = useState("");
   const [costPerDay, setCostPerDay] = useState("");
@@ -286,15 +305,17 @@ function BusTypesTab() {
   const [description, setDescription] = useState("");
 
   const { data: busTypes, isLoading } = useQuery<BusType[]>({
-    queryKey: ["/api/transport/bus-types", companyId ? `?companyId=${companyId}` : ""],
-    enabled: !!companyId,
+    queryKey: ["/api/transport/bus-types"],
   });
+  const { data: companies } = useQuery<TransportCompany[]>({ queryKey: ["/api/master/transport-companies"] });
 
-  const resetForm = () => { setBtName(""); setSeats(""); setCostPerDay(""); setCostPerMile(""); setDescription(""); };
+  const resetForm = () => {
+    setFormCompanyId(""); setBtName(""); setSeats(""); setCostPerDay(""); setCostPerMile(""); setDescription("");
+  };
 
   const openCreate = () => { setEditItem(null); resetForm(); setShowForm(true); };
   const openEdit = (item: BusType) => {
-    setEditItem(item); setBtName(item.name); setSeats(String(item.seats));
+    setEditItem(item); setFormCompanyId(item.companyId); setBtName(item.name); setSeats(String(item.seats));
     setCostPerDay(item.costPerDay || ""); setCostPerMile(item.costPerMile || "");
     setDescription(item.description || ""); setShowForm(true);
   };
@@ -328,7 +349,7 @@ function BusTypesTab() {
 
   const handleSubmit = () => {
     const data = {
-      companyId, name: btName, seats: parseInt(seats) || 0,
+      companyId: formCompanyId, name: btName, seats: parseInt(seats) || 0,
       costPerDay: costPerDay || undefined, costPerMile: costPerMile || undefined,
       description: description || undefined,
     };
@@ -336,27 +357,35 @@ function BusTypesTab() {
     else createMutation.mutate(data);
   };
 
+  const getCompanyName = (id: string) => companies?.find((c) => c.id === id)?.name || id;
+  const normalizedSearch = search.trim().toLowerCase();
+  const filteredBusTypes = busTypes?.filter((bt) =>
+    (!companyId || bt.companyId === companyId) &&
+    (!normalizedSearch || bt.name.toLowerCase().includes(normalizedSearch))
+  ) ?? [];
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-64">
           <Label>{t("filter_by_company")}</Label>
-          <CompanySelector value={companyId} onChange={setCompanyId} testId="select-bustype-company" />
+          <CompanySelector value={companyId} onChange={setCompanyId} allowAll testId="select-bustype-company" />
         </div>
-        {companyId && (
-          <Button onClick={openCreate} data-testid="button-add-bus-type"><Plus className="h-4 w-4 mr-2" />{t("add_bus_type")}</Button>
-        )}
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input className="pl-9" placeholder={t("search_bus_types_placeholder")} value={search} onChange={(e) => setSearch(e.target.value)} data-testid="input-search-bus-types" />
+        </div>
+        <Button className={pressFeedback} onClick={openCreate} data-testid="button-add-bus-type"><Plus className="h-4 w-4" />{t("add_bus_type")}</Button>
       </div>
 
-      {!companyId && <p className="text-muted-foreground text-center py-8">{t("select_company_to_view_bus_types")}</p>}
+      {isLoading && <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>}
 
-      {companyId && isLoading && <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>}
-
-      {companyId && !isLoading && (
+      {!isLoading && (
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>{t("name_label")}</TableHead>
+              <TableHead>{t("company_label")}</TableHead>
               <TableHead>{t("seats_label")}</TableHead>
               <TableHead>{t("cost_per_day_header")}</TableHead>
               <TableHead>{t("cost_per_mile_header")}</TableHead>
@@ -365,32 +394,34 @@ function BusTypesTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {busTypes?.map((bt) => (
+            {filteredBusTypes.map((bt) => (
               <TableRow key={bt.id} data-testid={`row-bus-type-${bt.id}`}>
                 <TableCell className="font-medium" data-testid={`text-bustype-name-${bt.id}`}>{bt.name}</TableCell>
+                <TableCell data-testid={`text-bustype-company-${bt.id}`}>{getCompanyName(bt.companyId)}</TableCell>
                 <TableCell data-testid={`text-bustype-seats-${bt.id}`}>{bt.seats}</TableCell>
                 <TableCell className="text-muted-foreground">{bt.costPerDay || "-"}</TableCell>
                 <TableCell className="text-muted-foreground">{bt.costPerMile || "-"}</TableCell>
                 <TableCell className="text-muted-foreground max-w-[200px] truncate">{bt.description || "-"}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => openEdit(bt)} data-testid={`button-edit-bus-type-${bt.id}`}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => setDeleteId(bt.id)} data-testid={`button-delete-bus-type-${bt.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => openEdit(bt)} data-testid={`button-edit-bus-type-${bt.id}`}><Pencil className="h-4 w-4" /></Button>
+                    <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => setDeleteId(bt.id)} data-testid={`button-delete-bus-type-${bt.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </div>
                 </TableCell>
               </TableRow>
             ))}
-            {(!busTypes || busTypes.length === 0) && (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{t("no_bus_types_found")}</TableCell></TableRow>
+            {filteredBusTypes.length === 0 && (
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("no_bus_types_found")}</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
       )}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogContent className={`${surfaceShadow} max-h-[85vh] overflow-y-auto`}>
           <DialogHeader><DialogTitle>{editItem ? t("edit_bus_type") : t("add_bus_type")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
+            <div><Label>{t("company_label")} *</Label><CompanySelector value={formCompanyId} onChange={setFormCompanyId} testId="select-bustype-form-company" /></div>
             <div><Label>{t("name_label")} *</Label><Input value={btName} onChange={(e) => setBtName(e.target.value)} data-testid="input-bustype-name" /></div>
             <div><Label>{t("seats_label")} *</Label><Input type="number" value={seats} onChange={(e) => setSeats(e.target.value)} data-testid="input-bustype-seats" /></div>
             <div><Label>{t("cost_per_day_label")}</Label><Input value={costPerDay} onChange={(e) => setCostPerDay(e.target.value)} data-testid="input-bustype-cost-day" /></div>
@@ -399,7 +430,7 @@ function BusTypesTab() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowForm(false)} data-testid="button-cancel-bus-type">{t("cancel")}</Button>
-            <Button onClick={handleSubmit} disabled={!btName || !seats || createMutation.isPending || updateMutation.isPending} data-testid="button-save-bus-type">
+            <Button onClick={handleSubmit} disabled={!btName || !seats || createMutation.isPending || updateMutation.isPending || (!editItem && !formCompanyId)} data-testid="button-save-bus-type">
               {(createMutation.isPending || updateMutation.isPending) ? t("saving") : t("save")}
             </Button>
           </DialogFooter>
@@ -484,7 +515,7 @@ function RoutesTab() {
           <CompanySelector value={companyId} onChange={setCompanyId} testId="select-route-company" />
         </div>
         {companyId && (
-          <Button onClick={openCreate} data-testid="button-add-route"><Plus className="h-4 w-4 mr-2" />{t("add_route")}</Button>
+          <Button className={pressFeedback} onClick={openCreate} data-testid="button-add-route"><Plus className="h-4 w-4" />{t("add_route")}</Button>
         )}
       </div>
 
@@ -514,8 +545,8 @@ function RoutesTab() {
                 <TableCell className="text-muted-foreground max-w-[200px] truncate">{rt.description || "-"}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => openEdit(rt)} data-testid={`button-edit-route-${rt.id}`}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => setDeleteId(rt.id)} data-testid={`button-delete-route-${rt.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => openEdit(rt)} data-testid={`button-edit-route-${rt.id}`}><Pencil className="h-4 w-4" /></Button>
+                    <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => setDeleteId(rt.id)} data-testid={`button-delete-route-${rt.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -528,7 +559,7 @@ function RoutesTab() {
       )}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogContent className={`${surfaceShadow} max-h-[85vh] overflow-y-auto`}>
           <DialogHeader><DialogTitle>{editItem ? t("edit_route") : t("add_route")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div><Label>{t("name_label")} *</Label><Input value={rtName} onChange={(e) => setRtName(e.target.value)} data-testid="input-route-name" /></div>
@@ -641,7 +672,7 @@ function RoutePricingTab() {
           </div>
         )}
         {routeId && (
-          <Button onClick={openCreate} data-testid="button-add-pricing"><Plus className="h-4 w-4 mr-2" />{t("add_pricing")}</Button>
+          <Button className={pressFeedback} onClick={openCreate} data-testid="button-add-pricing"><Plus className="h-4 w-4" />{t("add_pricing")}</Button>
         )}
       </div>
 
@@ -667,8 +698,8 @@ function RoutePricingTab() {
                 <TableCell className="text-muted-foreground max-w-[200px] truncate">{p.notes || "-"}</TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
-                    <Button size="icon" variant="ghost" onClick={() => openEdit(p)} data-testid={`button-edit-pricing-${p.id}`}><Pencil className="h-4 w-4" /></Button>
-                    <Button size="icon" variant="ghost" onClick={() => setDeleteId(p.id)} data-testid={`button-delete-pricing-${p.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => openEdit(p)} data-testid={`button-edit-pricing-${p.id}`}><Pencil className="h-4 w-4" /></Button>
+                    <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => setDeleteId(p.id)} data-testid={`button-delete-pricing-${p.id}`}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -681,7 +712,7 @@ function RoutePricingTab() {
       )}
 
       <Dialog open={showForm} onOpenChange={(v) => { setShowForm(v); if (!v) setEditItem(null); }}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogContent className={`${surfaceShadow} max-h-[85vh] overflow-y-auto`}>
           <DialogHeader><DialogTitle>{editItem ? t("edit_pricing") : t("add_pricing")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
@@ -689,7 +720,7 @@ function RoutePricingTab() {
               <Select value={busTypeId} onValueChange={setBusTypeId}>
                 <SelectTrigger data-testid="select-pricing-bus-type"><SelectValue placeholder={t("select_bus_type_placeholder")} /></SelectTrigger>
                 <SelectContent>
-                  {busTypes?.map((b) => <SelectItem key={b.id} value={b.id}>{b.name} ({b.seats} seats)</SelectItem>)}
+                  {busTypes?.map((b) => <SelectItem key={b.id} value={b.id}>{b.name} ({b.seats} {t("seats_label")})</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -714,6 +745,8 @@ function BookingsTab() {
   const { t } = useLanguage();
   const { toast } = useToast();
   const [companyId, setCompanyId] = useState("");
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
   const [showForm, setShowForm] = useState(false);
 
   const [bkTourId, setBkTourId] = useState("");
@@ -725,9 +758,15 @@ function BookingsTab() {
   const [costQuoted, setCostQuoted] = useState("");
   const [bkNotes, setBkNotes] = useState("");
 
-  const { data: bookings, isLoading } = useQuery<TransportBooking[]>({
-    queryKey: ["/api/transport/bookings", companyId ? `?companyId=${companyId}` : ""],
+  const { data: bookings, isLoading } = useQuery<PaginatedTransportResponse<TransportBooking>>({
+    queryKey: ["/api/transport/bookings", `?page=${page}&pageSize=${pageSize}${companyId ? `&companyId=${companyId}` : ""}`],
   });
+
+  const totalPages = Math.max(1, Math.ceil((bookings?.total ?? 0) / pageSize));
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   const { data: companies } = useQuery<TransportCompany[]>({ queryKey: ["/api/master/transport-companies"] });
   const { data: tours } = useQuery<Tour[]>({ queryKey: ["/api/tours"] });
@@ -797,9 +836,9 @@ function BookingsTab() {
       <div className="flex flex-wrap items-end gap-3">
         <div className="w-64">
           <Label>{t("filter_by_company")}</Label>
-          <CompanySelector value={companyId} onChange={setCompanyId} testId="select-booking-company-filter" />
+          <CompanySelector value={companyId} onChange={(value) => { setCompanyId(value); setPage(1); }} testId="select-booking-company-filter" />
         </div>
-        <Button onClick={openCreate} data-testid="button-add-booking"><Plus className="h-4 w-4 mr-2" />{t("new_booking")}</Button>
+        <Button className={pressFeedback} onClick={openCreate} data-testid="button-add-booking"><Plus className="h-4 w-4" />{t("new_booking")}</Button>
       </div>
 
       {isLoading && <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-12" />)}</div>}
@@ -818,23 +857,23 @@ function BookingsTab() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {bookings?.map((bk) => (
+            {bookings?.rows.map((bk) => (
               <TableRow key={bk.id} data-testid={`row-booking-${bk.id}`}>
                 <TableCell className="font-medium" data-testid={`text-booking-company-${bk.id}`}>{getCompanyName(bk.companyId)}</TableCell>
                 <TableCell data-testid={`text-booking-tour-${bk.id}`}>{getTourTitle(bk.tourId)}</TableCell>
                 <TableCell className="text-muted-foreground">{bk.serviceDate || "-"}</TableCell>
                 <TableCell className="text-muted-foreground">{bk.serviceEndDate || "-"}</TableCell>
                 <TableCell data-testid={`text-booking-cost-${bk.id}`}>{bk.costQuoted || "-"}</TableCell>
-                <TableCell><Badge variant={statusVariant(bk.status)} data-testid={`badge-booking-status-${bk.id}`}>{bk.status}</Badge></TableCell>
+                <TableCell><Badge variant={statusVariant(bk.status)} data-testid={`badge-booking-status-${bk.id}`}>{t(`booking_status_${bk.status || "requested"}` as any)}</Badge></TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1">
                     {nextStatus(bk.status) && (
-                      <Button size="sm" variant="outline" onClick={() => statusMutation.mutate({ id: bk.id, status: nextStatus(bk.status)! })} disabled={statusMutation.isPending} data-testid={`button-advance-booking-${bk.id}`}>
-                        <Check className="h-4 w-4 mr-1" />{nextStatus(bk.status)}
+                      <Button className={pressFeedback} size="sm" variant="outline" onClick={() => statusMutation.mutate({ id: bk.id, status: nextStatus(bk.status)! })} disabled={statusMutation.isPending} data-testid={`button-advance-booking-${bk.id}`}>
+                        <Check className="h-4 w-4" />{t(`booking_status_${nextStatus(bk.status)}` as any)}
                       </Button>
                     )}
                     {bk.status === "requested" && (
-                      <Button size="icon" variant="ghost" onClick={() => statusMutation.mutate({ id: bk.id, status: "cancelled" })} disabled={statusMutation.isPending} data-testid={`button-cancel-booking-${bk.id}`}>
+                      <Button className={pressFeedback} size="icon" variant="ghost" onClick={() => statusMutation.mutate({ id: bk.id, status: "cancelled" })} disabled={statusMutation.isPending} data-testid={`button-cancel-booking-${bk.id}`}>
                         <X className="h-4 w-4 text-destructive" />
                       </Button>
                     )}
@@ -842,15 +881,24 @@ function BookingsTab() {
                 </TableCell>
               </TableRow>
             ))}
-            {(!bookings || bookings.length === 0) && (
+            {(!bookings || bookings.total === 0) && (
               <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">{t("no_bookings_found")}</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
       )}
 
+      <div className="flex items-center justify-between text-sm text-muted-foreground">
+        <span data-testid="text-bookings-pagination-info">{t("total_label")}: {bookings?.total ?? 0}</span>
+        <div className="flex items-center gap-2">
+          <Button className={pressFeedback} variant="outline" size="sm" aria-label={t("previous_page")} disabled={page <= 1} onClick={() => setPage(page - 1)} data-testid="button-prev-bookings-page"><ChevronLeft className="h-4 w-4" /></Button>
+          <span>{page} / {totalPages}</span>
+          <Button className={pressFeedback} variant="outline" size="sm" aria-label={t("next_page")} disabled={page >= totalPages} onClick={() => setPage(page + 1)} data-testid="button-next-bookings-page"><ChevronRight className="h-4 w-4" /></Button>
+        </div>
+      </div>
+
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className={`${surfaceShadow} max-w-lg max-h-[85vh] overflow-y-auto`}>
           <DialogHeader><DialogTitle>{t("new_transport_booking")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
@@ -882,7 +930,7 @@ function BookingsTab() {
                   <Select value={bkBusTypeId} onValueChange={setBkBusTypeId}>
                     <SelectTrigger data-testid="select-booking-bus-type"><SelectValue placeholder={t("select_bus_type_optional")} /></SelectTrigger>
                     <SelectContent>
-                      {companyBusTypes?.map((b) => <SelectItem key={b.id} value={b.id}>{b.name} ({b.seats} seats)</SelectItem>)}
+                      {companyBusTypes?.map((b) => <SelectItem key={b.id} value={b.id}>{b.name} ({b.seats} {t("seats_label")})</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -927,10 +975,29 @@ function InvoicesPaymentsTab() {
   const [payReference, setPayReference] = useState("");
   const [payNotes, setPayNotes] = useState("");
 
-  const { data: invoices, isLoading: invoicesLoading } = useQuery<TransportInvoice[]>({ queryKey: ["/api/transport/invoices"] });
-  const { data: payments, isLoading: paymentsLoading } = useQuery<TransportPayment[]>({ queryKey: ["/api/transport/payments"] });
+  const [invoicePage, setInvoicePage] = useState(1);
+  const [paymentPage, setPaymentPage] = useState(1);
+  const pageSize = 50;
+
+  const { data: invoices, isLoading: invoicesLoading } = useQuery<PaginatedTransportResponse<TransportInvoice>>({
+    queryKey: ["/api/transport/invoices", `?page=${invoicePage}&pageSize=${pageSize}`],
+  });
+  const { data: payments, isLoading: paymentsLoading } = useQuery<PaginatedTransportResponse<TransportPayment>>({
+    queryKey: ["/api/transport/payments", `?page=${paymentPage}&pageSize=${pageSize}`],
+  });
   const { data: companies } = useQuery<TransportCompany[]>({ queryKey: ["/api/master/transport-companies"] });
   const { data: tours } = useQuery<Tour[]>({ queryKey: ["/api/tours"] });
+
+  const invoiceTotalPages = Math.max(1, Math.ceil((invoices?.total ?? 0) / pageSize));
+  const paymentTotalPages = Math.max(1, Math.ceil((payments?.total ?? 0) / pageSize));
+
+  useEffect(() => {
+    if (invoicePage > invoiceTotalPages) setInvoicePage(invoiceTotalPages);
+  }, [invoicePage, invoiceTotalPages]);
+
+  useEffect(() => {
+    if (paymentPage > paymentTotalPages) setPaymentPage(paymentTotalPages);
+  }, [paymentPage, paymentTotalPages]);
 
   const createInvoiceMutation = useMutation({
     mutationFn: (data: any) => apiRequest("POST", "/api/transport/invoices", data),
@@ -992,8 +1059,8 @@ function InvoicesPaymentsTab() {
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <h3 className="text-lg font-semibold flex items-center gap-2"><FileText className="h-5 w-5" />{t("invoices_label")}</h3>
-          <Button onClick={() => { setInvCompanyId(""); setInvBookingId(""); setInvoiceNumber(""); setServiceDetails(""); setInvAmount(""); setInvNotes(""); setShowInvoiceForm(true); }} data-testid="button-add-invoice">
-            <Plus className="h-4 w-4 mr-2" />{t("new_invoice")}
+          <Button className={pressFeedback} onClick={() => { setInvCompanyId(""); setInvBookingId(""); setInvoiceNumber(""); setServiceDetails(""); setInvAmount(""); setInvNotes(""); setShowInvoiceForm(true); }} data-testid="button-add-invoice">
+            <Plus className="h-4 w-4" />{t("new_invoice")}
           </Button>
         </div>
 
@@ -1012,21 +1079,21 @@ function InvoicesPaymentsTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {invoices?.map((inv) => (
+              {invoices?.rows.map((inv) => (
                 <TableRow key={inv.id} data-testid={`row-invoice-${inv.id}`}>
                   <TableCell className="font-medium" data-testid={`text-invoice-number-${inv.id}`}>{inv.invoiceNumber}</TableCell>
                   <TableCell data-testid={`text-invoice-company-${inv.id}`}>{getCompanyName(inv.companyId)}</TableCell>
                   <TableCell className="text-muted-foreground max-w-[200px] truncate">{inv.serviceDetails || "-"}</TableCell>
                   <TableCell data-testid={`text-invoice-amount-${inv.id}`}>{inv.amount}</TableCell>
-                  <TableCell><Badge variant={invoiceStatusVariant(inv.status)} data-testid={`badge-invoice-status-${inv.id}`}>{inv.status}</Badge></TableCell>
+                  <TableCell><Badge variant={invoiceStatusVariant(inv.status)} data-testid={`badge-invoice-status-${inv.id}`}>{t(`transport_invoice_status_${inv.status}` as any)}</Badge></TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1">
                       {inv.status === "submitted" && (
                         <>
-                          <Button size="sm" variant="outline" onClick={() => updateInvoiceMutation.mutate({ id: inv.id, status: "approved" })} disabled={updateInvoiceMutation.isPending} data-testid={`button-approve-invoice-${inv.id}`}>
-                            <Check className="h-4 w-4 mr-1" />{t("approve")}
+                          <Button className={pressFeedback} size="sm" variant="outline" onClick={() => updateInvoiceMutation.mutate({ id: inv.id, status: "approved" })} disabled={updateInvoiceMutation.isPending} data-testid={`button-approve-invoice-${inv.id}`}>
+                            <Check className="h-4 w-4" />{t("approve")}
                           </Button>
-                          <Button size="sm" variant="ghost" onClick={() => updateInvoiceMutation.mutate({ id: inv.id, status: "rejected" })} disabled={updateInvoiceMutation.isPending} data-testid={`button-reject-invoice-${inv.id}`}>
+                          <Button className={pressFeedback} size="sm" variant="ghost" onClick={() => updateInvoiceMutation.mutate({ id: inv.id, status: "rejected" })} disabled={updateInvoiceMutation.isPending} data-testid={`button-reject-invoice-${inv.id}`}>
                             <X className="h-4 w-4 text-destructive" />
                           </Button>
                         </>
@@ -1035,19 +1102,28 @@ function InvoicesPaymentsTab() {
                   </TableCell>
                 </TableRow>
               ))}
-              {(!invoices || invoices.length === 0) && (
+              {(!invoices || invoices.total === 0) && (
                 <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{t("no_invoices_found")}</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         )}
+
+        <div className="flex items-center justify-between text-sm text-muted-foreground mt-3">
+          <span data-testid="text-invoices-pagination-info">{t("total_label")}: {invoices?.total ?? 0}</span>
+          <div className="flex items-center gap-2">
+            <Button className={pressFeedback} variant="outline" size="sm" aria-label={t("previous_page")} disabled={invoicePage <= 1} onClick={() => setInvoicePage(invoicePage - 1)} data-testid="button-prev-invoices-page"><ChevronLeft className="h-4 w-4" /></Button>
+            <span>{invoicePage} / {invoiceTotalPages}</span>
+            <Button className={pressFeedback} variant="outline" size="sm" aria-label={t("next_page")} disabled={invoicePage >= invoiceTotalPages} onClick={() => setInvoicePage(invoicePage + 1)} data-testid="button-next-invoices-page"><ChevronRight className="h-4 w-4" /></Button>
+          </div>
+        </div>
       </div>
 
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <h3 className="text-lg font-semibold flex items-center gap-2"><CreditCard className="h-5 w-5" />{t("payments")}</h3>
-          <Button onClick={() => { setPayCompanyId(""); setPayInvoiceId(""); setPayTourId(""); setPayAmount(""); setPaymentDate(""); setPaymentMethod(""); setPayReference(""); setPayNotes(""); setShowPaymentForm(true); }} data-testid="button-add-payment">
-            <Plus className="h-4 w-4 mr-2" />{t("record_payment")}
+          <Button className={pressFeedback} onClick={() => { setPayCompanyId(""); setPayInvoiceId(""); setPayTourId(""); setPayAmount(""); setPaymentDate(""); setPaymentMethod(""); setPayReference(""); setPayNotes(""); setShowPaymentForm(true); }} data-testid="button-add-payment">
+            <Plus className="h-4 w-4" />{t("record_payment")}
           </Button>
         </div>
 
@@ -1066,7 +1142,7 @@ function InvoicesPaymentsTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {payments?.map((pay) => (
+              {payments?.rows.map((pay) => (
                 <TableRow key={pay.id} data-testid={`row-payment-${pay.id}`}>
                   <TableCell className="font-medium" data-testid={`text-payment-company-${pay.id}`}>{getCompanyName(pay.companyId)}</TableCell>
                   <TableCell data-testid={`text-payment-tour-${pay.id}`}>{getTourTitle(pay.tourId)}</TableCell>
@@ -1076,16 +1152,25 @@ function InvoicesPaymentsTab() {
                   <TableCell className="text-muted-foreground">{pay.reference || "-"}</TableCell>
                 </TableRow>
               ))}
-              {(!payments || payments.length === 0) && (
+              {(!payments || payments.total === 0) && (
                 <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">{t("no_payments_found")}</TableCell></TableRow>
               )}
             </TableBody>
           </Table>
         )}
+
+        <div className="flex items-center justify-between text-sm text-muted-foreground mt-3">
+          <span data-testid="text-payments-pagination-info">{t("total_label")}: {payments?.total ?? 0}</span>
+          <div className="flex items-center gap-2">
+            <Button className={pressFeedback} variant="outline" size="sm" aria-label={t("previous_page")} disabled={paymentPage <= 1} onClick={() => setPaymentPage(paymentPage - 1)} data-testid="button-prev-payments-page"><ChevronLeft className="h-4 w-4" /></Button>
+            <span>{paymentPage} / {paymentTotalPages}</span>
+            <Button className={pressFeedback} variant="outline" size="sm" aria-label={t("next_page")} disabled={paymentPage >= paymentTotalPages} onClick={() => setPaymentPage(paymentPage + 1)} data-testid="button-next-payments-page"><ChevronRight className="h-4 w-4" /></Button>
+          </div>
+        </div>
       </div>
 
       <Dialog open={showInvoiceForm} onOpenChange={setShowInvoiceForm}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogContent className={`${surfaceShadow} max-h-[85vh] overflow-y-auto`}>
           <DialogHeader><DialogTitle>{t("create_invoice")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
@@ -1107,7 +1192,7 @@ function InvoicesPaymentsTab() {
       </Dialog>
 
       <Dialog open={showPaymentForm} onOpenChange={setShowPaymentForm}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto">
+        <DialogContent className={`${surfaceShadow} max-h-[85vh] overflow-y-auto`}>
           <DialogHeader><DialogTitle>{t("record_payment")}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div>
@@ -1128,7 +1213,7 @@ function InvoicesPaymentsTab() {
               <Select value={payInvoiceId} onValueChange={setPayInvoiceId}>
                 <SelectTrigger data-testid="select-payment-invoice"><SelectValue placeholder={t("select_invoice_optional")} /></SelectTrigger>
                 <SelectContent>
-                  {invoices?.filter((i) => !payCompanyId || i.companyId === payCompanyId).map((i) => (
+                  {invoices?.rows.filter((i) => !payCompanyId || i.companyId === payCompanyId).map((i) => (
                     <SelectItem key={i.id} value={i.id}>{i.invoiceNumber} - {i.amount}</SelectItem>
                   ))}
                 </SelectContent>

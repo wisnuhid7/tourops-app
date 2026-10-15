@@ -22,3 +22,5 @@
 - [Bulk master-data & scraped-tour imports](bulk-master-data-imports.md) — temp-table staging + natural keys; scraper tours marked in internal_notes; images under api-server uploads/; pg via lib/db/node_modules.
 - [Wide-read exclusion & subroute parity](wide-read-exclusion-pattern.md) — restricting a role via the wide-read filters is not enough; booking/workflow subroutes default to ALL_STAFF and re-leak by ID.
 - [lib/db stale dist declarations](libdb-stale-declarations.md) — schema edits need a manual lib/db tsc rebuild or api-server typecheck fails with missing exports.
+- [Server pagination convention](tourops-pagination-convention.md) — {rows,total,page,pageSize} pattern from payments.tsx; never paginate catalog endpoints that feed form Selects; empty-state must check total not rows.length.
+- [Tailwind v3 not v4 syntax](tailwind-v3-not-v4-syntax.md) — tourOps is Tailwind v3.4.19; v4-only variants (e.g. `not-disabled:`) are dropped silently (typecheck still green) → verify by building artifacts/tourops and grepping dist CSS; shadcn `cn()`/tailwind-merge makes className shadows win.

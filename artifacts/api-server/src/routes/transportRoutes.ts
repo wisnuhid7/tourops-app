@@ -52,7 +52,9 @@ export function registerTransportRoutes(app: Express): void {
     try {
       const scope = await getTransportScope(req, res);
       if (!scope) return;
-      res.json(await storage.updateBusType(req.params.id as string, req.body));
+      const parsed = insertBusTypeSchema.partial().safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      res.json(await storage.updateBusType(req.params.id as string, parsed.data));
     } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/transport/bus-types/:id", isAuthenticated, async (req, res) => {
@@ -88,7 +90,9 @@ export function registerTransportRoutes(app: Express): void {
     try {
       const scope = await getTransportScope(req, res);
       if (!scope) return;
-      res.json(await storage.updateTransportRoute(req.params.id as string, req.body));
+      const parsed = insertTransportRouteSchema.partial().safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      res.json(await storage.updateTransportRoute(req.params.id as string, parsed.data));
     } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/transport/routes/:id", isAuthenticated, async (req, res) => {
@@ -124,7 +128,9 @@ export function registerTransportRoutes(app: Express): void {
     try {
       const scope = await getTransportScope(req, res);
       if (!scope) return;
-      res.json(await storage.updateRoutePricing(req.params.id as string, req.body));
+      const parsed = insertTransportRoutePricingSchema.partial().safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      res.json(await storage.updateRoutePricing(req.params.id as string, parsed.data));
     } catch (e: any) { routeError(res, e); }
   });
   app.delete("/api/transport/route-pricing/:id", isAuthenticated, async (req, res) => {
@@ -141,7 +147,10 @@ export function registerTransportRoutes(app: Express): void {
     try {
       const scope = await getTransportScope(req, res);
       if (!scope) return;
-      res.json(await storage.getTransportBookings(scope.companyId));
+      const page = Math.max(1, Number.parseInt(String(req.query.page), 10) || 1);
+      const pageSize = Math.min(200, Math.max(1, Number.parseInt(String(req.query.pageSize), 10) || 50));
+      const { rows, total } = await storage.getTransportBookingsPage(scope.companyId, page, pageSize);
+      res.json({ rows, total, page, pageSize });
     } catch (e: any) { routeError(res, e); }
   });
   app.get("/api/transport/bookings/:id", isAuthenticated, async (req, res) => {
@@ -171,7 +180,9 @@ export function registerTransportRoutes(app: Express): void {
       const existing = await storage.getTransportBooking(req.params.id as string);
       if (!existing) return res.status(404).json({ message: "Not found" });
       if (!scope.isAdmin && existing.companyId !== scope.companyId) return res.status(403).json({ message: "Forbidden" });
-      const data = { ...req.body };
+      const parsed = insertTransportBookingSchema.partial().safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const data: any = { ...parsed.data };
       if (data.status === "confirmed" && !data.confirmedAt) {
         data.confirmedAt = new Date();
       }
@@ -184,11 +195,15 @@ export function registerTransportRoutes(app: Express): void {
     try {
       const scope = await getTransportScope(req, res);
       if (!scope) return;
-      res.json(await storage.getTransportInvoices(scope.companyId));
+      const page = Math.max(1, Number.parseInt(String(req.query.page), 10) || 1);
+      const pageSize = Math.min(200, Math.max(1, Number.parseInt(String(req.query.pageSize), 10) || 50));
+      const { rows, total } = await storage.getTransportInvoicesPage(scope.companyId, page, pageSize);
+      res.json({ rows, total, page, pageSize });
     } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/transport/invoices", isAuthenticated, async (req, res) => {
     try {
+      if (!await requireRole(req, res, TRANSPORT_FINANCE_ROLES)) return;
       const scope = await getTransportScope(req, res);
       if (!scope) return;
       const parsed = insertTransportInvoiceSchema.safeParse(req.body);
@@ -200,7 +215,9 @@ export function registerTransportRoutes(app: Express): void {
   app.patch("/api/transport/invoices/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, TRANSPORT_FINANCE_ROLES)) return;
-      const data = { ...req.body };
+      const parsed = insertTransportInvoiceSchema.partial().safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      const data: any = { ...parsed.data };
       if (data.status === "approved" && !data.approvedAt) {
         data.approvedAt = new Date();
       }
@@ -213,7 +230,10 @@ export function registerTransportRoutes(app: Express): void {
     try {
       const scope = await getTransportScope(req, res);
       if (!scope) return;
-      res.json(await storage.getTransportPayments(scope.companyId));
+      const page = Math.max(1, Number.parseInt(String(req.query.page), 10) || 1);
+      const pageSize = Math.min(200, Math.max(1, Number.parseInt(String(req.query.pageSize), 10) || 50));
+      const { rows, total } = await storage.getTransportPaymentsPage(scope.companyId, page, pageSize);
+      res.json({ rows, total, page, pageSize });
     } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/transport/payments", isAuthenticated, async (req, res) => {
@@ -227,7 +247,9 @@ export function registerTransportRoutes(app: Express): void {
   app.patch("/api/transport/payments/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, TRANSPORT_FINANCE_ROLES)) return;
-      res.json(await storage.updateTransportPayment(req.params.id as string, req.body));
+      const parsed = insertTransportPaymentSchema.partial().safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
+      res.json(await storage.updateTransportPayment(req.params.id as string, parsed.data));
     } catch (e: any) { routeError(res, e); }
   });
 }

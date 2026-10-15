@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { CheckCircle2, Trash2, Download, FileText } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { Booking, UserProfile } from "@workspace/db";
 
 const STATUS_TRANSITIONS: Record<string, string[]> = {
@@ -410,11 +410,30 @@ function IncidentsTab({ bookingId }: { bookingId: string }) {
 
 function DocumentsTab({ bookingId }: { bookingId: string }) {
   const { t } = useLanguage();
-  const [confirmation, setConfirmation] = useState<any | null>(null);
+  const [confirmation, setConfirmation] = useState<BookingConfirmation | null>(null);
+  const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
+  const [isConfirmationLoading, setIsConfirmationLoading] = useState(false);
 
   const loadConfirmation = async () => {
-    const res = await apiRequest("GET", `/api/bookings/${bookingId}/documents/booking-confirmation`);
-    setConfirmation(await res.json());
+    setIsConfirmationOpen(true);
+    setIsConfirmationLoading(true);
+    setConfirmation(null);
+    try {
+      const res = await apiRequest("GET", `/api/bookings/${bookingId}/documents/booking-confirmation`);
+      setConfirmation(await res.json());
+    } catch {
+      setConfirmation(null);
+    } finally {
+      setIsConfirmationLoading(false);
+    }
+  };
+
+  const closeConfirmation = (open: boolean) => {
+    setIsConfirmationOpen(open);
+    if (!open) {
+      setConfirmation(null);
+      setIsConfirmationLoading(false);
+    }
   };
 
   return (
@@ -428,13 +447,155 @@ function DocumentsTab({ bookingId }: { bookingId: string }) {
           <Button variant="outline"><Download className="h-4 w-4 mr-1" />{t("lc_manifest_csv")}</Button>
         </a>
 
-        <Dialog open={!!confirmation} onOpenChange={(o) => !o && setConfirmation(null)}>
-          <DialogContent className="max-w-lg">
+        <Dialog open={isConfirmationOpen} onOpenChange={closeConfirmation}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader><DialogTitle>{t("lc_booking_confirmation")}</DialogTitle></DialogHeader>
-            <pre className="text-xs bg-slate-50 rounded-md p-3 overflow-auto max-h-[60vh]">{JSON.stringify(confirmation, null, 2)}</pre>
+            {isConfirmationLoading ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">{t("lc_confirmation_loading")}</p>
+            ) : confirmation ? (
+              <BookingConfirmationView confirmation={confirmation} />
+            ) : (
+              <p className="py-8 text-center text-sm text-muted-foreground">{t("lc_confirmation_unavailable")}</p>
+            )}
           </DialogContent>
         </Dialog>
       </CardContent>
     </Card>
+  );
+}
+
+type BookingConfirmation = {
+  generatedAt?: string | null;
+  bookingCode?: string | null;
+  status?: string | null;
+  groupName?: string | null;
+  tour?: { title?: string | null } | null;
+  departure?: { startDate?: string | null; endDate?: string | null } | null;
+  passengerCount?: number | null;
+  passengers?: Array<{ firstName?: string | null; lastName?: string | null }> | null;
+  totalPrice?: string | number | null;
+  currency?: string | null;
+  paymentSchedule?: Array<{
+    label?: string | null;
+    amount?: string | number | null;
+    dueDate?: string | null;
+    status?: string | null;
+  }> | null;
+};
+
+function ConfirmationField({ label, value }: { label: string; value: string | number | null | undefined }) {
+  return (
+    <div className="space-y-1">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="text-sm font-semibold">{value === null || value === undefined || value === "" ? "—" : value}</dd>
+    </div>
+  );
+}
+
+function ConfirmationSection({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="space-y-3">
+      <h3 className="text-sm font-semibold">{title}</h3>
+      {children}
+    </section>
+  );
+}
+
+function formatConfirmationDate(value: string | null | undefined) {
+  if (!value) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+}
+
+function formatConfirmationAmount(amount: string | number | null | undefined, currency: string | null | undefined) {
+  if (amount === null || amount === undefined || amount === "") return "—";
+  const numericAmount = typeof amount === "number" ? amount : Number(amount);
+  if (!Number.isFinite(numericAmount)) return String(amount);
+  const currencyCode = currency?.trim().toUpperCase();
+  if (currencyCode && /^[A-Z]{3}$/.test(currencyCode)) {
+    return new Intl.NumberFormat(undefined, { style: "currency", currency: currencyCode }).format(numericAmount);
+  }
+  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(numericAmount);
+}
+
+function confirmationStatusVariant(status: string | null | undefined): "default" | "secondary" | "destructive" {
+  if (status === "completed") return "default";
+  if (status === "cancelled") return "destructive";
+  return "secondary";
+}
+
+function formatConfirmationStatus(status: string | null | undefined) {
+  return status ? status.replace(/_/g, " ") : "—";
+}
+
+function BookingConfirmationView({ confirmation }: { confirmation: BookingConfirmation }) {
+  const { t } = useLanguage();
+  const passengers = confirmation.passengers ?? [];
+  const passengerNames = passengers
+    .map((passenger) => `${passenger.firstName ?? ""} ${passenger.lastName ?? ""}`.trim())
+    .filter(Boolean)
+    .join(", ");
+  const paymentSchedule = confirmation.paymentSchedule ?? [];
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-start justify-between gap-4 border-b pb-4">
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">{t("lc_booking_code")}</p>
+          <p className="text-xl font-semibold">{confirmation.bookingCode || "—"}</p>
+          {confirmation.groupName && <p className="text-sm text-muted-foreground">{confirmation.groupName}</p>}
+          <p className="text-xs text-muted-foreground">{t("date")}: {formatConfirmationDate(confirmation.generatedAt)}</p>
+        </div>
+        {confirmation.status && (
+          <Badge variant={confirmationStatusVariant(confirmation.status)} className="capitalize">
+            {formatConfirmationStatus(confirmation.status)}
+          </Badge>
+        )}
+      </div>
+
+      <ConfirmationSection title={t("tour")}>
+        <dl className="grid gap-4 rounded-md border p-4 sm:grid-cols-2">
+          <ConfirmationField label={t("tour")} value={confirmation.tour?.title} />
+          <ConfirmationField label={t("lc_group")} value={confirmation.groupName} />
+        </dl>
+      </ConfirmationSection>
+
+      <ConfirmationSection title={t("lc_departure")}>
+        <dl className="grid gap-4 rounded-md border p-4 sm:grid-cols-2">
+          <ConfirmationField label={t("start_date")} value={formatConfirmationDate(confirmation.departure?.startDate)} />
+          <ConfirmationField label={t("end_date")} value={formatConfirmationDate(confirmation.departure?.endDate)} />
+          <ConfirmationField
+            label={t("party_size")}
+            value={confirmation.passengerCount === null || confirmation.passengerCount === undefined ? "—" : `${confirmation.passengerCount} ${t("travelers_suffix")}`}
+          />
+          <ConfirmationField label={t("lc_passenger_list")} value={passengerNames || "—"} />
+        </dl>
+      </ConfirmationSection>
+
+      <ConfirmationSection title={t("payment_schedule_title")}>
+        <div className="space-y-3 rounded-md border p-4">
+          <dl className="grid gap-4 sm:grid-cols-2">
+            <ConfirmationField label={t("total_price")} value={formatConfirmationAmount(confirmation.totalPrice, confirmation.currency)} />
+            <ConfirmationField label={t("currency")} value={confirmation.currency} />
+          </dl>
+          {paymentSchedule.length > 0 && (
+            <div className="space-y-2 border-t pt-3">
+              {paymentSchedule.map((installment, index) => (
+                <div key={`${installment.label ?? "installment"}-${index}`} className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold truncate">{installment.label || "—"}</p>
+                    <p className="text-xs text-muted-foreground">{t("due_date")}: {formatConfirmationDate(installment.dueDate)}</p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span className="text-sm font-semibold">{formatConfirmationAmount(installment.amount, confirmation.currency)}</span>
+                    {installment.status && <Badge variant="outline" className="capitalize">{formatConfirmationStatus(installment.status)}</Badge>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </ConfirmationSection>
+    </div>
   );
 }

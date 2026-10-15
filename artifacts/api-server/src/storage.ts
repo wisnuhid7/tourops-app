@@ -1,5 +1,5 @@
 import { db } from "@workspace/db";
-import { eq, and, desc, sql, or, not, isNotNull, inArray } from "drizzle-orm";
+import { eq, and, desc, sql, or, not, isNotNull, inArray, count } from "drizzle-orm";
 import { users } from "@workspace/db";
 import {
   userProfiles, tours, tourDays, tourDepartures,
@@ -273,16 +273,19 @@ export interface IStorage {
   deleteRoutePricing(id: string): Promise<void>;
 
   getTransportBookings(companyId?: string): Promise<TransportBooking[]>;
+  getTransportBookingsPage(companyId: string | undefined, page: number, pageSize: number): Promise<{ rows: TransportBooking[]; total: number }>;
   getTransportBooking(id: string): Promise<TransportBooking | undefined>;
   createTransportBooking(data: InsertTransportBooking): Promise<TransportBooking>;
   updateTransportBooking(id: string, data: Partial<TransportBooking>): Promise<TransportBooking>;
 
   getTransportInvoices(companyId?: string): Promise<TransportInvoice[]>;
+  getTransportInvoicesPage(companyId: string | undefined, page: number, pageSize: number): Promise<{ rows: TransportInvoice[]; total: number }>;
   getTransportInvoice(id: string): Promise<TransportInvoice | undefined>;
   createTransportInvoice(data: InsertTransportInvoice): Promise<TransportInvoice>;
   updateTransportInvoice(id: string, data: Partial<TransportInvoice>): Promise<TransportInvoice>;
 
   getTransportPayments(companyId?: string): Promise<TransportPayment[]>;
+  getTransportPaymentsPage(companyId: string | undefined, page: number, pageSize: number): Promise<{ rows: TransportPayment[]; total: number }>;
   createTransportPayment(data: InsertTransportPayment): Promise<TransportPayment>;
 
   // Newly Added Tables
@@ -1258,6 +1261,18 @@ export class DatabaseStorage implements IStorage {
     if (companyId) return db.select().from(transportBookings).where(eq(transportBookings.companyId, companyId)).orderBy(desc(transportBookings.createdAt));
     return db.select().from(transportBookings).orderBy(desc(transportBookings.createdAt));
   }
+  async getTransportBookingsPage(companyId: string | undefined, page: number, pageSize: number): Promise<{ rows: TransportBooking[]; total: number }> {
+    const offset = (page - 1) * pageSize;
+    if (companyId) {
+      const where = eq(transportBookings.companyId, companyId);
+      const rows = await db.select().from(transportBookings).where(where).orderBy(desc(transportBookings.createdAt)).limit(pageSize).offset(offset);
+      const totalRows = await db.select({ value: count() }).from(transportBookings).where(where);
+      return { rows, total: Number(totalRows[0]?.value ?? 0) };
+    }
+    const rows = await db.select().from(transportBookings).orderBy(desc(transportBookings.createdAt)).limit(pageSize).offset(offset);
+    const totalRows = await db.select({ value: count() }).from(transportBookings);
+    return { rows, total: Number(totalRows[0]?.value ?? 0) };
+  }
   async getTransportBooking(id: string): Promise<TransportBooking | undefined> {
     const [tb] = await db.select().from(transportBookings).where(eq(transportBookings.id, id));
     return tb;
@@ -1276,6 +1291,18 @@ export class DatabaseStorage implements IStorage {
     if (companyId) return db.select().from(transportInvoices).where(eq(transportInvoices.companyId, companyId)).orderBy(desc(transportInvoices.submittedAt));
     return db.select().from(transportInvoices).orderBy(desc(transportInvoices.submittedAt));
   }
+  async getTransportInvoicesPage(companyId: string | undefined, page: number, pageSize: number): Promise<{ rows: TransportInvoice[]; total: number }> {
+    const offset = (page - 1) * pageSize;
+    if (companyId) {
+      const where = eq(transportInvoices.companyId, companyId);
+      const rows = await db.select().from(transportInvoices).where(where).orderBy(desc(transportInvoices.submittedAt)).limit(pageSize).offset(offset);
+      const totalRows = await db.select({ value: count() }).from(transportInvoices).where(where);
+      return { rows, total: Number(totalRows[0]?.value ?? 0) };
+    }
+    const rows = await db.select().from(transportInvoices).orderBy(desc(transportInvoices.submittedAt)).limit(pageSize).offset(offset);
+    const totalRows = await db.select({ value: count() }).from(transportInvoices);
+    return { rows, total: Number(totalRows[0]?.value ?? 0) };
+  }
   async getTransportInvoice(id: string): Promise<TransportInvoice | undefined> {
     const [inv] = await db.select().from(transportInvoices).where(eq(transportInvoices.id, id));
     return inv;
@@ -1293,6 +1320,18 @@ export class DatabaseStorage implements IStorage {
   async getTransportPayments(companyId?: string): Promise<TransportPayment[]> {
     if (companyId) return db.select().from(transportPayments).where(eq(transportPayments.companyId, companyId)).orderBy(desc(transportPayments.createdAt));
     return db.select().from(transportPayments).orderBy(desc(transportPayments.createdAt));
+  }
+  async getTransportPaymentsPage(companyId: string | undefined, page: number, pageSize: number): Promise<{ rows: TransportPayment[]; total: number }> {
+    const offset = (page - 1) * pageSize;
+    if (companyId) {
+      const where = eq(transportPayments.companyId, companyId);
+      const rows = await db.select().from(transportPayments).where(where).orderBy(desc(transportPayments.createdAt)).limit(pageSize).offset(offset);
+      const totalRows = await db.select({ value: count() }).from(transportPayments).where(where);
+      return { rows, total: Number(totalRows[0]?.value ?? 0) };
+    }
+    const rows = await db.select().from(transportPayments).orderBy(desc(transportPayments.createdAt)).limit(pageSize).offset(offset);
+    const totalRows = await db.select({ value: count() }).from(transportPayments);
+    return { rows, total: Number(totalRows[0]?.value ?? 0) };
   }
   async createTransportPayment(data: InsertTransportPayment): Promise<TransportPayment> {
     const [pmt] = await db.insert(transportPayments).values(data).returning();

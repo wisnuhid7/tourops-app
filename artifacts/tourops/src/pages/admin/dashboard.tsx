@@ -15,7 +15,7 @@ import {
 import { useLanguage } from "@/hooks/use-language";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { BOOKING_STATUSES, FULFILLMENT_STATUSES, BOOKING_TYPES } from "@/lib/constants";
+import { BOOKING_STATUSES, BOOKING_TYPES } from "@/lib/constants";
 import type { Booking, TourDeparture, Tour, BookingWorkflow, Document as DocType, Payment, Sight } from "@workspace/db";
 
 function StatCard({ title, value, icon: Icon, description, color }: {

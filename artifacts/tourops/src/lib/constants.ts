@@ -15,13 +15,6 @@ export const BOOKING_STATUSES: Record<string, string> = {
   completed: "Completed",
 };
 
-export const FULFILLMENT_STATUSES: Record<string, string> = {
-  pending: "Pending",
-  in_progress: "In Progress",
-  blocked: "Blocked",
-  completed: "Completed",
-};
-
 export const SERVICE_TYPES: Record<string, string> = {
   airline: "Airline Ticketing",
   hotel: "Hotel",

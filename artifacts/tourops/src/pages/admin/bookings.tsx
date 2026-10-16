@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import { Link, useLocation } from "wouter";
 import { Search, BookOpen, ArrowRight, Users, Calendar, Plus, Trash2, Settings } from "lucide-react";
-import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES } from "@/lib/constants";
+import { BOOKING_TYPES, BOOKING_STATUSES } from "@/lib/constants";
 import type { Booking, UserProfile } from "@workspace/db";
 import * as XLSX from "xlsx";
 import { Download } from "lucide-react";
@@ -146,7 +146,6 @@ export default function AdminBookings() {
       "Booking Code": b.bookingCode,
       "Type": BOOKING_TYPES[b.bookingType],
       "Status": BOOKING_STATUSES[b.status || "submitted"],
-      "Fulfillment": FULFILLMENT_STATUSES[b.fulfillmentStatus || "pending"],
       "Group Name": b.groupName || "-",
       "Party Size": b.partySizeExpected,
       "Total Price": b.totalPrice || 0,
@@ -390,9 +389,6 @@ export default function AdminBookings() {
                       <div className="flex items-center gap-2">
                         <Badge variant={booking.status === "confirmed" ? "default" : booking.status === "cancelled" ? "destructive" : "secondary"}>
                           {BOOKING_STATUSES[booking.status || "submitted"]}
-                        </Badge>
-                        <Badge variant={booking.fulfillmentStatus === "completed" ? "default" : booking.fulfillmentStatus === "blocked" ? "destructive" : "outline"}>
-                          {FULFILLMENT_STATUSES[booking.fulfillmentStatus || "pending"]}
                         </Badge>
                         <Button
                           variant="ghost"

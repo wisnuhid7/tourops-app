@@ -21,7 +21,7 @@ import {
   ExternalLink, Download, Printer, Globe, XCircle
 } from "lucide-react";
 import { Link } from "wouter";
-import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES, SERVICE_TYPES, WORKFLOW_STATUSES, SERVICE_WORKFLOW_STEPS } from "@/lib/constants";
+import { BOOKING_TYPES, BOOKING_STATUSES, SERVICE_TYPES, WORKFLOW_STATUSES, SERVICE_WORKFLOW_STEPS } from "@/lib/constants";
 import type { Booking, Traveler, BookingWorkflow, WorkflowStep, Document, Message, Payment, UserProfile, BookingServiceRequest, BookingPaymentSchedule, Tour, TourDeparture } from "@workspace/db";
 import { useState } from "react";
 import { DocumentPreview } from "@/components/DocumentPreview";
@@ -488,9 +488,6 @@ export default function AdminBookingDetail() {
                 <Badge variant={booking.status === "confirmed" ? "default" : booking.status === "cancelled" ? "destructive" : "secondary"} className="text-sm" data-testid="badge-status">
                   {BOOKING_STATUSES[booking.status || "submitted"]}
                 </Badge>
-                <Badge variant={booking.fulfillmentStatus === "completed" ? "default" : booking.fulfillmentStatus === "blocked" ? "destructive" : "outline"} className="text-sm" data-testid="badge-fulfillment">
-                  {FULFILLMENT_STATUSES[booking.fulfillmentStatus || "pending"]}
-                </Badge>
               </div>
               <h2 className="mt-4 text-xl font-semibold tracking-tight sm:text-2xl" data-testid="text-trip-title">
                 {tourTitle || booking.groupName || t("trip_summary")}
@@ -576,32 +573,6 @@ export default function AdminBookingDetail() {
                     )}
                   </>
                 )}
-
-                <Select
-                  value={booking.fulfillmentStatus || "pending"}
-                  onValueChange={(v) => {
-                    if (v === "completed") {
-                      const missingPassports = travelers?.filter(t => {
-                        const travelerDocs = documents?.filter(d => d.travelerId === t.id && d.docType === "passport");
-                        return !travelerDocs || travelerDocs.length === 0;
-                      });
-                      if (missingPassports && missingPassports.length > 0) {
-                        if (!confirm(`${missingPassports.length} ${t("missing_passports_suffix")}`)) return;
-                      }
-                    }
-                    updateBooking.mutate({ fulfillmentStatus: v });
-                  }}
-                  disabled={!isAdmin || updateBooking.isPending || booking.status === "cancelled"}
-                >
-                  <SelectTrigger className="w-[170px] bg-background/80" data-testid="select-fulfillment-status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(FULFILLMENT_STATUSES).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>{v}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
           </div>
@@ -725,10 +696,6 @@ export default function AdminBookingDetail() {
                   <div>
                     <p className="text-xs text-muted-foreground">{t("status")}</p>
                     <p className="font-medium" data-testid="summary-status">{BOOKING_STATUSES[booking.status || "submitted"]}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">{t("fulfillment")}</p>
-                    <p className="font-medium" data-testid="summary-fulfillment">{FULFILLMENT_STATUSES[booking.fulfillmentStatus || "pending"]}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">{t("tour_id")}</p>

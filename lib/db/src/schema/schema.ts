@@ -825,6 +825,7 @@ export const hotelRates = pgTable("hotel_rates", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   countryCode: text("country_code"),
   city: text("city"),
+  hotelId: varchar("hotel_id").references(() => hotels.id, { onDelete: "set null" }),
   hotelName: text("hotel_name").notNull(),
   hotelCode: text("hotel_code"),
   roomType: text("room_type"),

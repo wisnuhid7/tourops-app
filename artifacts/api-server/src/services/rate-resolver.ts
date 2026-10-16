@@ -14,8 +14,9 @@
  * - sights: per sight item — structured ticket costs from `sights`
  *   (individual per person + group ÷ pax) when linked, else item cost ÷ pax.
  * - hotels: up to 3 distinct hotels in day order; nightly room rate from an
- *   active, date-valid `hotel_rates` row matched by hotel name (falls back
- *   to hotels.basePrice). Occupancy derivation from a per-room rate:
+ *   active, date-valid `hotel_rates` row matched by hotel ID, then legacy
+ *   hotel name (falls back to hotels.basePrice). Occupancy derivation from a
+ *   per-room rate:
  *   double = rate/2, single = rate, third_person = rate/3.
  * - airfare: newest active date-valid `airfare_rates` row for origin →
  *   destination when both are provided.
@@ -375,17 +376,24 @@ export async function resolveTourComponents(db: Db, input: ResolveInput): Promis
       } as ResolvedHotel & { rawRates: Record<string, Decimal> });
       continue;
     }
-    // Match rate cards by name (rate cards store free-text hotel names).
+    // Prefer linked rate cards, then fall back to legacy name-only cards.
     // Season-aware: season-aligned rate cards (validFrom/validTo overlapping
     // the matched season window) are sorted ahead of year-round defaults so
     // the highest-season-priority rate wins when multiple cards are valid.
-    const candidatesRaw: any[] = await db.select().from(hotelRates)
-      .where(and(eq(hotelRates.status, "active"), eq(hotelRates.hotelName, hotel.name)))
+    const linkedCandidatesRaw: any[] = await db.select().from(hotelRates)
+      .where(and(eq(hotelRates.status, "active"), eq(hotelRates.hotelId, hotel.id)))
       .orderBy(desc(hotelRates.createdAt));
-    const candidates = seasonSort(candidatesRaw);
-    const rate = candidates.find((r) =>
+    let rate = seasonSort(linkedCandidatesRaw).find((r) =>
       dateValid(r.validFrom, r.validTo, onDate) &&
       r.pricePerRoomPerNight != null && fxAvailable(r.currency));
+    if (!rate) {
+      const legacyCandidatesRaw: any[] = await db.select().from(hotelRates)
+        .where(and(eq(hotelRates.status, "active"), eq(hotelRates.hotelName, hotel.name)))
+        .orderBy(desc(hotelRates.createdAt));
+      rate = seasonSort(legacyCandidatesRaw).find((r) =>
+        dateValid(r.validFrom, r.validTo, onDate) &&
+        r.pricePerRoomPerNight != null && fxAvailable(r.currency));
+    }
     const roomRate = rate ? toQuote(D(rate.pricePerRoomPerNight), rate.currency)
       : (hotel.basePrice != null && fxAvailable(hotel.currency)) ? toQuote(D(hotel.basePrice), hotel.currency)
       : null;

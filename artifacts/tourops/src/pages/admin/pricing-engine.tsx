@@ -61,12 +61,16 @@ interface QuoteInternal extends PricingQuote {
   }>;
 }
 
-interface Tour { id: string; name: string; }
+interface Tour { id: string; title?: string; name?: string; }
 
 // ── Helper ───────────────────────────────────────────────────────────────────
 
 function fmt(v: string | number, currency = "USD") {
   return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(Number(v));
+}
+
+function resolveTourLabel(tour?: { id: string; title?: string; name?: string }) {
+  return tour?.title ?? tour?.name ?? tour?.id.slice(0, 8) ?? "";
 }
 
 // ── Group Size Bands Tab ──────────────────────────────────────────────────────
@@ -286,7 +290,15 @@ function RulesTab() {
                 <SelectTrigger><SelectValue placeholder={t("pe_global_rule")} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="global">{t("pe_global_rule")}</SelectItem>
-                  {tours.map(tour => <SelectItem key={tour.id} value={tour.id}>{tour.name}</SelectItem>)}
+                  {tours.length === 0 ? (
+                    <SelectItem value="__no_tours__" disabled>No tours found</SelectItem>
+                  ) : (
+                    tours.map(tour => (
+                      <SelectItem key={tour.id} value={tour.id}>
+                        {tour.title ?? tour.name ?? tour.id.slice(0, 8)}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -323,7 +335,7 @@ function RulesTab() {
                   <TableCell>{r.currency}</TableCell>
                   <TableCell>
                     {r.tourId ? (
-                      <Badge variant="outline">{tours.find(t2 => t2.id === r.tourId)?.name ?? r.tourId.slice(0, 8)}</Badge>
+                      <Badge variant="outline">{resolveTourLabel(tours.find(t2 => t2.id === r.tourId)) || r.tourId.slice(0, 8)}</Badge>
                     ) : <Badge>{t("pe_global_rule")}</Badge>}
                   </TableCell>
                   <TableCell>
@@ -572,7 +584,7 @@ function CreateQuoteDialog({ open, onOpenChange, onCreated }: { open: boolean; o
   });
   const [hotels, setHotels] = useState<HotelInput[]>([emptyHotel(1)]);
 
-  const { data: tours = [] } = useQuery<Tour[]>({ queryKey: ["/api/tours"] });
+  const { data: tours = [], isLoading: toursLoading, isError: toursError } = useQuery<Tour[]>({ queryKey: ["/api/tours"] });
   const { data: rules = [] } = useQuery<PricingRule[]>({ queryKey: ["/api/pricing/rules"] });
 
   const createMut = useMutation({
@@ -644,7 +656,19 @@ function CreateQuoteDialog({ open, onOpenChange, onCreated }: { open: boolean; o
               <Select value={form.tourId} onValueChange={v => setForm(p => ({ ...p, tourId: v }))}>
                 <SelectTrigger><SelectValue placeholder={t("pe_select_tour")} /></SelectTrigger>
                 <SelectContent>
-                  {tours.map(tour => <SelectItem key={tour.id} value={tour.id}>{tour.name}</SelectItem>)}
+                  {toursLoading ? (
+                    <SelectItem value="__loading__" disabled>{t("loading")}</SelectItem>
+                  ) : toursError ? (
+                    <SelectItem value="__error__" disabled>Failed to load tours</SelectItem>
+                  ) : tours.length === 0 ? (
+                    <SelectItem value="__no_tours__" disabled>{"No tours found"}</SelectItem>
+                  ) : (
+                    tours.map(tour => (
+                      <SelectItem key={tour.id} value={tour.id}>
+                        {resolveTourLabel(tour)}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -900,7 +924,7 @@ function QuotesTab() {
               <TableBody>
                 {quotes.map(q => (
                   <TableRow key={q.id}>
-                    <TableCell className="font-medium">{tours.find(t2 => t2.id === q.tourId)?.name ?? q.tourId.slice(0, 8)}</TableCell>
+                    <TableCell className="font-medium">{resolveTourLabel(tours.find(t2 => t2.id === q.tourId)) || q.tourId.slice(0, 8)}</TableCell>
                     <TableCell>{q.paxCount}</TableCell>
                     <TableCell>{q.nights}</TableCell>
                     <TableCell className="font-semibold text-blue-600">{fmt(q.totalGroupCost, q.currency)}</TableCell>

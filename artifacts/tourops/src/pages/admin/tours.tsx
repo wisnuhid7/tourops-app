@@ -21,6 +21,7 @@ import { ItineraryEditor } from "@/components/itinerary-editor";
 import { TourImportDialog } from "@/components/tour-import-dialog";
 import { TourExportButton } from "@/components/tour-export-button";
 import { FinancialAnalytics, TourHistory, TourMarginBadge } from "@/components/tour-analytics";
+import { TourGeneratorInner } from "@/pages/admin/tour-generator";
 
 export default function AdminTours() {
   const [, setLocation] = useLocation();
@@ -28,6 +29,7 @@ export default function AdminTours() {
   const { t } = useLanguage();
   const [search, setSearch] = useState("");
   const [itineraryTour, setItineraryTour] = useState<Tour | null>(null);
+  const [editingTour, setEditingTour] = useState<Tour | null>(null);
 
   const { data: tours, isLoading } = useQuery<Tour[]>({ queryKey: ["/api/tours"] });
   const { data: accommodationSummary } = useQuery<Record<string, { hotels: string[]; guides: string[] }>>({
@@ -137,7 +139,7 @@ export default function AdminTours() {
                   <Button size="icon" variant="ghost" onClick={() => togglePublish.mutate(tour)} data-testid={`button-toggle-publish-${tour.id}`}>
                     {tour.isPublished ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </Button>
-                  <Button size="icon" variant="ghost" onClick={() => setLocation(`/admin/tour-generator?id=${tour.id}`)} data-testid={`button-edit-tour-${tour.id}`}>
+                  <Button size="icon" variant="ghost" onClick={() => setEditingTour(tour)} data-testid={`button-edit-tour-${tour.id}`}>
                     <Pencil className="h-4 w-4" />
                   </Button>
                   <Button size="icon" variant="ghost" onClick={() => setItineraryTour(tour)} data-testid={`button-itinerary-${tour.id}`}>
@@ -181,8 +183,18 @@ export default function AdminTours() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!editingTour} onOpenChange={(open) => !open && setEditingTour(null)}>
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto">
+          {editingTour && (
+            <TourGeneratorInner
+              initialTourId={editingTour.id}
+              onCancel={() => setEditingTour(null)}
+              onSaved={() => setEditingTour(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-
-

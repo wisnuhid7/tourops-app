@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Trash2, Save, ArrowLeft, Wand2, Calendar, MapPin, Info, Sparkles, Languages, ChevronDown, X, BedDouble, UserCheck } from "lucide-react";
 import { useLocation } from "wouter";
-import type { Tour, TourDay, TourDayItem, Country, City, Sight, Hotel, GuideRate } from "@workspace/db";
+import type { Tour, TourDay, TourDayItem, Country, City, Sight, Hotel } from "@workspace/db";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +32,13 @@ import { useLanguage } from "@/hooks/use-language";
 type EditableDayItem = Partial<TourDayItem> & { itemType: "hotel" | "guide"; title: string };
 type EditableDay = Partial<TourDay> & { items?: EditableDayItem[] };
 
-function TourGeneratorInner() {
+export interface TourGeneratorProps {
+  initialTourId?: string;
+  onCancel?: () => void;
+  onSaved?: () => void;
+}
+
+export function TourGeneratorInner({ initialTourId, onCancel, onSaved }: TourGeneratorProps = {}) {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { t } = useLanguage();
@@ -41,7 +47,9 @@ function TourGeneratorInner() {
   const defaultReturnUrl = isTourBuilder ? "/ops/tour-builder" : "/admin/tours";
 
   const [selectedTourId, setSelectedTourId] = useState<string>(() => {
-    return new URLSearchParams(window.location.search).get("id") || "new-tour";
+    return initialTourId !== undefined
+      ? initialTourId
+      : new URLSearchParams(window.location.search).get("id") || "new-tour";
   });
   
   // Form State
@@ -85,8 +93,6 @@ function TourGeneratorInner() {
   const { data: cities } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
   const { data: sights } = useQuery<Sight[]>({ queryKey: ["/api/master/sights"] });
   const { data: hotels } = useQuery<Hotel[]>({ queryKey: ["/api/hotels"] });
-  const { data: guideRates } = useQuery<GuideRate[]>({ queryKey: ["/api/rates/guide"] });
-
   const { data: existingDays, isLoading: loadingDays, isFetching: fetchingDays } = useQuery<TourDay[]>({
     queryKey: [`/api/tours/${selectedTourId}/days`],
     enabled: selectedTourId !== "new-tour",
@@ -333,7 +339,11 @@ const toCleanText = (val: any, sep = "\n"): string => {
       queryClient.invalidateQueries({ queryKey: [`/api/tours/${selectedTourId}/day-items`] });
       queryClient.invalidateQueries({ queryKey: ["/api/master/cities"] });
       toast({ title: t("tour_saved_successfully") });
-      setLocation(defaultReturnUrl);
+      if (onSaved) {
+        onSaved();
+      } else {
+        setLocation(defaultReturnUrl);
+      }
     },
     onError: (e: Error) => {
       let msg = e.message || "Failed to save tour";
@@ -538,7 +548,7 @@ const toCleanText = (val: any, sep = "\n"): string => {
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => setLocation(defaultReturnUrl)}>
+            <Button variant="ghost" size="icon" onClick={() => onCancel ? onCancel() : setLocation(defaultReturnUrl)}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
@@ -1066,7 +1076,7 @@ const toCleanText = (val: any, sep = "\n"): string => {
 
                   <div className="space-y-2">
                     <div className="flex items-center justify-between flex-wrap gap-1">
-                      <Label className="text-[10px] uppercase text-muted-foreground">{t("activities_sights_hotel_guide")}</Label>
+                      <Label className="text-[10px] uppercase text-muted-foreground">{t("activities_sights_hotel")}</Label>
                       {day.city && (
                         <div className="flex items-center gap-1">
                           <Select
@@ -1105,7 +1115,7 @@ const toCleanText = (val: any, sep = "\n"): string => {
                             <SelectContent>
                               {(() => {
                                 const city = cities?.find(c => c.name === day.city);
-                                // Show all registered active hotels (mirrors the guide dropdown).
+                                // Show all registered active hotels.
                                 const activeHotels = hotels?.filter(h => h.name && h.isActive !== false) || [];
                                 // Prefer hotels in the day's city, but fall back to the full
                                 // active list so the dropdown is never empty when hotels exist.
@@ -1116,35 +1126,6 @@ const toCleanText = (val: any, sep = "\n"): string => {
                                 }
                                 return filtered.map(h => (
                                   <SelectItem key={h.id} value={h.id}>{h.name}</SelectItem>
-                                ));
-                              })()}
-                            </SelectContent>
-                          </Select>
-                          <Select
-                            value=""
-                            onValueChange={(v) => {
-                              const guide = guideRates?.find(g => g.id === v);
-                              if (!guide) return;
-                              addDayItem(index, { itemType: "guide", title: guide.guideName, guideId: guide.id, cost: "0" });
-                            }}
-                          >
-                            <SelectTrigger className="h-6 w-[120px] text-[10px] bg-primary/10 border-none">
-                              <SelectValue placeholder={t("add_guide_placeholder")} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(() => {
-                                const filtered = guideRates?.filter(g =>
-                                  g.guideName &&
-                                  // Only active guides may be assigned; drafts are excluded.
-                                  g.status === "active" &&
-                                  (!g.cityBase || g.cityBase.toLowerCase() === day.city?.toLowerCase() ||
-                                   !g.countryCode || g.countryCode.toUpperCase() === day.countryCode?.toUpperCase())
-                                ) || [];
-                                if (filtered.length === 0) {
-                                  return <SelectItem value="__none__" disabled>{t("no_guides_found")}</SelectItem>;
-                                }
-                                return filtered.map(g => (
-                                  <SelectItem key={g.id} value={g.id}>{g.guideName}</SelectItem>
                                 ));
                               })()}
                             </SelectContent>

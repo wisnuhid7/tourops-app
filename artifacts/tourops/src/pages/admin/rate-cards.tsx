@@ -19,7 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Upload, Pencil, Trash2, CheckCircle, Archive, FileDown, Search,
 } from "lucide-react";
-import type { HotelRate, TransportRate, GuideRate, SightsRate } from "@workspace/db";
+import type { HotelRate, TransportRate, GuideRate, SightsRate, Country, City, Hotel } from "@workspace/db";
 import * as XLSX from "xlsx";
 import { useLanguage } from "@/hooks/use-language";
 import type { ColDef, GetRowIdParams, ICellRendererParams } from "ag-grid-community";
@@ -275,6 +275,7 @@ function HotelRatesTab() {
 
   const [countryCode, setCountryCode] = useState("");
   const [city, setCity] = useState("");
+  const [hotelId, setHotelId] = useState("");
   const [hotelName, setHotelName] = useState("");
   const [hotelCode, setHotelCode] = useState("");
   const [roomType, setRoomType] = useState("");
@@ -288,7 +289,25 @@ function HotelRatesTab() {
   const [blackoutDates, setBlackoutDates] = useState("");
   const [notes, setNotes] = useState("");
 
+  const { data: countries } = useQuery<Country[]>({ queryKey: ["/api/master/countries"] });
+  const { data: citiesList } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
+  const { data: hotels } = useQuery<Hotel[]>({ queryKey: ["/api/hotels"] });
+
   const { data, isLoading } = useQuery<HotelRate[]>({ queryKey: ["/api/rates/hotel"] });
+
+  useEffect(() => {
+    if (!editItem || !hotels) return;
+    const linkedHotel = editItem.hotelId
+      ? hotels.find((hotel) => hotel.id === editItem.hotelId)
+      : undefined;
+    const matchedHotel = linkedHotel || hotels.find((hotel) =>
+      hotel.name.trim().toLowerCase() === editItem.hotelName.trim().toLowerCase()
+    );
+    if (matchedHotel) {
+      setHotelId(matchedHotel.id);
+      setHotelName(matchedHotel.name);
+    }
+  }, [editItem, hotels]);
 
   const normalizedSearch = search.trim().toLowerCase();
   const filtered = data?.filter((r) =>
@@ -297,9 +316,17 @@ function HotelRatesTab() {
       .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch))
   ) || [];
   const filtersActive = Boolean(normalizedSearch) || statusFilter !== "all";
+  const activeCountries = countries?.filter((c) => c.code && c.name) || [];
+  const filteredCities = useMemo(() => {
+    const validCities = (citiesList || []).filter((c) => c.name);
+    if (!countryCode) return validCities;
+    const matchedCountry = countries?.find((c) => c.code === countryCode);
+    if (!matchedCountry) return validCities;
+    return validCities.filter((c) => c.countryId === matchedCountry.id);
+  }, [citiesList, countries, countryCode]);
 
   const resetForm = () => {
-    setCountryCode(""); setCity(""); setHotelName(""); setHotelCode(""); setRoomType("");
+    setCountryCode(""); setCity(""); setHotelId(""); setHotelName(""); setHotelCode(""); setRoomType("");
     setMealPlan(""); setCurrency("USD"); setValidFrom(""); setValidTo(""); setPricePerRoomPerNight("");
     setTaxIncluded(false); setMinNights(""); setBlackoutDates(""); setNotes("");
   };
@@ -307,7 +334,7 @@ function HotelRatesTab() {
   const openCreate = () => { setEditItem(null); resetForm(); setShowForm(true); };
   const openEdit = (item: HotelRate) => {
     setEditItem(item);
-    setCountryCode(item.countryCode || ""); setCity(item.city || ""); setHotelName(item.hotelName);
+    setCountryCode(item.countryCode || ""); setCity(item.city || ""); setHotelId(item.hotelId || ""); setHotelName(item.hotelName);
     setHotelCode(item.hotelCode || ""); setRoomType(item.roomType || ""); setMealPlan(item.mealPlan || "");
     setCurrency(item.currency || "USD"); setValidFrom(item.validFrom || ""); setValidTo(item.validTo || "");
     setPricePerRoomPerNight(item.pricePerRoomPerNight || ""); setTaxIncluded(item.taxIncluded ?? false);
@@ -347,7 +374,7 @@ function HotelRatesTab() {
 
   const handleSubmit = () => {
     const d: any = {
-      countryCode: countryCode || undefined, city: city || undefined, hotelName,
+      countryCode: countryCode || undefined, city: city || undefined, hotelId: hotelId || undefined, hotelName,
       hotelCode: hotelCode || undefined, roomType: roomType || undefined, mealPlan: mealPlan || undefined,
       currency, validFrom: validFrom || undefined, validTo: validTo || undefined,
       pricePerRoomPerNight: pricePerRoomPerNight || undefined, taxIncluded,
@@ -468,9 +495,88 @@ function HotelRatesTab() {
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editItem ? `${t("edit")} ${t("hotel_rate_label")}` : `${t("add_new")} ${t("hotel_rate_label")}`}</DialogTitle></DialogHeader>
           <div className="grid gap-4 md:grid-cols-2">
-            <div><Label>{t("country_code")}</Label><Input value={countryCode} onChange={(e) => setCountryCode(e.target.value)} data-testid="input-hotel-country" /></div>
-            <div><Label>{t("city_label")}</Label><Input value={city} onChange={(e) => setCity(e.target.value)} data-testid="input-hotel-city" /></div>
-            <div><Label>{t("hotel_name")} *</Label><Input value={hotelName} onChange={(e) => setHotelName(e.target.value)} data-testid="input-hotel-name" /></div>
+            <div>
+              <Label>{t("country_code")}</Label>
+              <Select
+                value={countryCode || "__none__"}
+                onValueChange={(val) => {
+                  const nextCode = val === "__none__" ? "" : val;
+                  setCountryCode(nextCode);
+                  if (nextCode && city) {
+                    const matchedCountry = countries?.find((c) => c.code === nextCode);
+                    const cityBelongs = citiesList?.some((c) => c.name?.toLowerCase() === city.toLowerCase() && c.countryId === matchedCountry?.id);
+                    if (!cityBelongs) setCity("");
+                  } else if (!nextCode) {
+                    setCity("");
+                  }
+                }}
+              >
+                <SelectTrigger data-testid="select-hotel-country">
+                  <SelectValue placeholder={t("select_country_placeholder")} />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  <SelectItem value="__none__">-- {t("select_country_placeholder")} --</SelectItem>
+                  {activeCountries.map((c) => (
+                    <SelectItem key={c.id} value={c.code}>
+                      {c.name} ({c.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{t("city_label")}</Label>
+              <Select
+                value={city || "__none__"}
+                onValueChange={(val) => {
+                  if (val === "__none__") {
+                    setCity("");
+                    return;
+                  }
+                  setCity(val);
+                  if (!countryCode) {
+                    const found = citiesList?.find((c) => c.name === val);
+                    if (found) {
+                      const matchedCountry = countries?.find((c) => c.id === found.countryId);
+                      if (matchedCountry) setCountryCode(matchedCountry.code);
+                    }
+                  }
+                }}
+              >
+                <SelectTrigger data-testid="select-hotel-city">
+                  <SelectValue placeholder={t("select_city_placeholder")} />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  <SelectItem value="__none__">-- {t("select_city_placeholder")} --</SelectItem>
+                  {filteredCities.map((c) => (
+                    <SelectItem key={c.id} value={c.name}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                  {filteredCities.length === 0 && <SelectItem value="__none__" disabled>{t("no_results")}</SelectItem>}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{t("hotel_name")} *</Label>
+              <Select
+                value={hotelId || "__none__"}
+                onValueChange={(value) => {
+                  const selectedHotel = hotels?.find((hotel) => hotel.id === value);
+                  setHotelId(value === "__none__" ? "" : value);
+                  setHotelName(selectedHotel?.name || "");
+                }}
+              >
+                <SelectTrigger data-testid="select-hotel-name"><SelectValue placeholder={t("select_placeholder")} /></SelectTrigger>
+                <SelectContent className="max-h-60">
+                  <SelectItem value="__none__">-- {t("select_placeholder")} --</SelectItem>
+                  {(hotels || []).filter((hotel) => hotel.id && hotel.name).map((hotel) => (
+                    <SelectItem key={hotel.id} value={hotel.id}>{hotel.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {hotelName && !hotelId && <p className="text-xs text-muted-foreground mt-1">{hotelName}</p>}
+            </div>
             <div><Label>{t("hotel_code")}</Label><Input value={hotelCode} onChange={(e) => setHotelCode(e.target.value)} data-testid="input-hotel-code" /></div>
             <div>
               <Label>{t("room_type")}</Label>
@@ -568,6 +674,9 @@ function TransportRatesTab() {
   const [routeToCity, setRouteToCity] = useState("");
   const [notes, setNotes] = useState("");
 
+  const { data: countries } = useQuery<Country[]>({ queryKey: ["/api/master/countries"] });
+  const { data: citiesList } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
+
   const { data, isLoading } = useQuery<TransportRate[]>({ queryKey: ["/api/rates/transport"] });
   const normalizedSearch = search.trim().toLowerCase();
   const filtered = data?.filter((r) =>
@@ -576,6 +685,14 @@ function TransportRatesTab() {
       .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch))
   ) || [];
   const filtersActive = Boolean(normalizedSearch) || statusFilter !== "all";
+  const activeCountries = countries?.filter((c) => c.code && c.name) || [];
+  const filteredCities = useMemo(() => {
+    const validCities = (citiesList || []).filter((c) => c.name);
+    if (!countryCode) return validCities;
+    const matchedCountry = countries?.find((c) => c.code === countryCode);
+    if (!matchedCountry) return validCities;
+    return validCities.filter((c) => c.countryId === matchedCountry.id);
+  }, [citiesList, countries, countryCode]);
 
   const resetForm = () => {
     setCountryCode(""); setCityBase(""); setVendorName(""); setVendorCode(""); setVehicleType("");
@@ -752,8 +869,68 @@ function TransportRatesTab() {
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editItem ? `${t("edit")} ${t("transport_rate_label")}` : `${t("add_new")} ${t("transport_rate_label")}`}</DialogTitle></DialogHeader>
           <div className="grid gap-4 md:grid-cols-2">
-            <div><Label>{t("country_code")}</Label><Input value={countryCode} onChange={(e) => setCountryCode(e.target.value)} data-testid="input-transport-country" /></div>
-            <div><Label>{t("city_base")}</Label><Input value={cityBase} onChange={(e) => setCityBase(e.target.value)} data-testid="input-transport-city" /></div>
+            <div>
+              <Label>{t("country_code")}</Label>
+              <Select
+                value={countryCode || "__none__"}
+                onValueChange={(val) => {
+                  const nextCode = val === "__none__" ? "" : val;
+                  setCountryCode(nextCode);
+                  if (nextCode && cityBase) {
+                    const matchedCountry = countries?.find((c) => c.code === nextCode);
+                    const cityBelongs = citiesList?.some((c) => c.name?.toLowerCase() === cityBase.toLowerCase() && c.countryId === matchedCountry?.id);
+                    if (!cityBelongs) setCityBase("");
+                  } else if (!nextCode) {
+                    setCityBase("");
+                  }
+                }}
+              >
+                <SelectTrigger data-testid="select-transport-country">
+                  <SelectValue placeholder={t("select_country_placeholder")} />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  <SelectItem value="__none__">-- {t("select_country_placeholder")} --</SelectItem>
+                  {activeCountries.map((c) => (
+                    <SelectItem key={c.id} value={c.code}>
+                      {c.name} ({c.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{t("city_base")}</Label>
+              <Select
+                value={cityBase || "__none__"}
+                onValueChange={(val) => {
+                  if (val === "__none__") {
+                    setCityBase("");
+                    return;
+                  }
+                  setCityBase(val);
+                  if (!countryCode) {
+                    const found = citiesList?.find((c) => c.name === val);
+                    if (found) {
+                      const matchedCountry = countries?.find((c) => c.id === found.countryId);
+                      if (matchedCountry) setCountryCode(matchedCountry.code);
+                    }
+                  }
+                }}
+              >
+                <SelectTrigger data-testid="select-transport-city">
+                  <SelectValue placeholder={t("select_city_placeholder")} />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  <SelectItem value="__none__">-- {t("select_city_placeholder")} --</SelectItem>
+                  {filteredCities.map((c) => (
+                    <SelectItem key={c.id} value={c.name}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                  {filteredCities.length === 0 && <SelectItem value="__none__" disabled>{t("no_results")}</SelectItem>}
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label>{t("vendor_name")} *</Label><Input value={vendorName} onChange={(e) => setVendorName(e.target.value)} data-testid="input-transport-vendor" /></div>
             <div><Label>{t("vendor_code")}</Label><Input value={vendorCode} onChange={(e) => setVendorCode(e.target.value)} data-testid="input-transport-vendor-code" /></div>
             <div>
@@ -852,6 +1029,9 @@ function GuideRatesTab() {
   const [notes, setNotes] = useState("");
   const [status, setStatus] = useState<RateStatus>("draft");
 
+  const { data: countries } = useQuery<Country[]>({ queryKey: ["/api/master/countries"] });
+  const { data: citiesList } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
+
   const { data, isLoading } = useQuery<GuideRate[]>({ queryKey: ["/api/rates/guide"] });
   const normalizedSearch = search.trim().toLowerCase();
   const filtered = data?.filter((r) =>
@@ -860,6 +1040,14 @@ function GuideRatesTab() {
       .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch))
   ) || [];
   const filtersActive = Boolean(normalizedSearch) || statusFilter !== "all";
+  const activeCountries = countries?.filter((c) => c.code && c.name) || [];
+  const filteredCities = useMemo(() => {
+    const validCities = (citiesList || []).filter((c) => c.name);
+    if (!countryCode) return validCities;
+    const matchedCountry = countries?.find((c) => c.code === countryCode);
+    if (!matchedCountry) return validCities;
+    return validCities.filter((c) => c.countryId === matchedCountry.id);
+  }, [citiesList, countries, countryCode]);
 
   const resetForm = () => {
     setCountryCode(""); setCityBase(""); setGuideName(""); setGuideCode(""); setLanguage("");
@@ -1083,8 +1271,68 @@ function GuideRatesTab() {
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editItem ? `${t("edit")} ${t("guide_rate_label")}` : `${t("add_new")} ${t("guide_rate_label")}`}</DialogTitle></DialogHeader>
           <div className="grid gap-4 md:grid-cols-2">
-            <div><Label>{t("country_code")}</Label><Input value={countryCode} onChange={(e) => setCountryCode(e.target.value)} data-testid="input-guide-country" /></div>
-            <div><Label>{t("city_base")}</Label><Input value={cityBase} onChange={(e) => setCityBase(e.target.value)} data-testid="input-guide-city" /></div>
+            <div>
+              <Label>{t("country_code")}</Label>
+              <Select
+                value={countryCode || "__none__"}
+                onValueChange={(val) => {
+                  const nextCode = val === "__none__" ? "" : val;
+                  setCountryCode(nextCode);
+                  if (nextCode && cityBase) {
+                    const matchedCountry = countries?.find((c) => c.code === nextCode);
+                    const cityBelongs = citiesList?.some((c) => c.name?.toLowerCase() === cityBase.toLowerCase() && c.countryId === matchedCountry?.id);
+                    if (!cityBelongs) setCityBase("");
+                  } else if (!nextCode) {
+                    setCityBase("");
+                  }
+                }}
+              >
+                <SelectTrigger data-testid="select-guide-country">
+                  <SelectValue placeholder={t("select_country_placeholder")} />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  <SelectItem value="__none__">-- {t("select_country_placeholder")} --</SelectItem>
+                  {activeCountries.map((c) => (
+                    <SelectItem key={c.id} value={c.code}>
+                      {c.name} ({c.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{t("city_base")}</Label>
+              <Select
+                value={cityBase || "__none__"}
+                onValueChange={(val) => {
+                  if (val === "__none__") {
+                    setCityBase("");
+                    return;
+                  }
+                  setCityBase(val);
+                  if (!countryCode) {
+                    const found = citiesList?.find((c) => c.name === val);
+                    if (found) {
+                      const matchedCountry = countries?.find((c) => c.id === found.countryId);
+                      if (matchedCountry) setCountryCode(matchedCountry.code);
+                    }
+                  }
+                }}
+              >
+                <SelectTrigger data-testid="select-guide-city">
+                  <SelectValue placeholder={t("select_city_placeholder")} />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  <SelectItem value="__none__">-- {t("select_city_placeholder")} --</SelectItem>
+                  {filteredCities.map((c) => (
+                    <SelectItem key={c.id} value={c.name}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                  {filteredCities.length === 0 && <SelectItem value="__none__" disabled>{t("no_results")}</SelectItem>}
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label>{t("guide_name")} *</Label><Input value={guideName} onChange={(e) => setGuideName(e.target.value)} data-testid="input-guide-name" /></div>
             <div><Label>{t("guide_code")}</Label><Input value={guideCode} onChange={(e) => setGuideCode(e.target.value)} data-testid="input-guide-code" /></div>
             <div><Label>{t("language")}</Label><Input value={language} onChange={(e) => setLanguage(e.target.value)} placeholder={t("language_placeholder")} data-testid="input-guide-language" /></div>
@@ -1194,6 +1442,9 @@ function SightsRatesTab() {
   const [requiresTimeslot, setRequiresTimeslot] = useState(false);
   const [notes, setNotes] = useState("");
 
+  const { data: countries } = useQuery<Country[]>({ queryKey: ["/api/master/countries"] });
+  const { data: citiesList } = useQuery<City[]>({ queryKey: ["/api/master/cities"] });
+
   const { data, isLoading } = useQuery<SightsRate[]>({ queryKey: ["/api/rates/sights"] });
   const normalizedSearch = search.trim().toLowerCase();
   const filtered = data?.filter((r) =>
@@ -1202,6 +1453,14 @@ function SightsRatesTab() {
       .filter(Boolean).join(" ").toLowerCase().includes(normalizedSearch))
   ) || [];
   const filtersActive = Boolean(normalizedSearch) || statusFilter !== "all";
+  const activeCountries = countries?.filter((c) => c.code && c.name) || [];
+  const filteredCities = useMemo(() => {
+    const validCities = (citiesList || []).filter((c) => c.name);
+    if (!countryCode) return validCities;
+    const matchedCountry = countries?.find((c) => c.code === countryCode);
+    if (!matchedCountry) return validCities;
+    return validCities.filter((c) => c.countryId === matchedCountry.id);
+  }, [citiesList, countries, countryCode]);
 
   const resetForm = () => {
     setCountryCode(""); setCity(""); setAttractionName(""); setAttractionCode(""); setTicketType("");
@@ -1364,8 +1623,68 @@ function SightsRatesTab() {
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{editItem ? `${t("edit")} ${t("sights_rate_label")}` : `${t("add_new")} ${t("sights_rate_label")}`}</DialogTitle></DialogHeader>
           <div className="grid gap-4 md:grid-cols-2">
-            <div><Label>{t("country_code")}</Label><Input value={countryCode} onChange={(e) => setCountryCode(e.target.value)} data-testid="input-sights-country" /></div>
-            <div><Label>{t("city_label")}</Label><Input value={city} onChange={(e) => setCity(e.target.value)} data-testid="input-sights-city" /></div>
+            <div>
+              <Label>{t("country_code")}</Label>
+              <Select
+                value={countryCode || "__none__"}
+                onValueChange={(val) => {
+                  const nextCode = val === "__none__" ? "" : val;
+                  setCountryCode(nextCode);
+                  if (nextCode && city) {
+                    const matchedCountry = countries?.find((c) => c.code === nextCode);
+                    const cityBelongs = citiesList?.some((c) => c.name?.toLowerCase() === city.toLowerCase() && c.countryId === matchedCountry?.id);
+                    if (!cityBelongs) setCity("");
+                  } else if (!nextCode) {
+                    setCity("");
+                  }
+                }}
+              >
+                <SelectTrigger data-testid="select-sights-country">
+                  <SelectValue placeholder={t("select_country_placeholder")} />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  <SelectItem value="__none__">-- {t("select_country_placeholder")} --</SelectItem>
+                  {activeCountries.map((c) => (
+                    <SelectItem key={c.id} value={c.code}>
+                      {c.name} ({c.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{t("city_label")}</Label>
+              <Select
+                value={city || "__none__"}
+                onValueChange={(val) => {
+                  if (val === "__none__") {
+                    setCity("");
+                    return;
+                  }
+                  setCity(val);
+                  if (!countryCode) {
+                    const found = citiesList?.find((c) => c.name === val);
+                    if (found) {
+                      const matchedCountry = countries?.find((c) => c.id === found.countryId);
+                      if (matchedCountry) setCountryCode(matchedCountry.code);
+                    }
+                  }
+                }}
+              >
+                <SelectTrigger data-testid="select-sights-city">
+                  <SelectValue placeholder={t("select_city_placeholder")} />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  <SelectItem value="__none__">-- {t("select_city_placeholder")} --</SelectItem>
+                  {filteredCities.map((c) => (
+                    <SelectItem key={c.id} value={c.name}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                  {filteredCities.length === 0 && <SelectItem value="__none__" disabled>{t("no_results")}</SelectItem>}
+                </SelectContent>
+              </Select>
+            </div>
             <div><Label>{t("attraction_name")} *</Label><Input value={attractionName} onChange={(e) => setAttractionName(e.target.value)} data-testid="input-sights-name" /></div>
             <div><Label>{t("attraction_code")}</Label><Input value={attractionCode} onChange={(e) => setAttractionCode(e.target.value)} data-testid="input-sights-code" /></div>
             <div>

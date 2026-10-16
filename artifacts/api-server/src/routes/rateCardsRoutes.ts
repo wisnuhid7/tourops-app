@@ -50,7 +50,13 @@ export function registerRateCardsRoutes(app: Express): void {
       const parsed = insertHotelRateSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       const { userId } = await ownerScope(req, []);
-      res.json(await storage.createHotelRate({ ...parsed.data, createdBy: userId }));
+      const hotel = parsed.data.hotelId ? await storage.getHotel(parsed.data.hotelId) : undefined;
+      if (parsed.data.hotelId && !hotel) return res.status(400).json({ message: "Hotel not found" });
+      res.json(await storage.createHotelRate({
+        ...parsed.data,
+        ...(hotel ? { hotelName: hotel.name } : {}),
+        createdBy: userId,
+      }));
     } catch (e: any) { routeError(res, e); }
   });
   app.post("/api/rates/hotel/bulk", isAuthenticated, async (req, res) => {
@@ -72,6 +78,11 @@ export function registerRateCardsRoutes(app: Express): void {
       }
       const data = sanitizeRateUpdate(req.body);
       if (!data) return res.status(400).json({ message: "Invalid status value" });
+      if (data.hotelId) {
+        const hotel = await storage.getHotel(data.hotelId);
+        if (!hotel) return res.status(400).json({ message: "Hotel not found" });
+        data.hotelName = hotel.name;
+      }
       res.json(await storage.updateHotelRate(req.params.id as string, data));
     } catch (e: any) { routeError(res, e); }
   });

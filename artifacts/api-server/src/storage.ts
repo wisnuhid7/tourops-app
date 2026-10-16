@@ -184,6 +184,7 @@ export interface IStorage {
   updateWorkflow(id: string, data: Partial<BookingWorkflow>): Promise<BookingWorkflow>;
 
   getWorkflowSteps(workflowId: string): Promise<WorkflowStep[]>;
+  getWorkflowStep(id: string): Promise<WorkflowStep | undefined>;
   createWorkflowStep(data: InsertWorkflowStep): Promise<WorkflowStep>;
   updateWorkflowStep(id: string, data: Partial<WorkflowStep>): Promise<WorkflowStep>;
 
@@ -843,6 +844,11 @@ export class DatabaseStorage implements IStorage {
 
   async getWorkflowSteps(workflowId: string): Promise<WorkflowStep[]> {
     return db.select().from(workflowSteps).where(eq(workflowSteps.workflowId, workflowId));
+  }
+
+  async getWorkflowStep(id: string): Promise<WorkflowStep | undefined> {
+    const [step] = await db.select().from(workflowSteps).where(eq(workflowSteps.id, id));
+    return step;
   }
 
   async createWorkflowStep(data: InsertWorkflowStep): Promise<WorkflowStep> {
@@ -1526,31 +1532,31 @@ export class DatabaseStorage implements IStorage {
   async cancelBookingWorkflows(bookingId: string, reason?: string): Promise<void> {
     const wfs = await db.select().from(bookingWorkflows).where(eq(bookingWorkflows.bookingId, bookingId));
     for (const wf of wfs) {
-      if (wf.status === "cancelled") continue;
+      if (wf.status === "blocked") continue;
 
       const wasCompleted = wf.status === "completed";
       const noteAppend = wasCompleted
-        ? `[Auto-Cancelled] Previously completed. ${reason || ""}`.trim()
-        : (reason ? `[Cancelled]: ${reason}`.trim() : "");
+        ? `[Booking Cancelled - Previously Completed]. ${reason || ""}`.trim()
+        : (reason ? `[Booking Cancelled - Blocked]: ${reason}`.trim() : "[Booking Cancelled - Blocked]");
       const newNotes = wf.notes ? `${wf.notes}\n${noteAppend}`.trim() : (noteAppend || null);
 
       await db.update(bookingWorkflows)
         .set({
-          status: "cancelled",
+          status: "blocked",
           notes: newNotes,
           updatedAt: new Date(),
         })
         .where(eq(bookingWorkflows.id, wf.id));
 
-      // Skip remaining pending or blocked steps
+      // Mark remaining pending steps as blocked
       await db.update(workflowSteps)
         .set({
-          status: "skipped",
+          status: "blocked",
           updatedAt: new Date(),
         })
         .where(and(
           eq(workflowSteps.workflowId, wf.id),
-          or(eq(workflowSteps.status, "pending"), eq(workflowSteps.status, "blocked"))
+          eq(workflowSteps.status, "pending")
         ));
 
       // Notify assigned staff if present
@@ -1558,8 +1564,8 @@ export class DatabaseStorage implements IStorage {
         await this.createNotification({
           userId: wf.assignedUserId,
           type: "booking_update",
-          title: "Service Cancelled 🚫",
-          message: `The ${wf.serviceType} service workflow has been cancelled due to booking cancellation.${reason ? ` (${reason})` : ""}`,
+          title: "Service Blocked ⚠️",
+          message: `The ${wf.serviceType} service workflow has been blocked due to booking cancellation.${reason ? ` (${reason})` : ""}`,
         }).catch(() => {});
       }
     }

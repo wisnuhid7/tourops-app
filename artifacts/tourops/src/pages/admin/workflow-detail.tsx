@@ -59,6 +59,7 @@ export default function AdminWorkflowDetail() {
   const { data: allUsers } = useQuery<UserProfile[]>({ queryKey: ["/api/user-profiles"] });
   const { data: currentUserProfile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
   const isOps = currentUserProfile?.role === "admin" || currentUserProfile?.role === "super_admin" || currentUserProfile?.role === "operations_manager";
+  const isBookingCancelled = booking?.status === "cancelled";
 
   const updateWorkflow = useMutation({
     mutationFn: (data: any) => apiRequest("PATCH", `/api/workflows/${workflowId}`, data),
@@ -175,7 +176,7 @@ export default function AdminWorkflowDetail() {
                 status: v === "none" ? "not_assigned" : (workflow.status === "not_assigned" ? "assigned" : workflow.status),
               })
             }
-            disabled={updateWorkflow.isPending}
+            disabled={isBookingCancelled || updateWorkflow.isPending}
           >
             <SelectTrigger className="w-[180px]" data-testid="select-workflow-assigned-user">
               <SelectValue placeholder={t("assign_to_placeholder")} />
@@ -188,13 +189,27 @@ export default function AdminWorkflowDetail() {
             </SelectContent>
           </Select>
         )}
-        <Select value={workflow.status || "not_assigned"} onValueChange={(v) => updateWorkflow.mutate({ status: v })}>
-          <SelectTrigger className="w-[160px]" data-testid="select-workflow-status"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {Object.entries(WORKFLOW_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        {isBookingCancelled ? (
+          <Badge variant="destructive" className="h-9 px-3 text-xs uppercase font-semibold tracking-wider gap-1.5 shadow-sm" data-testid="badge-workflow-blocked">
+            <AlertTriangle className="h-4 w-4" />
+            {t("workflow_blocked_booking_cancelled")}
+          </Badge>
+        ) : (
+          <Select value={workflow.status || "not_assigned"} onValueChange={(v) => updateWorkflow.mutate({ status: v })} disabled={updateWorkflow.isPending}>
+            <SelectTrigger className="w-[160px]" data-testid="select-workflow-status"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {Object.entries(WORKFLOW_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        )}
       </div>
+
+      {isBookingCancelled && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs font-medium text-destructive">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>{t("workflow_booking_cancelled_warning")} ({booking?.bookingCode})</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {summary.map((s) => (
@@ -278,6 +293,7 @@ export default function AdminWorkflowDetail() {
                           <Select
                             value={status}
                             onValueChange={(v) => updateStep.mutate({ id: step.id, status: v })}
+                            disabled={isBookingCancelled || updateStep.isPending}
                           >
                             <SelectTrigger className="w-[120px] h-8" data-testid={`select-step-status-${step.id}`}>
                               <SelectValue />
@@ -286,7 +302,7 @@ export default function AdminWorkflowDetail() {
                               {Object.entries(STEP_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
                             </SelectContent>
                           </Select>
-                          {!isEditing && (
+                          {!isEditing && !isBookingCancelled && (
                             <Button variant="ghost" size="sm" onClick={() => startEditing(step)} data-testid={`button-edit-step-${step.id}`}>
                               {t("notes")}
                             </Button>

@@ -12,6 +12,7 @@ import { accommodationForTour, tourOffersRoomTypes, BOOKING_ROOM_TYPES, type Boo
 import { calculateBookingPrice, isUsableDeparturePrice, resolvePerPersonPrice } from "../services/booking-pricing";
 import {
   bookings,
+  bookingPaymentSchedules,
   db,
   documents,
   insertDocumentSchema,
@@ -278,6 +279,15 @@ export function registerBookingsRoutes(app: Express): void {
       const userName = (profile?.user?.firstName ? `${profile.user.firstName} ${profile.user.lastName || ""}` : profile?.user?.username) || "Admin";
 
       const oldBooking = await storage.getBooking(req.params.id as string);
+      if (!oldBooking) return res.status(404).json({ message: "Booking not found" });
+
+      if (oldBooking.status === "cancelled" && req.body.status && req.body.status !== "cancelled") {
+        return res.status(400).json({ message: "Cannot change the status of a cancelled booking." });
+      }
+      if (oldBooking.status === "cancelled" && req.body.fulfillmentStatus && req.body.fulfillmentStatus !== oldBooking.fulfillmentStatus) {
+        return res.status(400).json({ message: "Cannot change fulfillment status of a cancelled booking." });
+      }
+
       const updated = await storage.updateBooking(req.params.id as string, req.body, userId, userName);
       
       // Audit trail for status changes
@@ -622,6 +632,14 @@ export function registerBookingsRoutes(app: Express): void {
       if (participant.leaderUserId !== userId) {
         return res.status(403).json({ message: "Forbidden: not your participant" });
       }
+
+      // Guard: Participant cannot be cancelled if payment has already been made
+      const participantPmts = await storage.getPayments(participant.id);
+      const participantSched = await db.select().from(bookingPaymentSchedules).where(eq(bookingPaymentSchedules.bookingId, participant.id));
+      if (participantPmts.some(p => p.status === "paid" || p.status === "partially_refunded" || p.status === "refunded") || participantSched.some(s => s.status === "paid" || Number(s.paidAmount || 0) > 0)) {
+        return res.status(400).json({ message: "Cannot cancel participant: payment has already been received." });
+      }
+
       const updated = await storage.updateBooking(req.params.participantBookingId as string, { status: "cancelled" });
       res.json(updated);
     } catch (e: any) { routeError(res, e); }
@@ -637,6 +655,19 @@ export function registerBookingsRoutes(app: Express): void {
       if (booking.customerId !== userId) return res.status(403).json({ message: "Not your booking" });
       if (booking.status === "cancelled") return res.status(400).json({ message: "Already cancelled" });
       if (booking.status === "completed") return res.status(400).json({ message: "Cannot cancel a completed booking" });
+
+      // Guard: If payment has already been received, booking cannot be self-cancelled by customer
+      const pmts = await storage.getPayments(booking.id);
+      const hasPaidPayment = pmts.some(p => p.status === "paid" || p.status === "partially_refunded" || p.status === "refunded");
+      const schedRows = await db.select().from(bookingPaymentSchedules).where(eq(bookingPaymentSchedules.bookingId, booking.id));
+      const hasPaidSchedule = schedRows.some(s => s.status === "paid" || Number(s.paidAmount || 0) > 0);
+
+      if (hasPaidPayment || hasPaidSchedule) {
+        return res.status(400).json({
+          message: "Cannot cancel booking: payment has already been received. Please contact operations or support for cancellation assistance."
+        });
+      }
+
       const previousStatus = booking.status;
       const updated = await storage.updateBooking(req.params.id as string, { status: "cancelled" });
 

@@ -279,6 +279,7 @@ export default function CustomerBookingDetail() {
 
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [showPaidCancelWarning, setShowPaidCancelWarning] = useState(false);
 
   if (isLoading) {
     return (
@@ -386,6 +387,10 @@ export default function CustomerBookingDetail() {
   if (isLoading) return <div className="p-6"><Skeleton className="h-64" /></div>;
   if (!booking) return <div className="p-6"><p className="text-muted-foreground">{t("booking_not_found")}</p></div>;
 
+  const hasPaidPayment =
+    (Array.isArray(pmts) && pmts.some((p) => p.status === "paid" || p.status === "partially_refunded" || p.status === "refunded")) ||
+    (Array.isArray(schedule) && schedule.some((s) => s.status === "paid" || Number(s.paidAmount || 0) > 0));
+
   const travelerDocs = Array.isArray(docs) ? docs.filter((d) => ["passport", "id_doc", "visa"].includes(d.docType)) : [];
   const fulfillmentDocs = Array.isArray(docs) ? docs.filter((d) => !["passport", "id_doc", "visa"].includes(d.docType)) : [];
   const getServiceStatusPresentation = (status?: string | null) => {
@@ -471,39 +476,86 @@ export default function CustomerBookingDetail() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {booking.status !== "cancelled" && booking.status !== "completed" && (
-            <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-              <DialogTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-6 text-xs text-destructive hover:text-destructive hover:bg-destructive/10">
-                  <XCircle className="h-3 w-3 mr-1" />{t("cancel_booking")}
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{t("cancel_your_booking")}</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 pt-2">
-                  <p className="text-sm text-muted-foreground">
-                    {t("cancel_booking_confirm_text")}
-                  </p>
-                  <div className="space-y-2">
-                    <Label>{t("cancellation_reason_label")}</Label>
-                    <Textarea
-                      placeholder={t("cancellation_reason_placeholder")}
-                      value={cancelReason}
-                      onChange={(e) => setCancelReason(e.target.value)}
-                    />
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  if (hasPaidPayment) {
+                    setShowPaidCancelWarning(true);
+                  } else {
+                    setShowCancelDialog(true);
+                  }
+                }}
+              >
+                <XCircle className="h-3 w-3 mr-1" />{t("cancel_booking")}
+              </Button>
+
+              <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>{t("cancel_your_booking")}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 pt-2">
+                    <p className="text-sm text-muted-foreground">
+                      {t("cancel_booking_confirm_text")}
+                    </p>
+                    <div className="space-y-2">
+                      <Label>{t("cancellation_reason_label")}</Label>
+                      <Textarea
+                        placeholder={t("cancellation_reason_placeholder")}
+                        value={cancelReason}
+                        onChange={(e) => setCancelReason(e.target.value)}
+                      />
+                    </div>
+                    <Button
+                      variant="destructive"
+                      className="w-full"
+                      onClick={() => cancelBooking.mutate(cancelReason)}
+                      disabled={cancelBooking.isPending}
+                    >
+                      {cancelBooking.isPending ? t("cancelling") : t("confirm_cancellation")}
+                    </Button>
                   </div>
-                  <Button
-                    variant="destructive"
-                    className="w-full"
-                    onClick={() => cancelBooking.mutate(cancelReason)}
-                    disabled={cancelBooking.isPending}
-                  >
-                    {cancelBooking.isPending ? t("cancelling") : t("confirm_cancellation")}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={showPaidCancelWarning} onOpenChange={setShowPaidCancelWarning}>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-500 font-semibold text-lg">
+                      <AlertTriangle className="h-5 w-5 flex-shrink-0" />
+                      <span>{t("cancel_booking")}</span>
+                    </div>
+                  </DialogHeader>
+                  <div className="space-y-4 py-2">
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {t("paid_booking_cannot_cancel_desc")}
+                    </p>
+                  </div>
+                  <DialogFooter className="flex-col sm:flex-row gap-2">
+                    <Button
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={() => setShowPaidCancelWarning(false)}
+                    >
+                      {t("close")}
+                    </Button>
+                    <Button
+                      className="w-full sm:w-auto"
+                      onClick={() => {
+                        setShowPaidCancelWarning(false);
+                        setActiveTab("messages");
+                      }}
+                    >
+                      <MessageSquare className="h-4 w-4 mr-1.5" />
+                      {t("contact_support")}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </>
           )}
         </div>
       </div>

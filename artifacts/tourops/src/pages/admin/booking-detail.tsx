@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
 import {
@@ -18,7 +18,7 @@ import {
   ClipboardList, ArrowLeft, CheckCircle, Clock, AlertTriangle,
   Send, Plane, Hotel, Bus, UserCheck, Ticket, Plus, Pencil,
   Trash2, Eye, ShieldCheck, ShieldX, Info, DollarSign,
-  ExternalLink, Download, Printer, Globe
+  ExternalLink, Download, Printer, Globe, XCircle
 } from "lucide-react";
 import { Link } from "wouter";
 import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES, SERVICE_TYPES, WORKFLOW_STATUSES, SERVICE_WORKFLOW_STEPS } from "@/lib/constants";
@@ -154,12 +154,23 @@ export default function AdminBookingDetail() {
     enabled: !!bookingId && isScheduleViewer,
   });
 
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+
   const updateBooking = useMutation({
     mutationFn: (data: Record<string, any>) => apiRequest("PATCH", `/api/bookings/${bookingId}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId] });
       queryClient.invalidateQueries({ queryKey: ["/api/bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workflows"] });
       toast({ title: t("booking_updated") });
+      setShowCancelDialog(false);
+      setCancelReason("");
+    },
+    onError: (e: any) => {
+      toast({ title: e?.message || t("update_failed"), variant: "destructive" });
     },
   });
 
@@ -492,13 +503,80 @@ export default function AdminBookingDetail() {
             </div>
 
             <div className="flex min-w-[220px] flex-col items-stretch gap-2 sm:items-end">
-              <div className="flex flex-wrap gap-2 sm:justify-end">
-                <Select value={booking.status || "submitted"} onValueChange={(v) => updateBooking.mutate({ status: v })} disabled={!isAdmin || updateBooking.isPending}>
-                  <SelectTrigger className="w-[150px] bg-background/80" data-testid="select-booking-status"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(BOOKING_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+              <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                {booking.status === "cancelled" ? (
+                  <Badge variant="destructive" className="h-9 px-3 text-xs uppercase font-semibold tracking-wider gap-1.5 shadow-sm" data-testid="badge-booking-cancelled">
+                    <XCircle className="h-4 w-4" />
+                    {BOOKING_STATUSES.cancelled}
+                  </Badge>
+                ) : (
+                  <>
+                    {(booking.status === "submitted" || !booking.status) ? (
+                      <div className="flex items-center gap-2">
+                        {isAdmin && (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => {
+                              if (missingTravelerCount > 0 && !confirm(`${t("confirm_missing_travelers_prefix")} ${booking.partySizeExpected} ${t("confirm_missing_travelers_middle")} ${travelers?.length || 0} ${t("confirm_missing_travelers_suffix")}`)) return;
+                              updateBooking.mutate({ status: "confirmed" });
+                            }}
+                            disabled={updateBooking.isPending}
+                            className="h-9 bg-emerald-600 shadow-sm hover:bg-emerald-700"
+                            data-testid="button-confirm-booking"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1.5" />
+                            {t("confirm_booking")}
+                          </Button>
+                        )}
+                        {isAdmin && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowCancelDialog(true)}
+                            disabled={updateBooking.isPending}
+                            className="h-9 border-destructive/30 text-destructive hover:bg-destructive/10"
+                            data-testid="button-cancel-booking-init"
+                          >
+                            <XCircle className="h-4 w-4 mr-1.5" />
+                            {t("cancel_booking")}
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={booking.status || "confirmed"}
+                          onValueChange={(v) => updateBooking.mutate({ status: v })}
+                          disabled={!isAdmin || updateBooking.isPending}
+                        >
+                          <SelectTrigger className="w-[150px] bg-background/80" data-testid="select-booking-status">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="confirmed">{BOOKING_STATUSES.confirmed}</SelectItem>
+                            <SelectItem value="in_progress">{BOOKING_STATUSES.in_progress}</SelectItem>
+                            <SelectItem value="completed">{BOOKING_STATUSES.completed}</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {isAdmin && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowCancelDialog(true)}
+                            disabled={updateBooking.isPending}
+                            className="h-9 border-destructive/30 text-destructive hover:bg-destructive/10"
+                            data-testid="button-cancel-booking-init"
+                          >
+                            <XCircle className="h-4 w-4 mr-1.5" />
+                            {t("cancel_booking")}
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
                 <Select
                   value={booking.fulfillmentStatus || "pending"}
                   onValueChange={(v) => {
@@ -513,32 +591,27 @@ export default function AdminBookingDetail() {
                     }
                     updateBooking.mutate({ fulfillmentStatus: v });
                   }}
-                  disabled={!isAdmin || updateBooking.isPending}
+                  disabled={!isAdmin || updateBooking.isPending || booking.status === "cancelled"}
                 >
-                  <SelectTrigger className="w-[170px] bg-background/80" data-testid="select-fulfillment-status"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="w-[170px] bg-background/80" data-testid="select-fulfillment-status">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
-                    {Object.entries(FULFILLMENT_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                    {Object.entries(FULFILLMENT_STATUSES).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-              {isAdmin && (booking.status === "submitted" || !booking.status) && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => {
-                    if (missingTravelerCount > 0 && !confirm(`${t("confirm_missing_travelers_prefix")} ${booking.partySizeExpected} ${t("confirm_missing_travelers_middle")} ${travelers?.length || 0} ${t("confirm_missing_travelers_suffix")}`)) return;
-                    updateBooking.mutate({ status: "confirmed" });
-                  }}
-                  disabled={updateBooking.isPending}
-                  className="h-9 bg-emerald-600 shadow-sm hover:bg-emerald-700"
-                  data-testid="button-confirm-booking"
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  {t("confirm_booking")}
-                </Button>
-              )}
             </div>
           </div>
+
+          {booking.status === "cancelled" && (
+            <div className="mt-4 flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs font-medium text-destructive">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>{t("booking_cancelled_services_blocked_warning")}</span>
+            </div>
+          )}
 
           <div className="mt-7 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-primary/10 pt-5 text-sm sm:grid-cols-4">
             <div>
@@ -981,7 +1054,7 @@ export default function AdminBookingDetail() {
                                   status: val === "none" ? "not_assigned" : (wf.status === "not_assigned" ? "assigned" : wf.status),
                                 });
                               }}
-                              disabled={updateWorkflow.isPending}
+                              disabled={updateWorkflow.isPending || booking.status === "cancelled"}
                             >
                               <SelectTrigger className="h-7 text-xs w-[170px]" data-testid={`select-workflow-assign-${wf.id}`}>
                                 <SelectValue placeholder={t("assign_to_placeholder")} />
@@ -1913,6 +1986,44 @@ export default function AdminBookingDetail() {
           </TabsContent>
         )}
       </Tabs>
+
+      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              {t("cancel_booking")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("cancel_booking_confirm_text")}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label className="text-xs">{t("cancellation_reason_label")}</Label>
+            <Textarea
+              placeholder={t("cancellation_reason_placeholder")}
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              rows={3}
+              data-testid="input-cancel-reason"
+            />
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowCancelDialog(false)} disabled={updateBooking.isPending}>
+              {t("cancel")}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => updateBooking.mutate({ status: "cancelled", reason: cancelReason })}
+              disabled={updateBooking.isPending}
+              data-testid="button-confirm-cancel-booking"
+            >
+              <XCircle className="h-4 w-4 mr-1.5" />
+              {t("confirm_cancellation")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -353,6 +353,12 @@ export function registerOpsRoutes(app: Express): void {
       const profile = await storage.getOrCreateProfile(userId);
       const wf = await storage.getWorkflow(req.params.id as string);
       if (!wf) return res.status(404).json({ message: "Workflow not found" });
+
+      const parentBooking = await storage.getBooking(wf.bookingId);
+      if (parentBooking?.status === "cancelled") {
+        return res.status(400).json({ message: "Cannot update workflow because the parent booking is cancelled." });
+      }
+
       const isFlightAgentOnAirlineWf = profile.role === "flight_agent" && wf.serviceType === "airline";
       let updatedWf;
       if (profile.role === "admin" || profile.role === "super_admin" || profile.role === "operations_manager") {
@@ -428,6 +434,18 @@ export function registerOpsRoutes(app: Express): void {
       const profile = await storage.getOrCreateProfile(userId);
       const isStaff = ALL_STAFF_ROLES.includes(profile.role as any);
       if (!isStaff) return res.status(403).json({ message: "Forbidden" });
+
+      const step = await storage.getWorkflowStep(req.params.id as string);
+      if (step) {
+        const wf = await storage.getWorkflow(step.workflowId);
+        if (wf) {
+          const parentBooking = await storage.getBooking(wf.bookingId);
+          if (parentBooking?.status === "cancelled") {
+            return res.status(400).json({ message: "Cannot update step because the parent booking is cancelled." });
+          }
+        }
+      }
+
       res.json(await storage.updateWorkflowStep(req.params.id as string, { ...req.body, updatedBy: userId }));
     } catch (e: any) { routeError(res, e); }
   });

@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES, SERVICE_TYPES, WORKFLOW_STATUSES, SERVICE_WORKFLOW_STEPS } from "@/lib/constants";
-import type { Booking, Traveler, BookingAssignment, BookingWorkflow, WorkflowStep, Document, Message, Payment, UserProfile, BookingServiceRequest, BookingPaymentSchedule } from "@workspace/db";
+import type { Booking, Traveler, BookingAssignment, BookingWorkflow, WorkflowStep, Document, Message, Payment, UserProfile, BookingServiceRequest, BookingPaymentSchedule, Tour, TourDeparture } from "@workspace/db";
 import { useState } from "react";
 import { DocumentPreview } from "@/components/DocumentPreview";
 
@@ -63,7 +63,7 @@ const PAYMENT_STATUSES: Record<string, string> = {
 export default function AdminBookingDetail() {
   const [, params] = useRoute("/admin/bookings/:id");
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, lt } = useLanguage();
   const bookingId = params?.id;
 
   const [internalNotes, setInternalNotes] = useState<string | null>(null);
@@ -106,8 +106,17 @@ export default function AdminBookingDetail() {
   ]);
   const [recordingPaymentId, setRecordingPaymentId] = useState<string | null>(null);
   const [recordPaymentAmount, setRecordPaymentAmount] = useState("");
+  const [activeTab, setActiveTab] = useState("summary");
 
   const { data: booking, isLoading } = useQuery<Booking>({ queryKey: ["/api/bookings", bookingId] });
+  const { data: tour } = useQuery<Tour>({
+    queryKey: ["/api/tours", booking?.tourId],
+    enabled: !!booking?.tourId,
+  });
+  const { data: departures } = useQuery<TourDeparture[]>({
+    queryKey: ["/api/tours", booking?.tourId, "departures"],
+    enabled: !!booking?.tourId,
+  });
   const { data: schedule } = useQuery<BookingPaymentSchedule[]>({
     queryKey: ["/api/bookings", bookingId, "payment-schedule"],
     enabled: !!bookingId,
@@ -361,59 +370,247 @@ export default function AdminBookingDetail() {
   }).length || 0;
 
   const blockedWorkflowsCount = workflows?.filter((wf) => wf.status === "blocked").length || 0;
+  const unassignedWorkflowCount = workflows?.filter((wf) => wf.status === "not_assigned").length || 0;
+  const unassignedAssignmentCount = assignments?.filter((assignment) => !assignment.assignedUserId || assignment.status === "unassigned").length || 0;
+  const pendingDocsCount = documents?.filter((doc) => doc.status === "uploaded").length || 0;
+  const missingTravelerCount = Math.max(0, (booking.partySizeExpected || 1) - (travelers?.length || 0));
+  const pendingPaymentCount = payments?.filter((payment) => payment.status === "pending").length || 0;
+  const hasPendingSchedule = (schedule || paymentSchedule)?.some((installment) => ["pending", "partially_paid", "late"].includes(installment.status)) || false;
+  const hasPaymentAttention = pendingPaymentCount > 0 || hasPendingSchedule;
+  const attentionDataReady = !!travelers && !!documents && !!workflows && !!assignments && (!isAdmin || !!payments);
+
+  const tourTitle = tour ? lt(tour, "title") : undefined;
+  const destination = tour?.countries?.filter(Boolean).join(", ");
+  const departure = departures?.find((item) => item.id === booking.departureId);
+  const customerProfile = allUsers?.find((profile) => profile.userId === booking.customerId);
+  const customerName = customerProfile?.companyName || booking.customerId;
+
+  const attentionItems: Array<{
+    id: string;
+    title: string;
+    description: string;
+    tab: string;
+    actionLabel: string;
+    icon: any;
+    tone: "warning" | "danger";
+  }> = [];
+
+  if (blockedWorkflowsCount > 0) {
+    attentionItems.push({
+      id: "blocked-workflows",
+      title: t("fulfillment"),
+      description: `${blockedWorkflowsCount} ${t("workflows_blocked_suffix")}`,
+      tab: "fulfillment",
+      actionLabel: t("view_workflow"),
+      icon: AlertTriangle,
+      tone: "danger",
+    });
+  }
+  if (missingTravelerCount > 0) {
+    attentionItems.push({
+      id: "missing-travelers",
+      title: t("travelers"),
+      description: `${missingTravelerCount} ${t("travelers_still_needed")}`,
+      tab: "travelers",
+      actionLabel: t("add_traveler"),
+      icon: Users,
+      tone: "warning",
+    });
+  }
+  if (missingDocsCount > 0 || pendingDocsCount > 0) {
+    attentionItems.push({
+      id: "documents",
+      title: t("documents"),
+      description: missingDocsCount > 0
+        ? `${missingDocsCount} ${t("travelers_missing_documents_suffix")}`
+        : `${pendingDocsCount} ${t("documents_pending_review_suffix")}`,
+      tab: "documents",
+      actionLabel: t("documents"),
+      icon: FileText,
+      tone: "warning",
+    });
+  }
+  if (hasPaymentAttention) {
+    attentionItems.push({
+      id: "payment",
+      title: t("payments"),
+      description: pendingPaymentCount > 0 ? `${pendingPaymentCount} ${t("payment_status_pending")}` : t("payment_pending"),
+      tab: "payments",
+      actionLabel: t("payments"),
+      icon: CreditCard,
+      tone: "warning",
+    });
+  }
+  if (unassignedWorkflowCount > 0 || unassignedAssignmentCount > 0) {
+    const unassignedCount = unassignedWorkflowCount + unassignedAssignmentCount;
+    attentionItems.push({
+      id: "unassigned",
+      title: t("assignments"),
+      description: `${unassignedCount} ${t("assignments_need_attention_suffix")}`,
+      tab: "assignments",
+      actionLabel: t("assignments"),
+      icon: ClipboardList,
+      tone: "warning",
+    });
+  }
 
   const notesValue = internalNotes !== null ? internalNotes : (booking.internalNotes || "");
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex flex-wrap items-center gap-4 no-print">
+    <div className="p-6 space-y-8 max-w-[1600px] mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-4 no-print">
+        <div className="flex items-center gap-2">
         <Link href="/admin/bookings">
-          <Button variant="ghost" size="icon" data-testid="button-back">
-            <ArrowLeft className="h-4 w-4" />
+          <Button variant="ghost" size="sm" data-testid="button-back">
+            <ArrowLeft className="h-4 w-4 mr-1" />{t("back")}
           </Button>
         </Link>
-        <div className="flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-bold font-serif" data-testid="text-booking-code">{booking.bookingCode}</h1>
-            <Badge variant="outline" data-testid="badge-booking-type">{BOOKING_TYPES[booking.bookingType]}</Badge>
-          </div>
-          {booking.groupName && <p className="text-muted-foreground text-sm" data-testid="text-group-name">{booking.groupName}</p>}
+        <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">{t("booking_info")}</p>
         </div>
-        <div className="flex gap-2">
-          {isAdmin && (booking.status === "submitted" || !booking.status) && (
-            <div className="flex flex-col items-end gap-1">
-              <Button 
-                variant="default" 
-                size="sm" 
-                onClick={() => {
-                  const missingTravelers = (booking.partySizeExpected || 1) - (travelers?.length || 0);
-                  if (missingTravelers > 0) {
-                    if (!confirm(`${t("confirm_missing_travelers_prefix")} ${booking.partySizeExpected} ${t("confirm_missing_travelers_middle")} ${travelers?.length || 0} ${t("confirm_missing_travelers_suffix")}`)) {
-                      return;
+        <Button variant="outline" size="sm" onClick={() => window.print()} className="h-8 shadow-sm">
+          <Printer className="h-4 w-4 mr-2" />
+          {t("print_summary")}
+        </Button>
+      </div>
+
+      <section className="overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/[0.08] via-background to-background shadow-sm" data-testid="card-admin-booking-hero">
+        <div className="p-5 sm:p-7">
+          <div className="flex flex-wrap items-start justify-between gap-6">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{t("booking_code")}</p>
+                <Badge variant="outline" data-testid="badge-booking-type">{BOOKING_TYPES[booking.bookingType]}</Badge>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <h1 className="font-mono text-3xl font-bold tracking-tight sm:text-4xl" data-testid="text-booking-code">{booking.bookingCode}</h1>
+                <Badge variant={booking.status === "confirmed" ? "default" : booking.status === "cancelled" ? "destructive" : "secondary"} className="text-sm" data-testid="badge-status">
+                  {BOOKING_STATUSES[booking.status || "submitted"]}
+                </Badge>
+                <Badge variant={booking.fulfillmentStatus === "completed" ? "default" : booking.fulfillmentStatus === "blocked" ? "destructive" : "outline"} className="text-sm" data-testid="badge-fulfillment">
+                  {FULFILLMENT_STATUSES[booking.fulfillmentStatus || "pending"]}
+                </Badge>
+              </div>
+              <h2 className="mt-4 text-xl font-semibold tracking-tight sm:text-2xl" data-testid="text-trip-title">
+                {tourTitle || booking.groupName || t("trip_summary")}
+              </h2>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                {destination && <span>{destination}</span>}
+                {booking.groupName && <span data-testid="text-group-name">{booking.groupName}</span>}
+                {!tourTitle && booking.tourId && <span className="font-mono text-xs">{booking.tourId}</span>}
+              </div>
+            </div>
+
+            <div className="flex min-w-[220px] flex-col items-stretch gap-2 sm:items-end">
+              <div className="flex flex-wrap gap-2 sm:justify-end">
+                <Select value={booking.status || "submitted"} onValueChange={(v) => updateBooking.mutate({ status: v })} disabled={!isAdmin || updateBooking.isPending}>
+                  <SelectTrigger className="w-[150px] bg-background/80" data-testid="select-booking-status"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(BOOKING_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={booking.fulfillmentStatus || "pending"}
+                  onValueChange={(v) => {
+                    if (v === "completed") {
+                      const missingPassports = travelers?.filter(t => {
+                        const travelerDocs = documents?.filter(d => d.travelerId === t.id && d.docType === "passport");
+                        return !travelerDocs || travelerDocs.length === 0;
+                      });
+                      if (missingPassports && missingPassports.length > 0) {
+                        if (!confirm(`${missingPassports.length} ${t("missing_passports_suffix")}`)) return;
+                      }
                     }
-                  }
-                  updateBooking.mutate({ status: "confirmed" });
-                }}
-                disabled={updateBooking.isPending}
-                className="h-8 shadow-sm bg-emerald-600 hover:bg-emerald-700"
-                data-testid="button-confirm-booking"
-              >
-                <CheckCircle className="h-4 w-4 mr-2" />
-                {t("confirm_booking")}
-              </Button>
-              {(booking.partySizeExpected || 1) > (travelers?.length || 0) && (
-                <span className="text-[10px] text-amber-600 font-medium flex items-center">
-                  <AlertTriangle className="h-3 w-3 mr-1" /> {t("missing_travelers")}
-                </span>
+                    updateBooking.mutate({ fulfillmentStatus: v });
+                  }}
+                  disabled={!isAdmin || updateBooking.isPending}
+                >
+                  <SelectTrigger className="w-[170px] bg-background/80" data-testid="select-fulfillment-status"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(FULFILLMENT_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              {isAdmin && (booking.status === "submitted" || !booking.status) && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => {
+                    if (missingTravelerCount > 0 && !confirm(`${t("confirm_missing_travelers_prefix")} ${booking.partySizeExpected} ${t("confirm_missing_travelers_middle")} ${travelers?.length || 0} ${t("confirm_missing_travelers_suffix")}`)) return;
+                    updateBooking.mutate({ status: "confirmed" });
+                  }}
+                  disabled={updateBooking.isPending}
+                  className="h-9 bg-emerald-600 shadow-sm hover:bg-emerald-700"
+                  data-testid="button-confirm-booking"
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  {t("confirm_booking")}
+                </Button>
               )}
             </div>
-          )}
-          <Button variant="outline" size="sm" onClick={() => window.print()} className="h-8 shadow-sm">
-            <Printer className="h-4 w-4 mr-2" />
-            {t("print_summary")}
-          </Button>
+          </div>
+
+          <div className="mt-7 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-primary/10 pt-5 text-sm sm:grid-cols-4">
+            <div>
+              <p className="text-xs text-muted-foreground">{t("customer")}</p>
+              <p className="mt-1 truncate font-medium" title={customerName}>{customerName}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{t("party_size")}</p>
+              <p className="mt-1 font-medium" data-testid="text-party-size">{travelers?.length || 0} / {booking.partySizeExpected || 1} {t("travelers_suffix")}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{t("departure_date")}</p>
+              <p className="mt-1 font-medium">{departure?.startDate ? new Date(departure.startDate).toLocaleDateString() : t("not_available")}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{t("date")}</p>
+              <p className="mt-1 font-medium">{booking.createdAt ? new Date(booking.createdAt).toLocaleDateString() : t("not_available")}</p>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <section className="rounded-xl border border-amber-300/70 bg-amber-50/60 p-4 shadow-sm dark:border-amber-800/70 dark:bg-amber-950/20 sm:p-5" data-testid="card-needs-attention">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              <h2 className="font-semibold">{t("needs_attention")}</h2>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">{t("your_tasks")}</p>
+          </div>
+          {attentionDataReady && attentionItems.length > 0 && <Badge variant="outline" className="border-amber-400/70 bg-background/50">{Math.min(4, attentionItems.length)} {t("awaiting_action")}</Badge>}
+        </div>
+        {!attentionDataReady ? (
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <Skeleton className="h-16 bg-amber-100/60 dark:bg-amber-900/20" />
+            <Skeleton className="h-16 bg-amber-100/60 dark:bg-amber-900/20" />
+          </div>
+        ) : attentionItems.length > 0 ? (
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {attentionItems.slice(0, 4).map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg border border-amber-200/80 bg-background/80 p-3 dark:border-amber-900/60" data-testid={`attention-${item.id}`}>
+                  <div className="flex min-w-0 items-start gap-3">
+                    <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${item.tone === "danger" ? "text-destructive" : "text-amber-600 dark:text-amber-400"}`} />
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold">{item.title}</p>
+                      <p className="text-xs text-muted-foreground">{item.description}</p>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline" className="shrink-0 bg-background" onClick={() => setActiveTab(item.tab)}>{item.actionLabel}</Button>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-4 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50/70 p-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-300" data-testid="attention-all-clear">
+            <CheckCircle className="h-4 w-4" />
+            <span>{t("all_clear_no_actions")}</span>
+          </div>
+        )}
+      </section>
 
       {/* Printable Header */}
       <div className="hidden print:block border-b-2 border-[#116bb0] pb-4 mb-6">
@@ -431,76 +628,14 @@ export default function AdminBookingDetail() {
           </div>
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Select value={booking.status || "submitted"} onValueChange={(v) => updateBooking.mutate({ status: v })} disabled={!isAdmin || updateBooking.isPending}>
-          <SelectTrigger className="w-[140px]" data-testid="select-booking-status"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {Object.entries(BOOKING_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <Select 
-          value={booking.fulfillmentStatus || "pending"} 
-          onValueChange={(v) => {
-            if (v === "completed") {
-              const missingPassports = travelers?.filter(t => {
-                const travelerDocs = documents?.filter(d => d.travelerId === t.id && d.docType === "passport");
-                return !travelerDocs || travelerDocs.length === 0;
-              });
-              if (missingPassports && missingPassports.length > 0) {
-                if (!confirm(`${missingPassports.length} ${t("missing_passports_suffix")}`)) {
-                  return;
-                }
-              }
-            }
-            updateBooking.mutate({ fulfillmentStatus: v });
-          }}
-          disabled={!isAdmin || updateBooking.isPending}
-        >
-          <SelectTrigger className="w-[160px]" data-testid="select-fulfillment-status"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {Object.entries(FULFILLMENT_STATUSES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">{t("party_size")}</p>
-            <p className="text-xl font-bold" data-testid="text-party-size">{booking.partySizeExpected}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">{t("status")}</p>
-            <Badge variant={booking.status === "confirmed" ? "default" : "secondary"} data-testid="badge-status">
-              {BOOKING_STATUSES[booking.status || "submitted"]}
-            </Badge>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">{t("fulfillment")}</p>
-            <Badge variant={booking.fulfillmentStatus === "completed" ? "default" : "outline"} data-testid="badge-fulfillment">
-              {FULFILLMENT_STATUSES[booking.fulfillmentStatus || "pending"]}
-            </Badge>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-xs text-muted-foreground">{t("join_code")}</p>
-            <p className="font-mono text-sm" data-testid="text-join-code">{booking.joinCode || t("not_available")}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="summary">
-        <TabsList className="flex flex-wrap">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="w-full justify-start gap-1 rounded-xl border bg-card p-1.5 shadow-sm">
           <TabsTrigger value="summary" data-testid="tab-summary"><Info className="h-3.5 w-3.5 mr-1" />{t("summary")}</TabsTrigger>
-          <TabsTrigger value="travelers" data-testid="tab-travelers"><Users className="h-3.5 w-3.5 mr-1" />{t("travelers")}</TabsTrigger>
+          <TabsTrigger value="travelers" data-testid="tab-travelers"><Users className="h-3.5 w-3.5 mr-1" />{t("travelers")} <span className="ml-1 text-xs text-muted-foreground">{travelers?.length ?? "—"}</span></TabsTrigger>
           <TabsTrigger value="assignments" data-testid="tab-assignments"><ClipboardList className="h-3.5 w-3.5 mr-1" />{t("assignments")}</TabsTrigger>
-          <TabsTrigger value="fulfillment" data-testid="tab-fulfillment"><Workflow className="h-3.5 w-3.5 mr-1" />{t("fulfillment")}</TabsTrigger>
-          <TabsTrigger value="documents" data-testid="tab-documents"><FileText className="h-3.5 w-3.5 mr-1" />{t("documents")}</TabsTrigger>
+          <TabsTrigger value="fulfillment" data-testid="tab-fulfillment"><Workflow className="h-3.5 w-3.5 mr-1" />{t("service_status")} <span className="ml-1 text-xs text-muted-foreground">{workflows?.length ?? "—"}</span></TabsTrigger>
+          <TabsTrigger value="documents" data-testid="tab-documents"><FileText className="h-3.5 w-3.5 mr-1" />{t("documents")} <span className="ml-1 text-xs text-muted-foreground">{documents?.length ?? "—"}</span></TabsTrigger>
           {isAdmin && <TabsTrigger value="messages" data-testid="tab-messages"><MessageSquare className="h-3.5 w-3.5 mr-1" />{t("messages")}</TabsTrigger>}
           {isAdmin && <TabsTrigger value="payments" data-testid="tab-payments"><CreditCard className="h-3.5 w-3.5 mr-1" />{t("payments")}</TabsTrigger>}
           {isAdmin && <TabsTrigger value="invoices" data-testid="tab-invoices"><FileText className="h-3.5 w-3.5 mr-1" />{t("invoices")}</TabsTrigger>}
@@ -874,18 +1009,29 @@ export default function AdminBookingDetail() {
         {/* TAB D: Fulfillment */}
         <TabsContent value="fulfillment" className="mt-4">
           {workflows && workflows.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-end justify-between gap-2">
+                <div>
+                  <h2 className="text-lg font-semibold">{t("service_status")}</h2>
+                  <p className="text-sm text-muted-foreground">{t("service_status_summary")}</p>
+                </div>
+                <p className="text-xs text-muted-foreground">{workflows.filter((wf) => wf.status === "completed").length}/{workflows.length} {t("services_completed")}</p>
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               {workflows.map((wf) => {
                 const Icon = serviceIcons[wf.serviceType] || Workflow;
                 const steps = SERVICE_WORKFLOW_STEPS[wf.serviceType] || [];
                 const currentIdx = steps.findIndex((s) => s.code === wf.currentStep);
+                const progressIdx = wf.status === "completed" ? steps.length - 1 : currentIdx;
                 return (
                   <Link href={`/admin/workflows/${wf.id}`} key={wf.id}>
-                    <Card className="hover-elevate cursor-pointer" data-testid={`card-workflow-${wf.id}`}>
+                    <Card className="h-full border-border/80 hover-elevate cursor-pointer" data-testid={`card-workflow-${wf.id}`}>
                       <CardContent className="p-4 space-y-3">
                         <div className="flex flex-wrap items-center justify-between gap-4">
                           <div className="flex items-center gap-2">
-                            <Icon className="h-4 w-4 text-primary" />
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                              <Icon className="h-4 w-4" />
+                            </div>
                             <span className="font-medium text-sm" data-testid={`text-workflow-type-${wf.id}`}>{SERVICE_TYPES[wf.serviceType]}</span>
                           </div>
                           <Badge
@@ -898,29 +1044,35 @@ export default function AdminBookingDetail() {
                         {wf.countryCode && (
                           <p className="text-xs text-muted-foreground" data-testid={`text-workflow-country-${wf.id}`}>{t("country_prefix")} {wf.countryCode}</p>
                         )}
-                        <p className="text-xs text-muted-foreground" data-testid={`text-workflow-assigned-${wf.id}`}>
-                          {t("assigned_label")} {getUserName(wf.assignedUserId)}
-                        </p>
-                        {wf.currentStep && (
-                          <p className="text-xs text-muted-foreground" data-testid={`text-workflow-step-${wf.id}`}>
-                            {t("step_label")} {steps.find((s) => s.code === wf.currentStep)?.name || wf.currentStep}
-                          </p>
-                        )}
                         {steps.length > 0 && (
-                          <div className="flex items-center gap-1">
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                              <span>{t("workflow_steps")}</span>
+                              <span>{wf.status === "completed" ? t("done") : `${Math.max(0, progressIdx + 1)} / ${steps.length}`}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
                             {steps.map((step, i) => (
                               <div
                                 key={step.code}
                                 className={`h-1.5 flex-1 rounded-full ${
-                                  i <= currentIdx
+                                  i <= progressIdx
                                     ? wf.status === "blocked" ? "bg-destructive" : "bg-primary"
                                     : "bg-muted"
                                 }`}
                                 title={step.name}
                               />
                             ))}
+                            </div>
                           </div>
                         )}
+                        <div className="space-y-1 border-t pt-2">
+                          <p className="text-xs text-muted-foreground" data-testid={`text-workflow-assigned-${wf.id}`}>
+                            {t("assigned_label")} {getUserName(wf.assignedUserId)}
+                          </p>
+                          <p className="text-xs text-muted-foreground" data-testid={`text-workflow-step-${wf.id}`}>
+                            {t("step_label")} {steps.find((s) => s.code === wf.currentStep)?.name || wf.currentStep || t("service_status_pending")}
+                          </p>
+                        </div>
                         <div className="flex items-center gap-1 text-xs text-primary">
                           <ExternalLink className="h-3 w-3" />
                           <span>{t("view_workflow")}</span>
@@ -930,6 +1082,7 @@ export default function AdminBookingDetail() {
                   </Link>
                 );
               })}
+              </div>
             </div>
           ) : (
             <Card>

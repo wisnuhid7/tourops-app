@@ -21,7 +21,7 @@ import {
 import { Link } from "wouter";
 import { useState } from "react";
 import { DocumentPreview } from "@/components/DocumentPreview";
-import type { Booking, Traveler, BookingWorkflow, Message, Document, Payment, BookingPaymentSchedule } from "@workspace/db";
+import type { Booking, Traveler, BookingWorkflow, Message, Document, Payment, BookingPaymentSchedule, Tour, TourDeparture } from "@workspace/db";
 import { useLanguage } from "@/hooks/use-language";
 
 import * as XLSX from "xlsx";
@@ -37,12 +37,20 @@ const DOC_STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"
 };
 
 export default function CustomerBookingDetail() {
-  const { t } = useLanguage();
+  const { t, lt } = useLanguage();
   const [, params] = useRoute("/my-bookings/:id");
   const { toast } = useToast();
   const bookingId = params?.id;
 
   const { data: booking, isLoading } = useQuery<Booking>({ queryKey: ["/api/my-bookings", bookingId] });
+  const { data: tour } = useQuery<Tour>({
+    queryKey: ["/api/tours", booking?.tourId],
+    enabled: !!booking?.tourId,
+  });
+  const { data: departures } = useQuery<TourDeparture[]>({
+    queryKey: ["/api/tours", booking?.tourId, "departures"],
+    enabled: !!booking?.tourId,
+  });
   const { data: travelers } = useQuery<Traveler[]>({ queryKey: ["/api/my-bookings", bookingId, "travelers"] });
   const { data: workflows } = useQuery<BookingWorkflow[]>({ queryKey: ["/api/my-bookings", bookingId, "workflows"] });
   const { data: messages } = useQuery<Message[]>({ queryKey: ["/api/my-bookings", bookingId, "messages"] });
@@ -88,6 +96,7 @@ export default function CustomerBookingDetail() {
   const [receiptUrl, setReceiptUrl] = useState("");
   const [paymentNotes, setPaymentNotes] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -285,6 +294,12 @@ export default function CustomerBookingDetail() {
 
   const isLeaderGroup = booking?.bookingType === "leader_group";
   const isPrivateFamily = booking?.bookingType === "private_family";
+  const departure = departures?.find((item) => item.id === booking.departureId);
+  const tourTitle = tour ? (lt(tour, "title") || tour.title) : undefined;
+  const destination = tour?.countries?.filter(Boolean).join(", ");
+  const hasMissingTravelers = Array.isArray(travelers) && travelers.length < (booking.partySizeExpected || 1);
+  const hasMissingPassportDetails = Array.isArray(travelers) && travelers.some((traveler) => !traveler.passportNumber);
+  const hasPendingPayment = Array.isArray(pmts) && pmts.some((payment) => payment.status === "pending");
 
   const copyJoinCode = () => {
     if (booking?.joinCode) {
@@ -372,6 +387,47 @@ export default function CustomerBookingDetail() {
 
   const travelerDocs = Array.isArray(docs) ? docs.filter((d) => ["passport", "id_doc", "visa"].includes(d.docType)) : [];
   const fulfillmentDocs = Array.isArray(docs) ? docs.filter((d) => !["passport", "id_doc", "visa"].includes(d.docType)) : [];
+  const getServiceStatusPresentation = (status?: string | null) => {
+    switch (status) {
+      case "completed":
+        return {
+          label: t("service_status_ready"),
+          description: t("service_status_ready_desc"),
+          icon: CheckCircle,
+          badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300",
+        };
+      case "blocked":
+        return {
+          label: t("service_status_attention"),
+          description: t("service_status_attention_desc"),
+          icon: AlertTriangle,
+          badgeClass: "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+        };
+      case "in_progress":
+      case "assigned":
+        return {
+          label: t("service_status_in_progress"),
+          description: t("service_status_in_progress_desc"),
+          icon: Clock,
+          badgeClass: "border-primary/30 bg-primary/5 text-primary",
+        };
+      case "cancelled":
+        return {
+          label: t("service_status_cancelled"),
+          description: t("service_status_cancelled_desc"),
+          icon: XCircle,
+          badgeClass: "border-border bg-muted text-muted-foreground",
+        };
+      case "not_assigned":
+      default:
+        return {
+          label: t("service_status_pending"),
+          description: t("service_status_pending_desc"),
+          icon: Clock,
+          badgeClass: "border-border bg-background text-muted-foreground",
+        };
+    }
+  };
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
@@ -413,9 +469,6 @@ export default function CustomerBookingDetail() {
           {booking.groupName && <p className="text-muted-foreground">{booking.groupName}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={booking.status === "confirmed" ? "default" : booking.status === "cancelled" ? "destructive" : "secondary"}>
-            {t(`booking_status_${booking.status || "submitted"}` as any)}
-          </Badge>
           {booking.status !== "cancelled" && booking.status !== "completed" && (
             <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
               <DialogTrigger asChild>
@@ -451,11 +504,43 @@ export default function CustomerBookingDetail() {
               </DialogContent>
             </Dialog>
           )}
-          <Badge variant={booking.fulfillmentStatus === "completed" ? "default" : "outline"}>
-            {t(`fulfillment_status_${booking.fulfillmentStatus || "pending"}` as any)}
-          </Badge>
         </div>
       </div>
+
+      <Card className="border-primary/20" data-testid="card-booking-summary">
+        <CardContent className="p-5 space-y-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{t("trip_summary")}</p>
+              <h2 className="text-xl font-semibold mt-1">{tourTitle || booking.groupName || t("trip_summary")}</h2>
+              {destination && <p className="text-sm text-muted-foreground mt-1">{destination}</p>}
+            </div>
+            <Badge variant={booking.status === "confirmed" ? "default" : booking.status === "cancelled" ? "destructive" : "secondary"}>
+              {t(`booking_status_${booking.status || "submitted"}` as any)}
+            </Badge>
+          </div>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm sm:grid-cols-4">
+            <div>
+              <p className="text-xs text-muted-foreground">{t("booking_code")}</p>
+              <p className="font-medium mt-0.5">{booking.bookingCode}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{t("type_label")}</p>
+              <p className="font-medium mt-0.5">{t(`booking_type_${booking.bookingType}` as any)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{t("party_size")}</p>
+              <p className="font-medium mt-0.5">{booking.partySizeExpected || 1}</p>
+            </div>
+            {departure?.startDate && (
+              <div>
+                <p className="text-xs text-muted-foreground">{t("departure_date")}</p>
+                <p className="font-medium mt-0.5">{new Date(departure.startDate).toLocaleDateString()}</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {booking.joinCode && (
         <Card>
@@ -470,7 +555,33 @@ export default function CustomerBookingDetail() {
         </Card>
       )}
 
-      <Tabs defaultValue="overview">
+      <Card data-testid="card-next-steps">
+        <CardContent className="p-4 space-y-3">
+          <h2 className="font-semibold text-sm">{t("next_steps")}</h2>
+          {hasMissingTravelers ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">
+                {(booking.partySizeExpected || 1) - (travelers?.length || 0)} {t("travelers_still_needed")}
+              </p>
+              <Button size="sm" onClick={() => setActiveTab("travelers")}>{t("add_traveler")}</Button>
+            </div>
+          ) : hasMissingPassportDetails ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">{t("missing_passport_details")}</p>
+              <Button size="sm" onClick={() => setActiveTab("documents")}>{t("upload_document")}</Button>
+            </div>
+          ) : hasPendingPayment ? (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">{t("payment_pending")}</p>
+              <Button size="sm" onClick={() => setActiveTab("payments")}>{t("payments")}</Button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">{t("no_next_steps")}</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="overview" data-testid="tab-overview"><Eye className="h-3.5 w-3.5 mr-1" />{t("tab_overview")}</TabsTrigger>
           {isLeaderGroup && (
@@ -496,6 +607,30 @@ export default function CustomerBookingDetail() {
                   <div className="flex justify-between gap-2">
                     <span className="text-muted-foreground">{t("type_label")}</span>
                     <span>{t(`booking_type_${booking.bookingType}` as any)}</span>
+                  </div>
+                  {tourTitle && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">{t("trip_summary")}</span>
+                      <span className="text-right max-w-[200px]">{tourTitle}</span>
+                    </div>
+                  )}
+                  {destination && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">{t("destination")}</span>
+                      <span className="text-right max-w-[200px]">{destination}</span>
+                    </div>
+                  )}
+                  {departure?.startDate && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">{t("departure_date")}</span>
+                      <span>{new Date(departure.startDate).toLocaleDateString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between gap-2 items-center">
+                    <span className="text-muted-foreground">{t("status")}</span>
+                    <Badge variant={booking.status === "confirmed" ? "default" : booking.status === "cancelled" ? "destructive" : "secondary"}>
+                      {t(`booking_status_${booking.status || "submitted"}` as any)}
+                    </Badge>
                   </div>
                   <div className="flex justify-between gap-2">
                     <span className="text-muted-foreground">{t("party_size")}</span>
@@ -559,31 +694,81 @@ export default function CustomerBookingDetail() {
             </Card>
           </div>
 
-          {workflows && workflows.length > 0 && (
-            <div>
-              <h3 className="font-semibold text-sm mb-3">{t("service_status")}</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {workflows.map((wf) => {
-                  const Icon = SERVICE_ICONS[wf.serviceType] || Workflow;
-                  return (
-                    <Card key={wf.id}>
-                      <CardContent className="p-4 flex items-center gap-3">
-                        <Icon className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{t(`service_type_${wf.serviceType}` as any)}</p>
-                          {wf.currentStep && <p className="text-xs text-muted-foreground truncate">{wf.currentStep}</p>}
+          {workflows && workflows.length > 0 && (() => {
+            const completedServiceCount = workflows.filter((wf) => wf.status === "completed").length;
+            const servicesNeedingAttention = workflows.filter((wf) => wf.status === "blocked").length;
+
+            return (
+              <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/[0.06] via-background to-background shadow-sm" data-testid="section-service-status">
+                <CardContent className="p-4 sm:p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <h3 className="font-semibold">{t("service_status")}</h3>
+                      <p className="mt-1 max-w-xl text-sm text-muted-foreground">{t("service_status_summary")}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      <div className="rounded-md border bg-background/80 px-3 py-2">
+                        <span className="font-semibold text-foreground">{completedServiceCount}/{workflows.length}</span>{" "}
+                        <span className="text-muted-foreground">{t("services_completed")}</span>
+                      </div>
+                      <div className={`rounded-md border px-3 py-2 ${servicesNeedingAttention > 0 ? "border-amber-300 bg-amber-50/80 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300" : "bg-background/80"}`}>
+                        <span className="font-semibold">{servicesNeedingAttention}</span>{" "}
+                        <span>{t("services_need_attention")}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="relative mt-5 space-y-3">
+                    {workflows.map((wf, index) => {
+                      const presentation = getServiceStatusPresentation(wf.status);
+                      const ServiceIcon = SERVICE_ICONS[wf.serviceType] || Workflow;
+                      const StatusIcon = presentation.icon;
+                      const status = wf.status || "not_assigned";
+                      const nextStep = status !== "completed" && status !== "cancelled"
+                        ? wf.currentStep || (status === "blocked" ? t("service_status_attention_next") : undefined)
+                        : undefined;
+
+                      return (
+                        <div key={wf.id} className="relative flex gap-3" data-testid={`card-service-status-${wf.id}`}>
+                          {index < workflows.length - 1 && (
+                            <div className="absolute bottom-[-0.75rem] left-[1.1rem] top-10 w-px bg-border" aria-hidden="true" />
+                          )}
+                          <div className="relative z-10 mt-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-background text-primary shadow-sm">
+                            <ServiceIcon className="h-4 w-4" />
+                          </div>
+                          <Card className="min-w-0 flex-1 border-border/80 bg-background/90">
+                            <CardContent className="p-4">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div className="flex min-w-0 items-center gap-2">
+                                  <p className="truncate text-sm font-semibold">{t(`service_type_${wf.serviceType}` as any)}</p>
+                                  <Badge variant="outline" className={`shrink-0 gap-1 ${presentation.badgeClass}`}>
+                                    <StatusIcon className="h-3 w-3" />
+                                    {presentation.label}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <p className="mt-2 text-sm text-muted-foreground">{presentation.description}</p>
+                              {nextStep && (
+                                <p className="mt-2 text-xs font-medium text-foreground/80">
+                                  <span className="text-primary">{t("service_status_next_prefix")}</span>{" "}{nextStep}
+                                </p>
+                              )}
+                              {wf.updatedAt && (
+                                <p className="mt-3 flex items-center gap-1 text-[11px] text-muted-foreground">
+                                  <Clock className="h-3 w-3" />
+                                  {t("updated_label")} {new Date(wf.updatedAt).toLocaleString()}
+                                </p>
+                              )}
+                            </CardContent>
+                          </Card>
                         </div>
-                        <Badge variant={wf.status === "completed" ? "default" : "outline"} className="flex-shrink-0">
-                          {wf.status === "completed" ? <CheckCircle className="h-3 w-3 mr-1" /> : <Clock className="h-3 w-3 mr-1" />}
-                          {wf.status === "completed" ? t("done") : t(`workflow_status_${wf.status || "not_assigned"}` as any)}
-                        </Badge>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
         </TabsContent>
 
         {isLeaderGroup && (

@@ -545,6 +545,101 @@ export function registerBookingsRoutes(app: Express): void {
     } catch (e: any) { routeError(res, e); }
   });
 
+  app.post("/api/my-bookings/:id/payment-schedule/select-plan", isAuthenticated, async (req, res) => {
+    try {
+      const userId = getUserId(req);
+      if (!userId) return res.status(401).json({ message: "Unauthorized" });
+      const booking = await canAccessBooking(userId, req.params.id as string);
+      if (!booking) return res.status(403).json({ message: "Forbidden" });
+      if (["cancelled", "completed"].includes(booking.status || "")) {
+        return res.status(409).json({ message: "Cannot change payment plan for this booking" });
+      }
+      if (!booking.totalPrice || booking.totalPrice <= 0) {
+        return res.status(400).json({ message: "Booking has no total price" });
+      }
+
+      const parsed = z.object({
+        plan: z.enum(["full", "two_stage", "three_stage"]),
+      }).safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ message: "Invalid plan" });
+
+      const existing = await db.select().from(bookingPaymentSchedules).where(eq(bookingPaymentSchedules.bookingId, booking.id));
+      if (existing.some((s) => s.status === "paid" || s.status === "partially_paid" || new Decimal(s.paidAmount || 0).greaterThan(0))) {
+        return res.status(409).json({ message: "Payments have already been made; payment schedule cannot be modified" });
+      }
+
+      const total = new Decimal(booking.totalPrice);
+      const now = new Date();
+      let depDate: Date | null = null;
+      if (booking.departureId) {
+        const [dep] = await db.select().from(tourDepartures).where(eq(tourDepartures.id, booking.departureId));
+        if (dep?.startDate) depDate = new Date(dep.startDate);
+      }
+
+      // Final due date: 14 days before departure, or 30 days from now if no departure or departure is too close
+      let finalDue = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      if (depDate) {
+        const h14 = new Date(depDate.getTime() - 14 * 24 * 60 * 60 * 1000);
+        if (h14 > now) {
+          finalDue = h14;
+        } else {
+          const h3 = new Date(depDate.getTime() - 3 * 24 * 60 * 60 * 1000);
+          finalDue = h3 > now ? h3 : new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        }
+      }
+
+      let installments: { label: string; percentage: number; dueDate: Date }[] = [];
+      if (parsed.data.plan === "two_stage") {
+        installments = [
+          { label: "Uang Muka (DP 30%)", percentage: 30, dueDate: now },
+          { label: "Pelunasan Akhir (70%)", percentage: 70, dueDate: finalDue },
+        ];
+      } else if (parsed.data.plan === "three_stage") {
+        const midTime = now.getTime() + (finalDue.getTime() - now.getTime()) / 2;
+        const midDue = new Date(midTime);
+        installments = [
+          { label: "Uang Muka (DP 30%)", percentage: 30, dueDate: now },
+          { label: "Angsuran Ke-2 (35%)", percentage: 35, dueDate: midDue },
+          { label: "Pelunasan Akhir (35%)", percentage: 35, dueDate: finalDue },
+        ];
+      }
+
+      const rows = await db.transaction(async (tx) => {
+        await tx.delete(bookingPaymentSchedules).where(eq(bookingPaymentSchedules.bookingId, booking.id));
+        if (parsed.data.plan === "full" || installments.length === 0) {
+          return [];
+        }
+        let allocated = new Decimal(0);
+        const values = installments.map((inst, i) => {
+          const isLast = i === installments.length - 1;
+          const amount = isLast ? total.minus(allocated) : total.mul(inst.percentage).div(100).toDecimalPlaces(2);
+          allocated = allocated.plus(amount);
+          return {
+            bookingId: booking.id,
+            installmentNumber: i + 1,
+            label: inst.label,
+            percentage: String(inst.percentage),
+            amount: amount.toFixed(2),
+            currency: booking.currency ?? "USD",
+            dueDate: inst.dueDate,
+          };
+        });
+        return tx.insert(bookingPaymentSchedules).values(values).returning();
+      });
+
+      await storage.createAuditLog({
+        entityType: "booking_payment_schedule",
+        entityId: booking.id,
+        action: "plan_selected",
+        changedBy: userId,
+        newValue: parsed.data.plan,
+        note: `Customer selected ${parsed.data.plan} plan`,
+      }).catch(() => {});
+
+      res.status(200).json({ success: true, plan: parsed.data.plan, schedules: rows });
+    } catch (e: any) { routeError(res, e); }
+  });
+
   // ---- Leader Group Participants ----
   app.get("/api/my-bookings/:id/participants", isAuthenticated, async (req, res) => {
     try {

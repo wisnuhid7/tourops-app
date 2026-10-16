@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useRoute } from "wouter";
+import { useRoute, Link } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,10 +16,10 @@ import {
   ArrowLeft, Users, FileText, Workflow, MessageSquare, Plus, Send,
   CheckCircle, Clock, Link2, CreditCard, Upload, Copy, AlertTriangle,
   Plane, Hotel, Bus, UserCheck, Ticket, Eye, XCircle, ExternalLink, Download,
-  Printer, Globe, X, Loader2
+  Printer, Globe, X, Loader2, Building2
 } from "lucide-react";
-import { Link } from "wouter";
 import { useState } from "react";
+import { Progress } from "@/components/ui/progress";
 import { DocumentPreview } from "@/components/DocumentPreview";
 import type { Booking, Traveler, BookingWorkflow, Message, Document, Payment, BookingPaymentSchedule, Tour, TourDeparture } from "@workspace/db";
 import { useLanguage } from "@/hooks/use-language";
@@ -97,6 +97,42 @@ export default function CustomerBookingDetail() {
   const [paymentNotes, setPaymentNotes] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
+
+  const [showManualTransferDialog, setShowManualTransferDialog] = useState(false);
+  const [manualAmount, setManualAmount] = useState("");
+  const [manualReceiptUrl, setManualReceiptUrl] = useState("");
+  const [manualNotes, setManualNotes] = useState("");
+  const [isUploadingManualReceipt, setIsUploadingManualReceipt] = useState(false);
+  const [showPlanDialog, setShowPlanDialog] = useState(false);
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: `${label} berhasil disalin` });
+  };
+
+  const handleManualReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingManualReceipt(true);
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      setManualReceiptUrl(data.url);
+      toast({ title: "Bukti transfer berhasil diunggah" });
+    } catch {
+      toast({ title: "Gagal mengunggah gambar", variant: "destructive" });
+    } finally {
+      setIsUploadingManualReceipt(false);
+    }
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -277,6 +313,37 @@ export default function CustomerBookingDetail() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
+  const selectPaymentPlan = useMutation({
+    mutationFn: (plan: "full" | "two_stage" | "three_stage") =>
+      apiRequest("POST", `/api/my-bookings/${bookingId}/payment-schedule/select-plan`, { plan }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "payment-schedule"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/my-bookings", bookingId, "payments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/checkout", bookingId] });
+      setShowPlanDialog(false);
+      toast({ title: "Skema pembayaran berhasil diperbarui" });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const createManualPayment = useMutation({
+    mutationFn: (data: { amount: number; receiptUrl: string; notes?: string }) =>
+      apiRequest("POST", `/api/my-bookings/${bookingId}/payments`, {
+        ...data,
+        method: "bank_transfer",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/my-bookings", bookingId, "payments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "payment-schedule"] });
+      setShowManualTransferDialog(false);
+      setManualAmount("");
+      setManualReceiptUrl("");
+      setManualNotes("");
+      toast({ title: "Bukti transfer berhasil dikirim. Menunggu verifikasi tim finance." });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
   const [cancelReason, setCancelReason] = useState("");
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [showPaidCancelWarning, setShowPaidCancelWarning] = useState(false);
@@ -302,6 +369,17 @@ export default function CustomerBookingDetail() {
   const hasMissingTravelers = Array.isArray(travelers) && travelers.length < (booking.partySizeExpected || 1);
   const hasMissingPassportDetails = Array.isArray(travelers) && travelers.some((traveler) => !traveler.passportNumber);
   const hasPendingPayment = Array.isArray(pmts) && pmts.some((payment) => payment.status === "pending");
+
+  const totalPrice = Math.round(Number(booking?.totalPrice || 0));
+  const totalPaid = Array.isArray(pmts)
+    ? pmts.filter((p) => p.status === "paid").reduce((sum, p) => sum + (Number(p.amount) - Number(p.refundedAmount || 0)), 0)
+    : 0;
+  const remainingBalance = Math.max(0, totalPrice - totalPaid);
+  const isFullyPaid = totalPaid >= totalPrice && totalPrice > 0;
+  const progressPercent = totalPrice > 0 ? Math.min(100, Math.round((totalPaid / totalPrice) * 100)) : 0;
+  const nextUnpaidSchedule = Array.isArray(schedule)
+    ? schedule.find((s) => s.status !== "paid" && (parseFloat(s.amount) - parseFloat(s.paidAmount || "0")) > 0)
+    : null;
 
   const copyJoinCode = () => {
     if (booking?.joinCode) {
@@ -382,6 +460,90 @@ export default function CustomerBookingDetail() {
 
     doc.save(`Invoice_${booking.bookingCode}.pdf`);
     toast({ title: t("pdf_generated_title"), description: t("pdf_generated_desc") });
+  };
+
+  const downloadPaymentReceipt = (pmt: Payment) => {
+    if (!booking) return;
+    const doc = new jsPDF();
+
+    // Header Blue Bar
+    doc.setFillColor(17, 107, 176);
+    doc.rect(0, 0, 210, 40, "F");
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont("helvetica", "bold");
+    doc.text("TOUROPS", 15, 20);
+
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text("OFFICIAL PAYMENT RECEIPT & INVOICE", 15, 28);
+
+    doc.setTextColor(255, 255, 255);
+    doc.text(`Receipt #: REC-${pmt.id.slice(0, 8).toUpperCase()}`, 195, 20, { align: "right" });
+    doc.text(`Date: ${pmt.createdAt ? new Date(pmt.createdAt).toLocaleDateString() : new Date().toLocaleDateString()}`, 195, 28, { align: "right" });
+
+    // Payment Summary Section
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text("Rincian Pembayaran (Payment Details)", 15, 55);
+
+    autoTable(doc, {
+      startY: 60,
+      head: [["Informasi", "Keterangan"]],
+      body: [
+        ["Nomor Kuitansi / Receipt #", `REC-${pmt.id.slice(0, 8).toUpperCase()}`],
+        ["Kode Booking", booking.bookingCode || "N/A"],
+        ["Paket Tur", tourTitle || "Tour Package"],
+        ["Nama Pemesan", booking.groupName || "Customer"],
+        ["Metode Pembayaran", (pmt.method || "online").replace(/_/g, " ").toUpperCase()],
+        ["Waktu Transaksi", pmt.createdAt ? new Date(pmt.createdAt).toLocaleString() : "-"],
+        ["Status Pembayaran", (pmt.status || "PAID").toUpperCase()],
+        ["Nominal Pembayaran", `$${Number(pmt.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} ${pmt.currency || "USD"}`],
+        ["Catatan / Keterangan", pmt.notes || (pmt.paymentIntentId ? `Ref: ${pmt.paymentIntentId}` : "-")],
+      ],
+      theme: "striped",
+      headStyles: { fillColor: [240, 240, 240], textColor: [80, 80, 80], fontSize: 10 },
+      styles: { fontSize: 10 },
+    });
+
+    // Booking Totals Context
+    doc.setFontSize(13);
+    doc.setFont("helvetica", "bold");
+    doc.text("Ringkasan Akun Booking (Booking Account Summary)", 15, (doc as any).lastAutoTable.finalY + 15);
+
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 20,
+      head: [["Total Biaya Tur", "Total Telah Terbayar", "Sisa Tagihan"]],
+      body: [
+        [
+          `$${totalPrice.toLocaleString()} ${booking.currency || "USD"}`,
+          `$${totalPaid.toLocaleString()} ${booking.currency || "USD"}`,
+          `$${remainingBalance.toLocaleString()} ${booking.currency || "USD"}`,
+        ],
+      ],
+      headStyles: { fillColor: [17, 107, 176], textColor: [255, 255, 255] },
+      styles: { fontSize: 10, halign: "center" },
+    });
+
+    const finalY = (doc as any).lastAutoTable.finalY + 20;
+    doc.setFontSize(10);
+    doc.setTextColor(16, 185, 129); // Emerald
+    doc.setFont("helvetica", "bold");
+    doc.text("[TERVERIFIKASI & LUNAS - DOKUMEN RESMI TOUROPS]", 15, finalY);
+
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.setFont("helvetica", "normal");
+      doc.text("Terima kasih atas pembayaran Anda. PT TourOps Indonesia - Dokumen resmi yang dihasilkan oleh sistem.", 105, 285, { align: "center" });
+    }
+
+    doc.save(`Invoice_Receipt_${booking.bookingCode}_${pmt.id.slice(0, 8)}.pdf`);
+    toast({ title: "Invoice / Kuitansi berhasil diunduh", description: `Receipt #${pmt.id.slice(0, 8).toUpperCase()}` });
   };
 
   if (isLoading) return <div className="p-6"><Skeleton className="h-64" /></div>;
@@ -1322,48 +1484,365 @@ export default function CustomerBookingDetail() {
           )}
         </TabsContent>
 
-        <TabsContent value="payments" className="mt-4 space-y-4">
+        <TabsContent value="payments" className="mt-4 space-y-5">
+          {/* 1. Ringkasan Pembayaran & Progress */}
           {booking.totalPrice != null && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card>
-                <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
+            <Card className="border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+              <CardContent className="p-5 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="text-sm text-muted-foreground">{t("total_amount")}</p>
-                    <p className="text-2xl font-bold">${booking.totalPrice.toLocaleString()}</p>
+                    <h3 className="font-semibold text-base">{t("payment_status")}</h3>
+                    <p className="text-xs text-muted-foreground">Ringkasan status tagihan dan pembayaran booking Anda</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">{t("payment_status")}</p>
-                    {Array.isArray(pmts) && pmts.length > 0 ? (
-                      <Badge variant={pmts.every((p) => p.status === "paid") ? "default" : "secondary"}>
-                        {pmts.every((p) => p.status === "paid") ? t("paid_label") : t("partially_paid")}
+                    {isFullyPaid ? (
+                      <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white font-medium flex items-center gap-1">
+                        <CheckCircle className="h-3.5 w-3.5" />
+                        Tagihan Lunas (Fully Paid)
+                      </Badge>
+                    ) : totalPaid > 0 ? (
+                      <Badge className="bg-amber-500 hover:bg-amber-500 text-white font-medium">
+                        {t("partially_paid")} ({progressPercent}%)
                       </Badge>
                     ) : (
-                      <Badge variant="secondary">{t("unpaid")}</Badge>
+                      <Badge variant="secondary" className="font-medium">
+                        {t("unpaid")}
+                      </Badge>
                     )}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
 
-              <Card className="bg-primary/5 border-primary/20">
-                <CardContent className="p-4 space-y-3">
-                  <div className="flex items-center gap-2 text-primary">
-                    <CreditCard className="h-5 w-5" />
-                    <span className="font-bold">{t("online_payment")}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+                  <div className="p-3.5 rounded-lg bg-muted/40 border border-slate-100 dark:border-slate-800">
+                    <p className="text-xs text-muted-foreground font-medium mb-1">{t("total_amount")}</p>
+                    <p className="text-xl sm:text-2xl font-bold">${totalPrice.toLocaleString()}</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">{t("pay_securely_desc")}</p>
-                  <Link href={`/checkout/${booking.id}`}>
-                    <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold" data-testid="button-pay-online">
-                      {t("pay_with_card")}
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            </div>
+                  <div className="p-3.5 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40">
+                    <p className="text-xs text-emerald-800 dark:text-emerald-300 font-medium mb-1">Sudah Terbayar</p>
+                    <p className="text-xl sm:text-2xl font-bold text-emerald-600 dark:text-emerald-400">${totalPaid.toLocaleString()}</p>
+                  </div>
+                  <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
+                    <p className="text-xs text-muted-foreground font-medium mb-1">Sisa Tagihan</p>
+                    <p className={`text-xl sm:text-2xl font-bold ${remainingBalance > 0 ? "text-primary" : "text-muted-foreground"}`}>
+                      ${remainingBalance.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex justify-between text-xs text-muted-foreground font-medium">
+                    <span>Progress Pembayaran</span>
+                    <span>{progressPercent}%</span>
+                  </div>
+                  <Progress value={progressPercent} className="h-2.5" />
+                </div>
+              </CardContent>
+            </Card>
           )}
 
-          {/* Payment Schedule (installments) */}
+          {/* 2. Action Card: Lunas vs Bayar Online */}
+          {isFullyPaid ? (
+            <Card className="border-emerald-300 dark:border-emerald-800 bg-emerald-50/70 dark:bg-emerald-950/30 shadow-sm">
+              <CardContent className="p-6 flex flex-col sm:flex-row items-center gap-4 sm:gap-6 text-center sm:text-left">
+                <div className="h-14 w-14 rounded-full bg-emerald-100 dark:bg-emerald-900/60 flex items-center justify-center text-emerald-600 dark:text-emerald-300 shrink-0">
+                  <CheckCircle className="h-8 w-8" />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <h4 className="font-bold text-lg text-emerald-950 dark:text-emerald-100">Tagihan Telah Lunas</h4>
+                  <p className="text-xs sm:text-sm text-emerald-800 dark:text-emerald-300">
+                    Terima kasih! Seluruh pembayaran untuk booking ini telah selesai diproses. Anda siap menikmati perjalanan wisata Anda.
+                  </p>
+                </div>
+                <div className="shrink-0 w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto border-emerald-300 hover:bg-emerald-100 text-emerald-900 dark:text-emerald-100 font-semibold"
+                    onClick={downloadInvoice}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Unduh E-Invoice
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-primary/20 bg-primary/5 shadow-sm">
+              <CardContent className="p-5 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="space-y-1 text-center md:text-left">
+                  <div className="flex items-center justify-center md:justify-start gap-2 text-primary font-bold">
+                    <CreditCard className="h-5 w-5" />
+                    <span>Pembayaran Online Instan</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground max-w-xl">
+                    Bayar aman menggunakan Kartu Kredit, Debit Online, atau E-Wallet. Tagihan akan otomatis terverifikasi secara instan.
+                  </p>
+                </div>
+                <div className="w-full md:w-auto shrink-0">
+                  <Link href={nextUnpaidSchedule ? `/checkout/${booking.id}?installmentId=${nextUnpaidSchedule.id}` : `/checkout/${booking.id}`}>
+                    <Button
+                      size="lg"
+                      className="w-full md:w-auto bg-slate-900 hover:bg-slate-800 text-white font-bold shadow-md px-6"
+                      data-testid="button-pay-online"
+                    >
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      {nextUnpaidSchedule
+                        ? `Bayar Cicilan #${nextUnpaidSchedule.installmentNumber} ($${Math.max(0, parseFloat(nextUnpaidSchedule.amount) - parseFloat(nextUnpaidSchedule.paidAmount || "0")).toLocaleString()})`
+                        : `Bayar Sekarang ($${remainingBalance.toLocaleString()})`}
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 3. Self-Service Installment Plan Selection (Jika belum ada pembayaran) */}
+          {totalPaid === 0 && booking.status !== "cancelled" && (
+            <Card className="border-slate-200 dark:border-slate-800 bg-muted/20">
+              <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <p className="text-sm font-semibold flex items-center gap-1.5">
+                    <Clock className="h-4 w-4 text-primary" />
+                    Skema Pembayaran / Cicilan
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {Array.isArray(schedule) && schedule.length > 1
+                      ? `Saat ini menggunakan skema ${schedule.length} tahap angsuran.`
+                      : "Saat ini menggunakan pembayaran penuh sekaligus (100%). Anda dapat memilih untuk mencicil."}
+                  </p>
+                </div>
+                <div>
+                  <Dialog open={showPlanDialog} onOpenChange={setShowPlanDialog}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        Pilih / Ubah Skema
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Pilih Skema Pembayaran</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-3 py-2">
+                        <p className="text-xs text-muted-foreground">
+                          Pilih skema yang paling sesuai dengan rencana keuangan Anda. Jadwal jatuh tempo dihitung secara otomatis.
+                        </p>
+
+                        <div className="space-y-2">
+                          <button
+                            type="button"
+                            onClick={() => selectPaymentPlan.mutate("full")}
+                            disabled={selectPaymentPlan.isPending}
+                            className="w-full text-left p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-primary hover:bg-primary/5 transition-colors space-y-1"
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="font-semibold text-sm">Bayar Penuh Sekaligus (100%)</span>
+                              <Badge variant="outline" className="text-xs">1x Bayar</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Bayar lunas 100% langsung saat checkout. Tidak ada kewajiban cicilan berikutnya.
+                            </p>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => selectPaymentPlan.mutate("two_stage")}
+                            disabled={selectPaymentPlan.isPending}
+                            className="w-full text-left p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-primary hover:bg-primary/5 transition-colors space-y-1"
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="font-semibold text-sm">Paket 2 Tahap (DP + Pelunasan)</span>
+                              <Badge variant="secondary" className="text-xs">2x Angsuran</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              DP 30% dibayar sekarang + Pelunasan 70% selambat-lambatnya 14 hari sebelum keberangkatan tour.
+                            </p>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => selectPaymentPlan.mutate("three_stage")}
+                            disabled={selectPaymentPlan.isPending}
+                            className="w-full text-left p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-primary hover:bg-primary/5 transition-colors space-y-1"
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="font-semibold text-sm">Paket 3 Tahap (DP + Termin + Pelunasan)</span>
+                              <Badge variant="secondary" className="text-xs">3x Angsuran</Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              DP 30% sekarang + Termin kedua 35% di pertengahan periode + Pelunasan 35% pada H-14 keberangkatan.
+                            </p>
+                          </button>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="ghost" onClick={() => setShowPlanDialog(false)}>Tutup</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 4. Rekening Bank Transfer Manual & Konfirmasi */}
+          {!isFullyPaid && (
+            <Card className="border-blue-100 dark:border-blue-900/40 bg-blue-50/40 dark:bg-blue-950/20">
+              <CardContent className="p-4 sm:p-5 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    <div>
+                      <h4 className="font-semibold text-sm">Transfer Bank Manual</h4>
+                      <p className="text-xs text-muted-foreground">Transfer langsung ke rekening resmi perusahaan</p>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                    onClick={() => {
+                      if (!manualAmount) setManualAmount(remainingBalance.toString());
+                      setShowManualTransferDialog(true);
+                    }}
+                  >
+                    <Upload className="h-3.5 w-3.5 mr-1.5" />
+                    + Konfirmasi Transfer Manual
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1">
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-blue-100 dark:border-slate-800 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">Bank BCA</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => copyToClipboard("8830192888", "Nomor Rekening BCA")}
+                      >
+                        <Copy className="h-3 w-3 mr-1" /> Salin
+                      </Button>
+                    </div>
+                    <p className="font-mono font-bold text-sm">8830-192-888</p>
+                    <p className="text-[11px] text-muted-foreground">a/n PT TourOps Indonesia</p>
+                  </div>
+
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-blue-100 dark:border-slate-800 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">Bank Mandiri</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => copyToClipboard("1370019882999", "Nomor Rekening Mandiri")}
+                      >
+                        <Copy className="h-3 w-3 mr-1" /> Salin
+                      </Button>
+                    </div>
+                    <p className="font-mono font-bold text-sm">137-00-1988-2999</p>
+                    <p className="text-[11px] text-muted-foreground">a/n PT TourOps Indonesia</p>
+                  </div>
+
+                  <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-blue-100 dark:border-slate-800 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">Catatan Transfer</span>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+                        onClick={() => copyToClipboard(booking.bookingCode, "Kode Booking")}
+                      >
+                        <Copy className="h-3 w-3 mr-1" /> Salin
+                      </Button>
+                    </div>
+                    <p className="font-mono font-bold text-sm">{booking.bookingCode}</p>
+                    <p className="text-[11px] text-muted-foreground">Wajib dicantumkan di berita transfer</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Dialog Konfirmasi Pembayaran Transfer Manual */}
+          <Dialog open={showManualTransferDialog} onOpenChange={setShowManualTransferDialog}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Konfirmasi Transfer Bank Manual</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-1.5">
+                  <Label>Nominal yang Ditransfer (USD) *</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    placeholder="Contoh: 500"
+                    value={manualAmount}
+                    onChange={(e) => setManualAmount(e.target.value)}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Sisa tagihan saat ini: ${remainingBalance.toLocaleString()}
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Unggah Bukti Struk / Screenshot Transfer *</Label>
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleManualReceiptUpload}
+                      disabled={isUploadingManualReceipt}
+                      className="cursor-pointer text-xs"
+                    />
+                    {isUploadingManualReceipt && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
+                  </div>
+                  {manualReceiptUrl && (
+                    <div className="mt-2 p-2 bg-muted/30 border rounded-md">
+                      <p className="text-[10px] text-muted-foreground mb-1 text-center font-medium">Pratinjau Bukti Transfer</p>
+                      <img src={manualReceiptUrl} alt="Bukti Transfer" className="mx-auto rounded max-h-36 object-contain" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label>Catatan / Nomor Referensi (Opsional)</Label>
+                  <Textarea
+                    placeholder="Contoh: Transfer via m-BCA a/n Budi Santoso"
+                    value={manualNotes}
+                    onChange={(e) => setManualNotes(e.target.value)}
+                    rows={2}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowManualTransferDialog(false)}>{t("cancel")}</Button>
+                <Button
+                  onClick={() => {
+                    const amt = parseFloat(manualAmount);
+                    if (!amt || amt <= 0) {
+                      toast({ title: "Masukkan nominal transfer yang valid", variant: "destructive" });
+                      return;
+                    }
+                    if (!manualReceiptUrl) {
+                      toast({ title: "Harap unggah bukti transfer", variant: "destructive" });
+                      return;
+                    }
+                    createManualPayment.mutate({
+                      amount: amt,
+                      receiptUrl: manualReceiptUrl,
+                      notes: manualNotes,
+                    });
+                  }}
+                  disabled={createManualPayment.isPending || isUploadingManualReceipt || !manualReceiptUrl}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                >
+                  {createManualPayment.isPending ? "Mengirim..." : "Kirim Konfirmasi"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* 5. Jadwal Pembayaran (Installments Schedule) */}
           {Array.isArray(schedule) && schedule.length > 0 && (
-            <div className="space-y-2">
+            <div className="space-y-2 pt-2">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("payment_schedule_title")}</h3>
               {schedule.map((inst) => {
                 const now = new Date();
@@ -1402,7 +1881,14 @@ export default function CustomerBookingDetail() {
                           </p>
                         </div>
                       </div>
-                      <div>
+                      <div className="flex items-center gap-2">
+                        {inst.status !== "paid" && inst.status !== "cancelled" && remaining > 0 && (
+                          <Link href={`/checkout/${booking.id}?installmentId=${inst.id}`}>
+                            <Button size="sm" className="h-7 text-xs font-semibold bg-primary hover:bg-primary/90">
+                              Bayar Cicilan (${remaining.toFixed(2)})
+                            </Button>
+                          </Link>
+                        )}
                         {isOverdue ? (
                           <Badge variant="destructive" data-testid={`badge-schedule-status-${inst.id}`}>{t("schedule_overdue_flag")}</Badge>
                         ) : isDueSoon ? (
@@ -1424,112 +1910,128 @@ export default function CustomerBookingDetail() {
             </div>
           )}
 
-          {pmts && pmts.length > 0 ? (
-            <div className="space-y-2">
-              {pmts.map((pmt) => (
-                <Card key={pmt.id} data-testid={`card-payment-${pmt.id}`}>
-                  <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium">${Number(pmt.amount).toFixed(2)} {pmt.currency}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {pmt.method?.replace(/_/g, " ")} - {pmt.createdAt ? new Date(pmt.createdAt).toLocaleDateString() : ""}
-                      </p>
-                      {pmt.notes && <p className="text-xs text-muted-foreground mt-1">{pmt.notes}</p>}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={pmt.status === "paid" ? "default" : "secondary"}>
-                        {pmt.status === "paid" && <CheckCircle className="h-3 w-3 mr-1" />}
-                        {pmt.status || t("pending_label")}
-                      </Badge>
-                      {pmt.receiptUrl ? (
-                        <div className="flex items-center gap-1">
-                          <Button size="sm" variant="ghost" onClick={() => window.open(pmt.receiptUrl!, "_blank")} title={t("view_receipt")}>
-                            <ExternalLink className="h-3.5 w-3.5" />
+          {/* 6. Riwayat Pembayaran (Payment Records) */}
+          <div className="space-y-2 pt-2">
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Riwayat Pembayaran</h3>
+            {pmts && pmts.length > 0 ? (
+              <div className="space-y-2">
+                {pmts.map((pmt) => (
+                  <Card key={pmt.id} data-testid={`card-payment-${pmt.id}`}>
+                    <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold">${Number(pmt.amount).toFixed(2)} {pmt.currency}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {pmt.method?.replace(/_/g, " ")} • {pmt.createdAt ? new Date(pmt.createdAt).toLocaleDateString() : ""}
+                        </p>
+                        {pmt.notes && <p className="text-xs text-muted-foreground mt-1">{pmt.notes}</p>}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={pmt.status === "paid" ? "default" : "secondary"}>
+                          {pmt.status === "paid" && <CheckCircle className="h-3 w-3 mr-1" />}
+                          {pmt.status || t("pending_label")}
+                        </Badge>
+                        {pmt.status === "paid" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 text-xs font-medium border-primary/30 text-primary hover:bg-primary/5"
+                            onClick={() => downloadPaymentReceipt(pmt)}
+                            title="Unduh Invoice / Kuitansi Pembayaran Resmi"
+                          >
+                            <Download className="h-3.5 w-3.5 mr-1" />
+                            Unduh Invoice
                           </Button>
-                          <Button size="sm" variant="ghost" asChild title={t("download_receipt")}>
-                            <a href={pmt.receiptUrl} download={`receipt-${pmt.id}`}>
-                              <Download className="h-3.5 w-3.5" />
-                            </a>
-                          </Button>
-                        </div>
-                      ) : pmt.status === "pending" && (
-                        <Dialog open={activePayment?.id === pmt.id} onOpenChange={(open) => !open && setActivePayment(null)}>
-                          <DialogTrigger asChild>
-                            <Button size="sm" variant="outline" onClick={() => setActivePayment(pmt)}>
-                              <Upload className="h-3.5 w-3.5 mr-1" />
-                              {t("upload_proof")}
+                        )}
+                        {pmt.receiptUrl ? (
+                          <div className="flex items-center gap-1">
+                            <Button size="sm" variant="ghost" onClick={() => window.open(pmt.receiptUrl!, "_blank")} title={t("view_receipt")}>
+                              <ExternalLink className="h-3.5 w-3.5" />
                             </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>{t("upload_payment_proof")}</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4">
-                              <div className="space-y-2">
-                                <Label>{t("receipt_image_attachment")}</Label>
-                                <div className="flex gap-2 items-center">
-                                  <Input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleImageUpload}
-                                    disabled={isUploading}
-                                    className="cursor-pointer"
-                                  />
-                                  {isUploading && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
-                                </div>
-                                {receiptUrl && (
-                                  <div className="flex items-center gap-2 mt-2">
-                                    <Badge variant="outline" className="text-xs max-w-[200px] truncate">{receiptUrl}</Badge>
-                                    <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" onClick={() => setReceiptUrl("")}>
-                                      <X className="h-4 w-4" />
-                                    </Button>
-                                  </div>
-                                )}
-                                {receiptUrl && (
-                                  <div className="mt-3 p-2 bg-muted/20 border rounded-md">
-                                    <p className="text-[10px] text-muted-foreground mb-1 text-center font-medium">{t("image_preview")}</p>
-                                    <img src={receiptUrl} alt={t("receipt_preview")} className="mx-auto rounded max-h-32 object-contain" />
-                                  </div>
-                                )}
-                                <p className="text-[10px] text-muted-foreground mt-1 text-center border-t pt-2">{t("attach_transfer_proof_note")}</p>
-                              </div>
-                              <div className="space-y-2">
-                                <Label>{t("notes_optional")}</Label>
-                                <Textarea
-                                  placeholder={t("additional_info_placeholder")}
-                                  value={paymentNotes}
-                                  onChange={(e) => setPaymentNotes(e.target.value)}
-                                />
-                              </div>
-                            </div>
-                            <DialogFooter>
-                              <Button variant="outline" onClick={() => setActivePayment(null)}>{t("cancel")}</Button>
-                              <Button
-                                onClick={() => uploadReceipt.mutate({
-                                  paymentId: pmt.id,
-                                  data: { receiptUrl, notes: paymentNotes }
-                                })}
-                                disabled={!receiptUrl || uploadReceipt.isPending}
-                              >
-                                {uploadReceipt.isPending ? t("submitting") : t("submit_proof")}
+                            <Button size="sm" variant="ghost" asChild title={t("download_receipt")}>
+                              <a href={pmt.receiptUrl} download={`receipt-${pmt.id}`}>
+                                <Download className="h-3.5 w-3.5" />
+                              </a>
+                            </Button>
+                          </div>
+                        ) : pmt.status === "pending" && (
+                          <Dialog open={activePayment?.id === pmt.id} onOpenChange={(open) => !open && setActivePayment(null)}>
+                            <DialogTrigger asChild>
+                              <Button size="sm" variant="outline" onClick={() => setActivePayment(pmt)}>
+                                <Upload className="h-3.5 w-3.5 mr-1" />
+                                {t("upload_proof")}
                               </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center py-12">
-                <CreditCard className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                <p className="text-sm text-muted-foreground">{t("no_payment_records")}</p>
-              </CardContent>
-            </Card>
-          )}
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>{t("upload_payment_proof")}</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                  <Label>{t("receipt_image_attachment")}</Label>
+                                  <div className="flex gap-2 items-center">
+                                    <Input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={handleImageUpload}
+                                      disabled={isUploading}
+                                      className="cursor-pointer"
+                                    />
+                                    {isUploading && <Loader2 className="h-4 w-4 animate-spin shrink-0" />}
+                                  </div>
+                                  {receiptUrl && (
+                                    <div className="flex items-center gap-2 mt-2">
+                                      <Badge variant="outline" className="text-xs max-w-[200px] truncate">{receiptUrl}</Badge>
+                                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" onClick={() => setReceiptUrl("")}>
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                  {receiptUrl && (
+                                    <div className="mt-3 p-2 bg-muted/20 border rounded-md">
+                                      <p className="text-[10px] text-muted-foreground mb-1 text-center font-medium">{t("image_preview")}</p>
+                                      <img src={receiptUrl} alt={t("receipt_preview")} className="mx-auto rounded max-h-32 object-contain" />
+                                    </div>
+                                  )}
+                                  <p className="text-[10px] text-muted-foreground mt-1 text-center border-t pt-2">{t("attach_transfer_proof_note")}</p>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>{t("notes_optional")}</Label>
+                                  <Textarea
+                                    placeholder={t("additional_info_placeholder")}
+                                    value={paymentNotes}
+                                    onChange={(e) => setPaymentNotes(e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                              <DialogFooter>
+                                <Button variant="outline" onClick={() => setActivePayment(null)}>{t("cancel")}</Button>
+                                <Button
+                                  onClick={() => uploadReceipt.mutate({
+                                    paymentId: pmt.id,
+                                    data: { receiptUrl, notes: paymentNotes }
+                                  })}
+                                  disabled={!receiptUrl || uploadReceipt.isPending}
+                                >
+                                  {uploadReceipt.isPending ? t("submitting") : t("submit_proof")}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center py-12">
+                  <CreditCard className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                  <p className="text-sm text-muted-foreground">{t("no_payment_records")}</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="changes" className="mt-4 space-y-4">

@@ -64,7 +64,10 @@ export default function Checkout() {
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
   const [isInitializingIntent, setIsInitializingIntent] = useState(false);
-  const [selectedInstallmentId, setSelectedInstallmentId] = useState<string | null>(null);
+  const queryParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const urlInstallmentId = queryParams?.get("installmentId") || null;
+
+  const [selectedInstallmentId, setSelectedInstallmentId] = useState<string | null>(urlInstallmentId);
   const [phase, setPhase] = useState<"form" | "processing" | "success" | "failed">("form");
   const [failureReason, setFailureReason] = useState<string | null>(null);
 
@@ -79,14 +82,40 @@ export default function Checkout() {
     enabled: !!bookingId,
   });
 
+  // Automatically select target installment if booking has installment schedules
+  useEffect(() => {
+    if (!data?.schedules || data.schedules.length === 0) return;
+
+    if (urlInstallmentId) {
+      const match = data.schedules.find((s) => s.id === urlInstallmentId);
+      if (match && match.status !== "paid") {
+        setSelectedInstallmentId(urlInstallmentId);
+        return;
+      }
+    }
+
+    if (!selectedInstallmentId) {
+      const firstUnpaid = data.schedules.find(
+        (s) => s.status !== "paid" && (s.amount - s.paidAmount) > 0
+      );
+      if (firstUnpaid) {
+        setSelectedInstallmentId(firstUnpaid.id);
+      }
+    }
+  }, [data?.schedules, urlInstallmentId, selectedInstallmentId]);
+
+  const selectedSched = useMemo(() => {
+    if (!data?.schedules || !selectedInstallmentId) return null;
+    return data.schedules.find((s) => s.id === selectedInstallmentId) || null;
+  }, [data?.schedules, selectedInstallmentId]);
+
   const currentPayableAmount = useMemo(() => {
     if (!data) return 0;
-    if (selectedInstallmentId && data.schedules) {
-      const sched = data.schedules.find((s) => s.id === selectedInstallmentId);
-      if (sched) return Math.max(0, sched.amount - sched.paidAmount);
+    if (selectedSched) {
+      return Math.max(0, selectedSched.amount - selectedSched.paidAmount);
     }
     return Math.max(0, data.summary.total - data.alreadyPaid);
-  }, [data, selectedInstallmentId]);
+  }, [data, selectedSched]);
 
   const isStripe = config?.provider === "stripe" && !!config.publishableKey;
   const stripePromise = useMemo(() => {
@@ -195,72 +224,119 @@ export default function Checkout() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader><CardTitle className="text-base">{t("order_summary")}</CardTitle></CardHeader>
-        <CardContent className="space-y-2 text-sm">
-          <div className="flex justify-between"><span className="text-muted-foreground">{t("subtotal")}</span><span data-testid="text-subtotal">{fmt(summary.subtotal, summary.currency)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">{t("taxes")}{summary.taxRate ? ` (${summary.taxRate}%)` : ""}</span><span data-testid="text-taxes">{fmt(summary.taxes, summary.currency)}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">{t("service_fees")}</span><span data-testid="text-fees">{fmt(summary.fees, summary.currency)}</span></div>
-          {summary.discount > 0 && (
-            <div className="flex justify-between text-green-600"><span>{t("discount")}</span><span>-{fmt(summary.discount, summary.currency)}</span></div>
-          )}
-          <div className="flex justify-between border-t pt-2 font-bold text-base"><span>{t("total_label")}</span><span data-testid="text-total">{fmt(summary.total, summary.currency)}</span></div>
-        </CardContent>
-      </Card>
-
-      {data.schedules && data.schedules.length > 0 && !data.fullyPaid && phase !== "success" && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Pilihan Pembayaran</CardTitle>
+      {/* Detail Order Summary yang sesuai dengan apa yang dibayar */}
+      {selectedSched ? (
+        <Card className="border-slate-200 dark:border-slate-800 shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">{t("order_summary")}</CardTitle>
+              <Badge variant="secondary" className="text-xs font-semibold">
+                Cicilan #{selectedSched.installmentNumber}
+              </Badge>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div
-              className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                selectedInstallmentId === null
-                  ? "border-primary bg-primary/5"
-                  : "border-border hover:bg-muted/50"
-              }`}
-              onClick={() => setSelectedInstallmentId(null)}
-            >
+          <CardContent className="space-y-3 text-sm">
+            <div className="p-3.5 bg-primary/5 rounded-lg border border-primary/15 space-y-1">
               <div className="flex justify-between items-center">
-                <div>
-                  <p className="font-semibold text-sm">Bayar Lunas (Total)</p>
-                  <p className="text-xs text-muted-foreground">Lunasi seluruh tagihan booking</p>
-                </div>
-                <span className="font-bold text-sm">
-                  {fmt(Math.max(0, summary.total - data.alreadyPaid), summary.currency)}
+                <span className="font-semibold text-sm text-primary">
+                  {selectedSched.label}
+                </span>
+                <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded">
+                  {selectedSched.percentage}%
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Jatuh Tempo: {new Date(selectedSched.dueDate).toLocaleDateString()}
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-1 text-xs">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Total Nilai Paket Tur</span>
+                <span>{fmt(summary.total, summary.currency)}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Total Terbayar Sebelumnya</span>
+                <span className="text-emerald-600 font-medium">
+                  {fmt(data.alreadyPaid, summary.currency)}
                 </span>
               </div>
             </div>
 
+            <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-3 font-bold text-base">
+              <span>Jumlah yang Dibayar Sekarang</span>
+              <span className="text-primary text-lg" data-testid="text-total">
+                {fmt(currentPayableAmount, summary.currency)}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader><CardTitle className="text-base">{t("order_summary")}</CardTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <div className="flex justify-between"><span className="text-muted-foreground">{t("subtotal")}</span><span data-testid="text-subtotal">{fmt(summary.subtotal, summary.currency)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{t("taxes")}{summary.taxRate ? ` (${summary.taxRate}%)` : ""}</span><span data-testid="text-taxes">{fmt(summary.taxes, summary.currency)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{t("service_fees")}</span><span data-testid="text-fees">{fmt(summary.fees, summary.currency)}</span></div>
+            {summary.discount > 0 && (
+              <div className="flex justify-between text-green-600"><span>{t("discount")}</span><span>-{fmt(summary.discount, summary.currency)}</span></div>
+            )}
+            <div className="flex justify-between border-t pt-2 font-bold text-base"><span>{t("total_label")}</span><span data-testid="text-total">{fmt(summary.total, summary.currency)}</span></div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Tampilkan hanya cicilan nya saja ketika dibayar */}
+      {data.schedules && data.schedules.length > 1 && !data.fullyPaid && phase !== "success" && (
+        <Card className="border-slate-200 dark:border-slate-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Pilihan Cicilan</CardTitle>
+            <p className="text-xs text-muted-foreground">Pilih cicilan yang ingin Anda bayar saat ini</p>
+          </CardHeader>
+          <CardContent className="space-y-2.5">
             {data.schedules.map((sched) => {
               const remaining = Math.max(0, sched.amount - sched.paidAmount);
               const isPaid = sched.status === "paid" || remaining === 0;
+              const isSelected = selectedInstallmentId === sched.id;
               return (
                 <div
                   key={sched.id}
-                  className={`p-3 rounded-lg border transition-colors ${
+                  className={`p-3.5 rounded-lg border transition-all ${
                     isPaid
-                      ? "opacity-60 bg-muted/30 cursor-not-allowed"
-                      : selectedInstallmentId === sched.id
-                      ? "border-primary bg-primary/5 cursor-pointer"
-                      : "border-border hover:bg-muted/50 cursor-pointer"
+                      ? "opacity-50 bg-muted/30 cursor-not-allowed border-slate-200 dark:border-slate-800"
+                      : isSelected
+                      ? "border-primary bg-primary/5 cursor-pointer shadow-sm ring-1 ring-primary/20"
+                      : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-muted/30 cursor-pointer"
                   }`}
                   onClick={() => {
                     if (!isPaid) setSelectedInstallmentId(sched.id);
                   }}
                 >
-                  <div className="flex justify-between items-center">
-                    <div>
+                  <div className="flex justify-between items-center gap-3">
+                    <div className="space-y-0.5">
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-sm">{sched.label} ({sched.percentage}%)</p>
-                        {isPaid && <Badge variant="outline" className="text-xs text-green-600 border-green-300">Lunas</Badge>}
+                        <p className="font-semibold text-sm">
+                          Angsuran #{sched.installmentNumber}: {sched.label}
+                        </p>
+                        {isPaid ? (
+                          <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">
+                            Lunas
+                          </Badge>
+                        ) : isSelected ? (
+                          <Badge className="bg-primary text-xs">
+                            Dipilih
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">
+                            {sched.percentage}%
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         Jatuh tempo: {new Date(sched.dueDate).toLocaleDateString()}
                       </p>
                     </div>
-                    <span className="font-bold text-sm">
+                    <span className="font-bold text-sm shrink-0">
                       {fmt(remaining, summary.currency)}
                     </span>
                   </div>
@@ -272,12 +348,23 @@ export default function Checkout() {
       )}
 
       {phase === "success" || data.fullyPaid ? (
-        <Card className="border-green-300 bg-green-50 dark:bg-green-950/30">
-          <CardContent className="p-8 text-center space-y-3">
-            <CheckCircle2 className="h-14 w-14 text-green-600 mx-auto" />
+        <Card className="border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30">
+          <CardContent className="p-8 text-center space-y-4">
+            <CheckCircle2 className="h-14 w-14 text-emerald-600 mx-auto" />
             <h2 className="text-xl font-bold" data-testid="text-payment-success">{t("payment_successful_title")}</h2>
-            <p className="text-sm text-muted-foreground">{t("payment_successful_desc")}</p>
-            <Link href={`/my-bookings/${booking.id}`}><Button data-testid="button-view-booking">{t("view_booking")}</Button></Link>
+            <p className="text-sm text-muted-foreground">
+              Pembayaran Anda sebesar <strong className="text-foreground">{fmt(currentPayableAmount, summary.currency)}</strong> telah berhasil diproses.
+            </p>
+            <div className="p-3 bg-white/70 dark:bg-slate-900/60 rounded-lg border border-emerald-200 dark:border-emerald-900 text-xs text-muted-foreground max-w-md mx-auto">
+              Invoice dan tanda terima resmi pembayaran dapat langsung diunduh pada tab <strong>Riwayat Pembayaran</strong> di halaman detail booking Anda.
+            </div>
+            <div>
+              <Link href={`/my-bookings/${booking.id}`}>
+                <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold" data-testid="button-view-booking">
+                  Lihat Detail Booking & Riwayat Pembayaran
+                </Button>
+              </Link>
+            </div>
           </CardContent>
         </Card>
       ) : phase === "processing" ? (

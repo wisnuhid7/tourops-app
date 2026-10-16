@@ -270,6 +270,7 @@ export default function CustomerBookingDetail() {
     mutationFn: (reason: string) => apiRequest("POST", `/api/my-bookings/${bookingId}/cancel`, { reason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/my-bookings", bookingId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/my-bookings", bookingId, "workflows"] });
       queryClient.invalidateQueries({ queryKey: ["/api/my-bookings"] });
       toast({ title: t("booking_cancelled_success") });
     },

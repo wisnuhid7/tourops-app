@@ -374,6 +374,10 @@ export function registerBookingsRoutes(app: Express): void {
           });
         }
       }
+
+      if (req.body.status === "cancelled" && oldBooking?.status !== "cancelled") {
+        await storage.cancelBookingWorkflows(req.params.id as string, req.body.reason || "Booking status cancelled");
+      }
       
       res.json(updated);
     } catch (e: any) { routeError(res, e); }
@@ -635,6 +639,26 @@ export function registerBookingsRoutes(app: Express): void {
       if (booking.status === "completed") return res.status(400).json({ message: "Cannot cancel a completed booking" });
       const previousStatus = booking.status;
       const updated = await storage.updateBooking(req.params.id as string, { status: "cancelled" });
+
+      // Restore tour departure capacity if booking was confirmed
+      if (booking.departureId && booking.partySizeExpected && previousStatus === "confirmed") {
+        const partySize = booking.partySizeExpected;
+        await db.transaction(async (tx) => {
+          await tx.update(tourDepartures)
+            .set({
+              capacityBooked: sql`GREATEST(0, COALESCE(${tourDepartures.capacityBooked}, 0) - ${partySize})`
+            })
+            .where(eq(tourDepartures.id, booking.departureId!));
+          const [dep] = await tx.select().from(tourDepartures).where(eq(tourDepartures.id, booking.departureId!));
+          if (dep && dep.status === "sold_out" && (dep.capacityBooked || 0) < (dep.capacityTotal || 0)) {
+            await tx.update(tourDepartures).set({ status: "open" }).where(eq(tourDepartures.id, dep.id));
+          }
+        });
+      }
+
+      // Cascade cancel all service workflows and steps
+      await storage.cancelBookingWorkflows(req.params.id as string, req.body.reason || "Customer self-cancelled");
+
       // Audit trail
       const userName = await getUserName(req);
       await storage.createAuditLog({

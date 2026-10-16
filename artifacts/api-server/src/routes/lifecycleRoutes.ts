@@ -417,14 +417,17 @@ export function registerLifecycleRoutes(app: Express): void {
         .returning();
       if (!row) return res.status(409).json({ message: "Booking was updated concurrently; reload and retry" });
       // Cancellation releases seats.
-      if (parsed.data.status === "cancelled" && booking.departureId && booking.partySizeExpected) {
-        const [dep] = await db.select().from(tourDepartures).where(eq(tourDepartures.id, booking.departureId));
-        if (dep) {
-          const newBooked = Math.max(0, (dep.capacityBooked ?? 0) - booking.partySizeExpected);
-          await db.update(tourDepartures)
-            .set({ capacityBooked: newBooked, status: dep.status === "sold_out" ? "open" : dep.status })
-            .where(eq(tourDepartures.id, dep.id));
+      if (parsed.data.status === "cancelled") {
+        if (booking.departureId && booking.partySizeExpected) {
+          const [dep] = await db.select().from(tourDepartures).where(eq(tourDepartures.id, booking.departureId));
+          if (dep) {
+            const newBooked = Math.max(0, (dep.capacityBooked ?? 0) - booking.partySizeExpected);
+            await db.update(tourDepartures)
+              .set({ capacityBooked: newBooked, status: dep.status === "sold_out" ? "open" : dep.status })
+              .where(eq(tourDepartures.id, dep.id));
+          }
         }
+        await storage.cancelBookingWorkflows(id, parsed.data.reason || "Status changed to cancelled by ops");
       }
       await db.insert(bookingStatusHistory).values({
         bookingId: id, fromStatus: from, toStatus: parsed.data.status,

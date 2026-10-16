@@ -78,6 +78,8 @@ function StatusTab({ bookingId, status }: { bookingId: string; status: string })
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/bookings/${bookingId}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/bookings/${bookingId}/status-history`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workflows"] });
       setNext(""); setReason("");
       toast({ title: t("lc_apply") });
     },

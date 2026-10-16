@@ -385,6 +385,7 @@ export interface IStorage {
   markNotificationAsRead(id: string): Promise<Notification>;
 
   initializeBookingWorkflows(bookingId: string): Promise<void>;
+  cancelBookingWorkflows(bookingId: string, reason?: string): Promise<void>;
   getBookingByJoinCode(code: string): Promise<Booking | undefined>;
   getPublicGroupsByDeparture(departureId: string): Promise<Booking[]>;
   getPublicGroups(): Promise<any[]>;
@@ -1520,6 +1521,55 @@ export class DatabaseStorage implements IStorage {
         );
       }
     }
+  }
+
+  async cancelBookingWorkflows(bookingId: string, reason?: string): Promise<void> {
+    const wfs = await db.select().from(bookingWorkflows).where(eq(bookingWorkflows.bookingId, bookingId));
+    for (const wf of wfs) {
+      if (wf.status === "cancelled") continue;
+
+      const wasCompleted = wf.status === "completed";
+      const noteAppend = wasCompleted
+        ? `[Auto-Cancelled] Previously completed. ${reason || ""}`.trim()
+        : (reason ? `[Cancelled]: ${reason}`.trim() : "");
+      const newNotes = wf.notes ? `${wf.notes}\n${noteAppend}`.trim() : (noteAppend || null);
+
+      await db.update(bookingWorkflows)
+        .set({
+          status: "cancelled",
+          notes: newNotes,
+          updatedAt: new Date(),
+        })
+        .where(eq(bookingWorkflows.id, wf.id));
+
+      // Skip remaining pending or blocked steps
+      await db.update(workflowSteps)
+        .set({
+          status: "skipped",
+          updatedAt: new Date(),
+        })
+        .where(and(
+          eq(workflowSteps.workflowId, wf.id),
+          or(eq(workflowSteps.status, "pending"), eq(workflowSteps.status, "blocked"))
+        ));
+
+      // Notify assigned staff if present
+      if (wf.assignedUserId) {
+        await this.createNotification({
+          userId: wf.assignedUserId,
+          type: "booking_update",
+          title: "Service Cancelled 🚫",
+          message: `The ${wf.serviceType} service workflow has been cancelled due to booking cancellation.${reason ? ` (${reason})` : ""}`,
+        }).catch(() => {});
+      }
+    }
+
+    // Mark assignments as unassigned
+    await db.update(bookingAssignments)
+      .set({
+        status: "unassigned",
+      })
+      .where(eq(bookingAssignments.bookingId, bookingId));
   }
 
 

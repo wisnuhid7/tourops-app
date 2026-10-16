@@ -74,6 +74,7 @@ export default function CustomerBookingDetail() {
   const [docType, setDocType] = useState("passport");
   const [docFileName, setDocFileName] = useState("");
   const [docFileUrl, setDocFileUrl] = useState("");
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
   const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
   const [addTravelerForBookingId, setAddTravelerForBookingId] = useState<string | null>(null);
   const [ptFirstName, setPtFirstName] = useState("");
@@ -109,6 +110,32 @@ export default function CustomerBookingDetail() {
       toast({ title: t("receipt_upload_failed"), variant: "destructive" });
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleDocumentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingDoc(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/upload-document", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      setDocFileUrl(data.url);
+      if (!docFileName) setDocFileName(file.name);
+      toast({ title: t("receipt_uploaded_success") });
+    } catch {
+      toast({ title: t("receipt_upload_failed"), variant: "destructive" });
+    } finally {
+      setIsUploadingDoc(false);
+      e.target.value = "";
     }
   };
 
@@ -886,6 +913,16 @@ export default function CustomerBookingDetail() {
                     <Input value={docFileName} onChange={(e) => setDocFileName(e.target.value)} placeholder="passport_john.pdf" data-testid="input-doc-filename" />
                   </div>
                   <div>
+                    <Label>{t("file_upload_optional_label")}</Label>
+                    <Input
+                      type="file"
+                      accept=".pdf,image/*"
+                      disabled={isUploadingDoc}
+                      onChange={handleDocumentUpload}
+                      data-testid="input-doc-file-upload"
+                    />
+                  </div>
+                  <div>
                     <Label>{t("file_url_path")}</Label>
                     <Input value={docFileUrl} onChange={(e) => setDocFileUrl(e.target.value)} placeholder="https://example.com/doc.pdf" data-testid="input-doc-fileurl" />
                   </div>
@@ -898,10 +935,10 @@ export default function CustomerBookingDetail() {
                       fileName: docFileName,
                       fileUrl: docFileUrl || undefined,
                     })}
-                    disabled={!docFileName || uploadDoc.isPending}
+                    disabled={!docFileName || !docFileUrl || uploadDoc.isPending || isUploadingDoc}
                     data-testid="button-submit-doc"
                   >
-                    {uploadDoc.isPending ? t("uploading") : t("upload_label")}
+                    {uploadDoc.isPending || isUploadingDoc ? t("uploading") : t("upload_label")}
                   </Button>
                 </div>
               </DialogContent>

@@ -787,7 +787,7 @@ export default function SupplierDashboard() {
                           <td className="p-2 text-right">
                             {d.fileUrl && (
                               <Button size="icon" variant="ghost" asChild>
-                                <a href={d.fileUrl} target="_blank" rel="noreferrer"><Download className="h-4 w-4" /></a>
+                                <a href={getFullImageUrl(d.fileUrl)} target="_blank" rel="noreferrer"><Download className="h-4 w-4" /></a>
                               </Button>
                             )}
                           </td>
@@ -880,6 +880,7 @@ export default function SupplierDashboard() {
               <Label>{t("file_upload_optional_label")}</Label>
               <Input
                 type="file" 
+                accept=".pdf,image/*"
                 disabled={isUploadingFile}
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
@@ -887,8 +888,8 @@ export default function SupplierDashboard() {
                   setIsUploadingFile(true);
                   try {
                     const formData = new FormData();
-                    formData.append("image", file);
-                    const res = await fetch("/api/upload", {
+                    formData.append("file", file);
+                    const res = await fetch("/api/upload-document", {
                       method: "POST",
                       body: formData,
                     });

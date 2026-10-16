@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import path from "path";
 import fs from "fs";
+import multer from "multer";
 import bcrypt from "bcryptjs";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod/v4";
@@ -11,6 +12,42 @@ import { authStorage } from "../replit_integrations/auth/storage";
 import { authTokens, db, notifications, userProfiles, userRoleEnum, users } from "@workspace/db";
 import { ADMIN_ROLES, PLATFORM_WIDE_READ_ROLES, getUserId, requireRole } from "../middleware/auth";
 import { upload, sniffImageMime } from "./shared";
+
+const DOCUMENT_MIME_EXT: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+};
+
+const documentUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      const dir = path.join(process.cwd(), "uploads", "documents");
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (_req, file, cb) => {
+      const ext = DOCUMENT_MIME_EXT[file.mimetype] ?? ".bin";
+      cb(null, `${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`);
+    },
+  }),
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!DOCUMENT_MIME_EXT[file.mimetype]) {
+      return cb(new Error("Only PDF and image files are allowed"));
+    }
+    cb(null, true);
+  },
+});
+
+function sniffDocumentMime(buffer: Buffer, declaredMime: string): boolean {
+  if (declaredMime === "application/pdf") {
+    return buffer.length >= 5 && buffer.toString("ascii", 0, 5) === "%PDF-";
+  }
+  return sniffImageMime(buffer, declaredMime);
+}
 
 // Image uploads directory + endpoint, and user profile management. Extracted
 // verbatim from routes.ts - behaviour and registration order unchanged.
@@ -49,6 +86,33 @@ export function registerAccountsRoutes(app: Express): void {
       }
 
       res.json({ url: `/uploads/images/${req.file.filename}` });
+    });
+  });
+
+  app.post("/api/upload-document", isAuthenticated, (req, res, next) => {
+    documentUpload.single("file")(req, res, async (err) => {
+      if (err) {
+        if ((err as any).code === "LIMIT_FILE_SIZE") {
+          return res.status(413).json({ message: "File too large" });
+        }
+        return res.status(415).json({ message: "Only PDF and image files are allowed" });
+      }
+      if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+      try {
+        const fh = await fs.promises.open(req.file.path, "r");
+        const { buffer, bytesRead } = await fh.read(Buffer.alloc(16), 0, 16, 0);
+        await fh.close();
+        if (!sniffDocumentMime(buffer.subarray(0, bytesRead), req.file.mimetype)) {
+          await fs.promises.unlink(req.file.path).catch(() => {});
+          return res.status(415).json({ message: "File content does not match its declared type" });
+        }
+      } catch {
+        await fs.promises.unlink(req.file.path).catch(() => {});
+        return res.status(400).json({ message: "Unable to validate uploaded file" });
+      }
+
+      res.json({ url: `/uploads/documents/${req.file.filename}` });
     });
   });
 

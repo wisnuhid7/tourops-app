@@ -225,17 +225,24 @@ export function AppSidebar() {
       ? currentUrl === url
       : location === url && !queryNavItems.some((i) => i.url.includes("?") && currentUrl === i.url);
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const defaultGroupOpen = !!profile?.role && profile.role !== "admin" && profile.role !== "super_admin";
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    navItems.forEach((item) => {
+      if (isNavGroup(item)) initial[item.url] = defaultGroupOpen || item.children.some((child) => isItemActive(child.url));
+    });
+    return initial;
+  });
 
   useEffect(() => {
     const next: Record<string, boolean> = {};
     navItems.forEach((item) => {
       if (isNavGroup(item)) {
-        next[item.url] = item.children.some((child) => isItemActive(child.url));
+        next[item.url] = defaultGroupOpen || item.children.some((child) => isItemActive(child.url));
       }
     });
     setOpenGroups((previous) => ({ ...previous, ...next }));
-  }, [currentUrl, profile?.role]);
+  }, [currentUrl, profile?.role, defaultGroupOpen]);
 
   const closeMobileAfterNavigation = () => {
     if (isMobile) setOpenMobile(false);

@@ -325,6 +325,31 @@ function HotelRatesTab() {
     return validCities.filter((c) => c.countryId === matchedCountry.id);
   }, [citiesList, countries, countryCode]);
 
+  const filteredHotels = useMemo(() => {
+    const validHotels = (hotels || []).filter((hotel) => hotel.id && hotel.name);
+    const selectedCountry = (countryCode || "").trim().toLowerCase();
+    const selectedCity = (city || "").trim().toLowerCase();
+
+    const matchesFilter = (hotel: any) => {
+      const hotelCountry = String(hotel.countryCode || "").trim().toLowerCase();
+      const hotelCity = String(hotel.city || "").trim().toLowerCase();
+      const matchesCountry = !selectedCountry || hotelCountry === selectedCountry;
+      const matchesCity = !selectedCity || hotelCity === selectedCity;
+      return matchesCountry && matchesCity;
+    };
+
+    return validHotels.filter(matchesFilter).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  }, [hotels, countryCode, city]);
+
+  useEffect(() => {
+    if (!hotelId) return;
+    const stillVisible = filteredHotels.some((hotel) => hotel.id === hotelId);
+    if (!stillVisible) {
+      setHotelId("");
+      setHotelName("");
+    }
+  }, [filteredHotels, hotelId]);
+
   const resetForm = () => {
     setCountryCode(""); setCity(""); setHotelId(""); setHotelName(""); setHotelCode(""); setRoomType("");
     setMealPlan(""); setCurrency("USD"); setValidFrom(""); setValidTo(""); setPricePerRoomPerNight("");
@@ -559,22 +584,23 @@ function HotelRatesTab() {
             </div>
             <div>
               <Label>{t("hotel_name")} *</Label>
-              <Select
-                value={hotelId || "__none__"}
-                onValueChange={(value) => {
-                  const selectedHotel = hotels?.find((hotel) => hotel.id === value);
-                  setHotelId(value === "__none__" ? "" : value);
-                  setHotelName(selectedHotel?.name || "");
-                }}
-              >
-                <SelectTrigger data-testid="select-hotel-name"><SelectValue placeholder={t("select_placeholder")} /></SelectTrigger>
-                <SelectContent className="max-h-60">
-                  <SelectItem value="__none__">-- {t("select_placeholder")} --</SelectItem>
-                  {(hotels || []).filter((hotel) => hotel.id && hotel.name).map((hotel) => (
-                    <SelectItem key={hotel.id} value={hotel.id}>{hotel.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <Select
+                  value={hotelId || "__none__"}
+                  onValueChange={(value) => {
+                    const selectedHotel = hotels?.find((hotel) => hotel.id === value);
+                    setHotelId(value === "__none__" ? "" : value);
+                    setHotelName(selectedHotel?.name || "");
+                  }}
+                >
+                  <SelectTrigger data-testid="select-hotel-name"><SelectValue placeholder={t("select_placeholder")} /></SelectTrigger>
+                  <SelectContent className="max-h-60">
+                    <SelectItem value="__none__">-- {t("select_placeholder")} --</SelectItem>
+                    {filteredHotels.map((hotel) => (
+                      <SelectItem key={hotel.id} value={hotel.id}>{hotel.name}</SelectItem>
+                    ))}
+                    {filteredHotels.length === 0 && <SelectItem value="__none__" disabled>{t("no_results")}</SelectItem>}
+                  </SelectContent>
+                </Select>
               {hotelName && !hotelId && <p className="text-xs text-muted-foreground mt-1">{hotelName}</p>}
             </div>
             <div><Label>{t("hotel_code")}</Label><Input value={hotelCode} onChange={(e) => setHotelCode(e.target.value)} data-testid="input-hotel-code" /></div>

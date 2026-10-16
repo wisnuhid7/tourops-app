@@ -226,6 +226,7 @@ export default function SupplierDashboard() {
   const [rateDialogOpen, setRateDialogOpen] = useState(false);
   const [rateType, setRateType] = useState<"hotel" | "guide" | "sights" | "airline">("hotel");
   const [editingRate, setEditingRate] = useState<any>(null);
+  const [selectedHotelId, setSelectedHotelId] = useState("");
   const [guidePhotoUrl, setGuidePhotoUrl] = useState<string | null>(null);
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
@@ -233,6 +234,14 @@ export default function SupplierDashboard() {
   useEffect(() => {
     if (rateDialogOpen) setGuidePhotoUrl(editingRate?.photoUrl || null);
   }, [rateDialogOpen, editingRate]);
+
+  useEffect(() => {
+    if (!rateDialogOpen || rateType !== "hotel") return;
+    const hotelName = String(editingRate?.hotelName || "").trim().toLowerCase();
+    const matchedHotel = (hotels || []).find((hotel: any) => hotel.id === editingRate?.hotelId)
+      || (hotelName ? (hotels || []).find((hotel: any) => String(hotel.name || "").trim().toLowerCase() === hotelName) : undefined);
+    setSelectedHotelId(matchedHotel?.id || "");
+  }, [rateDialogOpen, rateType, editingRate, hotels]);
 
   const handleGuidePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -932,7 +941,13 @@ export default function SupplierDashboard() {
             // status so saving unrelated fields doesn't silently change it.
             if (editingRate) data.status = editingRate.status;
             if (rateType === "hotel") {
-              data.hotelName = fd.get("hotelName");
+              const selectedHotel = (hotels || []).find((hotel: any) => hotel.id === selectedHotelId);
+              if (!selectedHotel) {
+                toast({ title: t("select_hotel"), variant: "destructive" });
+                return;
+              }
+              data.hotelId = selectedHotel.id;
+              data.hotelName = selectedHotel.name;
               data.roomType = fd.get("roomType");
               // price maps to a numeric column -> the insert schema expects a string
               data.pricePerRoomPerNight = fd.get("price");
@@ -971,7 +986,26 @@ export default function SupplierDashboard() {
             <div className="space-y-4 pt-4 overflow-y-auto flex-1 pr-1 -mr-1">
             {rateType === "hotel" && (
               <>
-                <div className="space-y-2"><Label>{t("hotel_name")}</Label><Input name="hotelName" defaultValue={editingRate?.hotelName} required /></div>
+                <div className="space-y-2">
+                  <Label>{t("hotel_name")}</Label>
+                  <Select value={selectedHotelId || "__none__"} onValueChange={(value) => setSelectedHotelId(value === "__none__" ? "" : value)}>
+                    <SelectTrigger data-testid="select-hotel-name">
+                      <SelectValue placeholder={t("select_placeholder")} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-60">
+                      <SelectItem value="__none__">-- {t("select_placeholder")} --</SelectItem>
+                      {(hotels || []).filter((hotel: any) => hotel.id && hotel.name).map((hotel: any) => (
+                        <SelectItem key={hotel.id} value={hotel.id}>{hotel.name}</SelectItem>
+                      ))}
+                      {(hotels || []).length === 0 && <SelectItem value="__none__" disabled>{t("no_results")}</SelectItem>}
+                    </SelectContent>
+                  </Select>
+                  {selectedHotelId && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {(hotels || []).find((hotel: any) => hotel.id === selectedHotelId)?.name}
+                    </p>
+                  )}
+                </div>
                 <div className="space-y-2"><Label>{t("room_type")}</Label><Input name="roomType" defaultValue={editingRate?.roomType} required /></div>
                 <div className="space-y-2"><Label>{t("price_per_night")}</Label><Input type="number" name="price" defaultValue={editingRate?.pricePerRoomPerNight} required /></div>
               </>

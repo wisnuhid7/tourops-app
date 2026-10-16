@@ -161,54 +161,62 @@ export function registerOpsRoutes(app: Express): void {
     try {
       if (!await requireRole(req, res, OPS_DISPATCH_ROLES)) return;
       const userId = getUserId(req);
-      const assignData = { ...req.body, bookingId: req.params.id as string, assignedBy: userId };
+      const bookingId = req.params.id as string;
+      const assignData = { ...req.body, bookingId, assignedBy: userId };
       const assignment = await storage.createAssignment(assignData);
 
-      const wf = await storage.createWorkflow({
-        bookingId: req.params.id as string, countryCode: req.body.countryCode,
-        serviceType: req.body.serviceType, assignedUserId: req.body.assignedUserId,
-        status: "assigned",
-      });
+      // Check if workflow for this serviceType already exists for this booking
+      const existingWorkflows = await storage.getWorkflows(bookingId);
+      const existingWf = existingWorkflows.find(w => w.serviceType === req.body.serviceType);
 
-      const steps = SERVICE_WORKFLOW_STEPS[req.body.serviceType] || [];
-      for (let i = 0; i < steps.length; i++) {
-        await storage.createWorkflowStep({
-          workflowId: wf.id, stepOrder: i + 1,
-          stepCode: steps[i].code, stepName: steps[i].name, status: "pending",
+      let targetWf = existingWf;
+      if (existingWf) {
+        // Reuse and update the existing workflow to prevent duplicates
+        targetWf = await storage.updateWorkflow(existingWf.id, {
+          assignedUserId: req.body.assignedUserId,
+          countryCode: req.body.countryCode || existingWf.countryCode,
+          status: existingWf.status === "not_assigned" ? "assigned" : existingWf.status,
         });
-      }
-      if (steps.length > 0) {
-        await storage.updateWorkflow(wf.id, { currentStep: steps[0].name });
-      }
+      } else {
+        // Only create new workflow if none exists yet
+        targetWf = await storage.createWorkflow({
+          bookingId, countryCode: req.body.countryCode,
+          serviceType: req.body.serviceType, assignedUserId: req.body.assignedUserId,
+          status: "assigned",
+        });
 
-      res.json({ success: true, message: "Booking confirmed and workflows initialized" });
-
-      // Notify Customer & Staff in background via email queue (non-blocking)
-      try {
-        const booking = await storage.getBooking(req.params.id as string);
-        if (!booking) return;
-
-        const customerProfile = await storage.getProfileByUserIdWithEmail(booking.customerId);
-        if (customerProfile?.user?.email) {
-          sendBookingConfirmedNotification(customerProfile.user.email, booking);
+        const steps = SERVICE_WORKFLOW_STEPS[req.body.serviceType] || [];
+        for (let i = 0; i < steps.length; i++) {
+          await storage.createWorkflowStep({
+            workflowId: targetWf.id, stepOrder: i + 1,
+            stepCode: steps[i].code, stepName: steps[i].name, status: "pending",
+          });
         }
+        if (steps.length > 0) {
+          await storage.updateWorkflow(targetWf.id, { currentStep: steps[0].name });
+        }
+      }
 
-        const workflows = await storage.getWorkflows(req.params.id as string);
-        for (const wf of workflows) {
-          if (wf.assignedUserId) {
-            const staffProfile = await storage.getProfileByUserIdWithEmail(wf.assignedUserId);
+      res.json({ success: true, message: "Assignment created and workflow updated", assignment, workflow: targetWf });
+
+      // Notify Staff in background via email queue if assigned
+      if (req.body.assignedUserId && targetWf) {
+        try {
+          const booking = await storage.getBooking(bookingId);
+          if (booking) {
+            const staffProfile = await storage.getProfileByUserIdWithEmail(req.body.assignedUserId);
             if (staffProfile?.user?.email) {
               sendAssignmentNotification(
                 staffProfile.user.email,
-                wf.serviceType,
+                targetWf.serviceType,
                 booking.bookingCode,
-                wf.id
+                targetWf.id
               );
             }
           }
+        } catch (err) {
+          console.error("Assignment notification failed:", err);
         }
-      } catch (err) {
-        console.error("Post-confirmation notifications failed:", err);
       }
     } catch (e: any) { routeError(res, e); }
   });
@@ -232,6 +240,19 @@ export function registerOpsRoutes(app: Express): void {
       if (Object.keys(patch).length === 0) return res.status(400).json({ message: "No updatable fields provided" });
       const updated = await storage.updateAssignment(req.params.id as string, patch as any);
       if (!updated) return res.status(404).json({ message: "Assignment not found" });
+
+      // Sync to workflow
+      if (patch.assignedUserId !== undefined) {
+        const workflows = await storage.getWorkflows(updated.bookingId);
+        const matchedWf = workflows.find(w => w.serviceType === updated.serviceType);
+        if (matchedWf) {
+          await storage.updateWorkflow(matchedWf.id, {
+            assignedUserId: patch.assignedUserId,
+            status: patch.assignedUserId ? (matchedWf.status === "not_assigned" ? "assigned" : matchedWf.status) : "not_assigned",
+          });
+        }
+      }
+
       res.json(updated);
     } catch (e: any) { routeError(res, e); }
   });
@@ -239,6 +260,18 @@ export function registerOpsRoutes(app: Express): void {
   app.delete("/api/assignments/:id", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, OPS_DISPATCH_ROLES)) return;
+      const allAssignments = await storage.getAllAssignments();
+      const targetAssignment = allAssignments.find(a => a.id === req.params.id);
+      if (targetAssignment) {
+        const workflows = await storage.getWorkflows(targetAssignment.bookingId);
+        const matchedWf = workflows.find(w => w.serviceType === targetAssignment.serviceType);
+        if (matchedWf && matchedWf.assignedUserId === targetAssignment.assignedUserId) {
+          await storage.updateWorkflow(matchedWf.id, {
+            assignedUserId: null,
+            status: matchedWf.status === "assigned" ? "not_assigned" : matchedWf.status,
+          });
+        }
+      }
       await storage.deleteAssignment(req.params.id as string);
       res.json({ success: true });
     } catch (e: any) { routeError(res, e); }
@@ -321,8 +354,9 @@ export function registerOpsRoutes(app: Express): void {
       const wf = await storage.getWorkflow(req.params.id as string);
       if (!wf) return res.status(404).json({ message: "Workflow not found" });
       const isFlightAgentOnAirlineWf = profile.role === "flight_agent" && wf.serviceType === "airline";
+      let updatedWf;
       if (profile.role === "admin" || profile.role === "super_admin" || profile.role === "operations_manager") {
-        res.json(await storage.updateWorkflow(req.params.id as string, req.body));
+        updatedWf = await storage.updateWorkflow(req.params.id as string, req.body);
       } else if (wf.assignedUserId === userId || isFlightAgentOnAirlineWf) {
         // Non-admin updaters (assigned staff, or flight_agent on airline tasks)
         // may only touch task progress fields — not assignment/linkage/service metadata.
@@ -331,10 +365,59 @@ export function registerOpsRoutes(app: Express): void {
         for (const key of Object.keys(req.body || {})) {
           if (TASK_FIELDS.includes(key)) body[key] = req.body[key];
         }
-        res.json(await storage.updateWorkflow(req.params.id as string, body));
+        updatedWf = await storage.updateWorkflow(req.params.id as string, body);
       } else {
-        res.status(403).json({ message: "Forbidden" });
+        return res.status(403).json({ message: "Forbidden" });
       }
+
+      // If assignedUserId was modified by admin/ops, sync with booking_assignments & notify
+      if (req.body.assignedUserId !== undefined && req.body.assignedUserId !== wf.assignedUserId) {
+        try {
+          const booking = await storage.getBooking(wf.bookingId);
+          const existingAssignments = await storage.getAssignments(wf.bookingId);
+          const matchedAssignment = existingAssignments.find(a => a.serviceType === wf.serviceType);
+
+          if (req.body.assignedUserId) {
+            if (matchedAssignment) {
+              await storage.updateAssignment(matchedAssignment.id, {
+                assignedUserId: req.body.assignedUserId,
+                status: "assigned",
+              });
+            } else {
+              await storage.createAssignment({
+                bookingId: wf.bookingId,
+                serviceType: wf.serviceType,
+                assignedUserId: req.body.assignedUserId,
+                assignedBy: userId,
+                countryCode: wf.countryCode || undefined,
+                status: "assigned",
+              });
+            }
+
+            if (booking) {
+              const staffProfile = await storage.getProfileByUserIdWithEmail(req.body.assignedUserId);
+              if (staffProfile?.user?.email) {
+                sendAssignmentNotification(
+                  staffProfile.user.email,
+                  wf.serviceType,
+                  booking.bookingCode,
+                  wf.id
+                );
+              }
+            }
+          } else if (matchedAssignment) {
+            // Unassigned
+            await storage.updateAssignment(matchedAssignment.id, {
+              assignedUserId: null,
+              status: "unassigned",
+            });
+          }
+        } catch (syncErr) {
+          console.error("Workflow assignment sync/notification failed:", syncErr);
+        }
+      }
+
+      res.json(updatedWf);
     } catch (e: any) { routeError(res, e); }
   });
 

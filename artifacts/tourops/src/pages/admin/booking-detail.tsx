@@ -195,10 +195,25 @@ export default function AdminBookingDetail() {
     },
   });
 
+  const updateWorkflow = useMutation({
+    mutationFn: ({ id, ...data }: { id: string; [key: string]: any }) =>
+      apiRequest("PATCH", `/api/workflows/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/assignments"] });
+      toast({ title: t("workflow_updated") });
+    },
+    onError: () => toast({ title: t("update_failed"), variant: "destructive" }),
+  });
+
   const createAssignment = useMutation({
     mutationFn: (data: any) => apiRequest("POST", `/api/bookings/${bookingId}/assignments`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workflows"] });
       toast({ title: t("assignment_created") });
     },
   });
@@ -207,6 +222,8 @@ export default function AdminBookingDetail() {
     mutationFn: (id: string) => apiRequest("DELETE", `/api/assignments/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "workflows"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workflows"] });
       toast({ title: t("assignment_removed") });
     },
   });
@@ -912,6 +929,18 @@ export default function AdminBookingDetail() {
 
         {/* TAB C: Assignments */}
         <TabsContent value="assignments" className="mt-4 space-y-4">
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <Workflow className="h-4 w-4 text-primary shrink-0" />
+                <span>{t("assignments_synced_service_status_hint") || "Assignments are directly integrated with Service Status. You can also assign or change staff on each service card."}</span>
+              </div>
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setActiveTab("fulfillment")}>
+                {t("service_status")}
+              </Button>
+            </CardContent>
+          </Card>
+
           {isAdmin && (
             <Card>
               <CardHeader><CardTitle className="text-base">{t("assign_service")}</CardTitle></CardHeader>
@@ -1024,62 +1053,91 @@ export default function AdminBookingDetail() {
                 const currentIdx = steps.findIndex((s) => s.code === wf.currentStep);
                 const progressIdx = wf.status === "completed" ? steps.length - 1 : currentIdx;
                 return (
-                  <Link href={`/admin/workflows/${wf.id}`} key={wf.id}>
-                    <Card className="h-full border-border/80 hover-elevate cursor-pointer" data-testid={`card-workflow-${wf.id}`}>
-                      <CardContent className="p-4 space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
-                              <Icon className="h-4 w-4" />
-                            </div>
-                            <span className="font-medium text-sm" data-testid={`text-workflow-type-${wf.id}`}>{SERVICE_TYPES[wf.serviceType]}</span>
+                  <Card key={wf.id} className="h-full border-border/80 flex flex-col justify-between" data-testid={`card-workflow-${wf.id}`}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <Icon className="h-4 w-4" />
                           </div>
+                          <span className="font-medium text-sm" data-testid={`text-workflow-type-${wf.id}`}>{SERVICE_TYPES[wf.serviceType]}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
                           <Badge
                             variant={wf.status === "completed" ? "default" : wf.status === "blocked" ? "destructive" : "outline"}
                             data-testid={`badge-workflow-status-${wf.id}`}
                           >
                             {WORKFLOW_STATUSES[wf.status || "not_assigned"]}
                           </Badge>
+                          <Link href={`/admin/workflows/${wf.id}`}>
+                            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 text-primary hover:text-primary" data-testid={`link-view-workflow-${wf.id}`}>
+                              <ExternalLink className="h-3 w-3" />
+                              <span>{t("view_workflow")}</span>
+                            </Button>
+                          </Link>
                         </div>
-                        {wf.countryCode && (
-                          <p className="text-xs text-muted-foreground" data-testid={`text-workflow-country-${wf.id}`}>{t("country_prefix")} {wf.countryCode}</p>
-                        )}
-                        {steps.length > 0 && (
-                          <div className="space-y-1.5">
-                            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                              <span>{t("workflow_steps")}</span>
-                              <span>{wf.status === "completed" ? t("done") : `${Math.max(0, progressIdx + 1)} / ${steps.length}`}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                            {steps.map((step, i) => (
-                              <div
-                                key={step.code}
-                                className={`h-1.5 flex-1 rounded-full ${
-                                  i <= progressIdx
-                                    ? wf.status === "blocked" ? "bg-destructive" : "bg-primary"
-                                    : "bg-muted"
-                                }`}
-                                title={step.name}
-                              />
-                            ))}
-                            </div>
+                      </div>
+                      {wf.countryCode && (
+                        <p className="text-xs text-muted-foreground" data-testid={`text-workflow-country-${wf.id}`}>{t("country_prefix")} {wf.countryCode}</p>
+                      )}
+                      {steps.length > 0 && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                            <span>{t("workflow_steps")}</span>
+                            <span>{wf.status === "completed" ? t("done") : `${Math.max(0, progressIdx + 1)} / ${steps.length}`}</span>
                           </div>
-                        )}
-                        <div className="space-y-1 border-t pt-2">
+                          <div className="flex items-center gap-1">
+                          {steps.map((step, i) => (
+                            <div
+                              key={step.code}
+                              className={`h-1.5 flex-1 rounded-full ${
+                                i <= progressIdx
+                                  ? wf.status === "blocked" ? "bg-destructive" : "bg-primary"
+                                  : "bg-muted"
+                              }`}
+                              title={step.name}
+                            />
+                          ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className="space-y-2 border-t pt-2.5">
+                        {isOps ? (
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <span className="text-xs font-medium text-muted-foreground">{t("assigned_to")}:</span>
+                            <Select
+                              value={wf.assignedUserId || "none"}
+                              onValueChange={(val) => {
+                                updateWorkflow.mutate({
+                                  id: wf.id,
+                                  assignedUserId: val === "none" ? null : val,
+                                  status: val === "none" ? "not_assigned" : (wf.status === "not_assigned" ? "assigned" : wf.status),
+                                });
+                              }}
+                              disabled={updateWorkflow.isPending}
+                            >
+                              <SelectTrigger className="h-7 text-xs w-[170px]" data-testid={`select-workflow-assign-${wf.id}`}>
+                                <SelectValue placeholder={t("assign_to_placeholder")} />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">{t("unassigned")}</SelectItem>
+                                {allUsers?.filter((u) => u.role !== "customer").map((u) => (
+                                  <SelectItem key={u.id} value={u.userId}>{u.companyName || u.userId}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : (
                           <p className="text-xs text-muted-foreground" data-testid={`text-workflow-assigned-${wf.id}`}>
-                            {t("assigned_label")} {getUserName(wf.assignedUserId)}
+                            {t("assigned_label")} {getUserName(wf.assignedUserId) || t("unassigned")}
                           </p>
-                          <p className="text-xs text-muted-foreground" data-testid={`text-workflow-step-${wf.id}`}>
-                            {t("step_label")} {steps.find((s) => s.code === wf.currentStep)?.name || wf.currentStep || t("service_status_pending")}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1 text-xs text-primary">
-                          <ExternalLink className="h-3 w-3" />
-                          <span>{t("view_workflow")}</span>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </Link>
+                        )}
+                        <p className="text-xs text-muted-foreground" data-testid={`text-workflow-step-${wf.id}`}>
+                          {t("step_label")} {steps.find((s) => s.code === wf.currentStep)?.name || wf.currentStep || t("service_status_pending")}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
                 );
               })}
               </div>

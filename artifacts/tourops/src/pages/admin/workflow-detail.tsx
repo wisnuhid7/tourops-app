@@ -57,11 +57,18 @@ export default function AdminWorkflowDetail() {
     enabled: !!workflow?.bookingId,
   });
   const { data: allUsers } = useQuery<UserProfile[]>({ queryKey: ["/api/user-profiles"] });
+  const { data: currentUserProfile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
+  const isOps = currentUserProfile?.role === "admin" || currentUserProfile?.role === "super_admin" || currentUserProfile?.role === "operations_manager";
 
   const updateWorkflow = useMutation({
     mutationFn: (data: any) => apiRequest("PATCH", `/api/workflows/${workflowId}`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/workflows", workflowId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/workflows"] });
+      if (workflow?.bookingId) {
+        queryClient.invalidateQueries({ queryKey: ["/api/bookings", workflow.bookingId, "workflows"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/bookings", workflow.bookingId, "assignments"] });
+      }
       toast({ title: t("workflow_updated") });
     },
   });
@@ -159,6 +166,28 @@ export default function AdminWorkflowDetail() {
             </Link>
           )}
         </div>
+        {isOps && (
+          <Select
+            value={workflow.assignedUserId || "none"}
+            onValueChange={(v) =>
+              updateWorkflow.mutate({
+                assignedUserId: v === "none" ? null : v,
+                status: v === "none" ? "not_assigned" : (workflow.status === "not_assigned" ? "assigned" : workflow.status),
+              })
+            }
+            disabled={updateWorkflow.isPending}
+          >
+            <SelectTrigger className="w-[180px]" data-testid="select-workflow-assigned-user">
+              <SelectValue placeholder={t("assign_to_placeholder")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">{t("unassigned")}</SelectItem>
+              {allUsers?.filter((u) => u.role !== "customer").map((u) => (
+                <SelectItem key={u.id} value={u.userId}>{u.companyName || u.userId}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Select value={workflow.status || "not_assigned"} onValueChange={(v) => updateWorkflow.mutate({ status: v })}>
           <SelectTrigger className="w-[160px]" data-testid="select-workflow-status"><SelectValue /></SelectTrigger>
           <SelectContent>

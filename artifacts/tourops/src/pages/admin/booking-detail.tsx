@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { BOOKING_TYPES, BOOKING_STATUSES, FULFILLMENT_STATUSES, SERVICE_TYPES, WORKFLOW_STATUSES, SERVICE_WORKFLOW_STEPS } from "@/lib/constants";
-import type { Booking, Traveler, BookingAssignment, BookingWorkflow, WorkflowStep, Document, Message, Payment, UserProfile, BookingServiceRequest, BookingPaymentSchedule, Tour, TourDeparture } from "@workspace/db";
+import type { Booking, Traveler, BookingWorkflow, WorkflowStep, Document, Message, Payment, UserProfile, BookingServiceRequest, BookingPaymentSchedule, Tour, TourDeparture } from "@workspace/db";
 import { useState } from "react";
 import { DocumentPreview } from "@/components/DocumentPreview";
 
@@ -69,9 +69,6 @@ export default function AdminBookingDetail() {
   const [internalNotes, setInternalNotes] = useState<string | null>(null);
   const [newMessage, setNewMessage] = useState("");
   const [msgVisibility, setMsgVisibility] = useState("customer_visible");
-  const [assignService, setAssignService] = useState("");
-  const [assignCountry, setAssignCountry] = useState("");
-  const [assignUser, setAssignUser] = useState("");
 
   const [showAddTraveler, setShowAddTraveler] = useState(false);
   const [editTravelerId, setEditTravelerId] = useState<string | null>(null);
@@ -122,7 +119,6 @@ export default function AdminBookingDetail() {
     enabled: !!bookingId,
   });
   const { data: travelers } = useQuery<Traveler[]>({ queryKey: ["/api/bookings", bookingId, "travelers"] });
-  const { data: assignments } = useQuery<BookingAssignment[]>({ queryKey: ["/api/bookings", bookingId, "assignments"] });
   const { data: workflows } = useQuery<BookingWorkflow[]>({ queryKey: ["/api/bookings", bookingId, "workflows"] });
   const { data: documents } = useQuery<Document[]>({ queryKey: ["/api/bookings", bookingId, "documents"] });
   const { data: currentUserProfile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
@@ -206,26 +202,6 @@ export default function AdminBookingDetail() {
       toast({ title: t("workflow_updated") });
     },
     onError: () => toast({ title: t("update_failed"), variant: "destructive" }),
-  });
-
-  const createAssignment = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", `/api/bookings/${bookingId}/assignments`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "assignments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "workflows"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/workflows"] });
-      toast({ title: t("assignment_created") });
-    },
-  });
-
-  const deleteAssignment = useMutation({
-    mutationFn: (id: string) => apiRequest("DELETE", `/api/assignments/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "assignments"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "workflows"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/workflows"] });
-      toast({ title: t("assignment_removed") });
-    },
   });
 
   const createDocument = useMutation({
@@ -387,14 +363,13 @@ export default function AdminBookingDetail() {
   }).length || 0;
 
   const blockedWorkflowsCount = workflows?.filter((wf) => wf.status === "blocked").length || 0;
-  const unassignedWorkflowCount = workflows?.filter((wf) => wf.status === "not_assigned").length || 0;
-  const unassignedAssignmentCount = assignments?.filter((assignment) => !assignment.assignedUserId || assignment.status === "unassigned").length || 0;
+  const unassignedWorkflowCount = workflows?.filter((wf) => !wf.assignedUserId || wf.status === "not_assigned").length || 0;
   const pendingDocsCount = documents?.filter((doc) => doc.status === "uploaded").length || 0;
   const missingTravelerCount = Math.max(0, (booking.partySizeExpected || 1) - (travelers?.length || 0));
   const pendingPaymentCount = payments?.filter((payment) => payment.status === "pending").length || 0;
   const hasPendingSchedule = (schedule || paymentSchedule)?.some((installment) => ["pending", "partially_paid", "late"].includes(installment.status)) || false;
   const hasPaymentAttention = pendingPaymentCount > 0 || hasPendingSchedule;
-  const attentionDataReady = !!travelers && !!documents && !!workflows && !!assignments && (!isAdmin || !!payments);
+  const attentionDataReady = !!travelers && !!documents && !!workflows && (!isAdmin || !!payments);
 
   const tourTitle = tour ? lt(tour, "title") : undefined;
   const destination = tour?.countries?.filter(Boolean).join(", ");
@@ -458,15 +433,14 @@ export default function AdminBookingDetail() {
       tone: "warning",
     });
   }
-  if (unassignedWorkflowCount > 0 || unassignedAssignmentCount > 0) {
-    const unassignedCount = unassignedWorkflowCount + unassignedAssignmentCount;
+  if (unassignedWorkflowCount > 0) {
     attentionItems.push({
       id: "unassigned",
-      title: t("assignments"),
-      description: `${unassignedCount} ${t("assignments_need_attention_suffix")}`,
-      tab: "assignments",
-      actionLabel: t("assignments"),
-      icon: ClipboardList,
+      title: t("service_status"),
+      description: `${unassignedWorkflowCount} ${t("assignments_need_attention_suffix")}`,
+      tab: "fulfillment",
+      actionLabel: t("service_status"),
+      icon: Workflow,
       tone: "warning",
     });
   }
@@ -650,7 +624,6 @@ export default function AdminBookingDetail() {
         <TabsList className="w-full justify-start gap-1 rounded-xl border bg-card p-1.5 shadow-sm">
           <TabsTrigger value="summary" data-testid="tab-summary"><Info className="h-3.5 w-3.5 mr-1" />{t("summary")}</TabsTrigger>
           <TabsTrigger value="travelers" data-testid="tab-travelers"><Users className="h-3.5 w-3.5 mr-1" />{t("travelers")} <span className="ml-1 text-xs text-muted-foreground">{travelers?.length ?? "—"}</span></TabsTrigger>
-          <TabsTrigger value="assignments" data-testid="tab-assignments"><ClipboardList className="h-3.5 w-3.5 mr-1" />{t("assignments")}</TabsTrigger>
           <TabsTrigger value="fulfillment" data-testid="tab-fulfillment"><Workflow className="h-3.5 w-3.5 mr-1" />{t("service_status")} <span className="ml-1 text-xs text-muted-foreground">{workflows?.length ?? "—"}</span></TabsTrigger>
           <TabsTrigger value="documents" data-testid="tab-documents"><FileText className="h-3.5 w-3.5 mr-1" />{t("documents")} <span className="ml-1 text-xs text-muted-foreground">{documents?.length ?? "—"}</span></TabsTrigger>
           {isAdmin && <TabsTrigger value="messages" data-testid="tab-messages"><MessageSquare className="h-3.5 w-3.5 mr-1" />{t("messages")}</TabsTrigger>}
@@ -927,113 +900,7 @@ export default function AdminBookingDetail() {
           )}
         </TabsContent>
 
-        {/* TAB C: Assignments */}
-        <TabsContent value="assignments" className="mt-4 space-y-4">
-          <Card className="border-primary/20 bg-primary/5">
-            <CardContent className="p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2">
-                <Workflow className="h-4 w-4 text-primary shrink-0" />
-                <span>{t("assignments_synced_service_status_hint") || "Assignments are directly integrated with Service Status. You can also assign or change staff on each service card."}</span>
-              </div>
-              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setActiveTab("fulfillment")}>
-                {t("service_status")}
-              </Button>
-            </CardContent>
-          </Card>
 
-          {isAdmin && (
-            <Card>
-              <CardHeader><CardTitle className="text-base">{t("assign_service")}</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex flex-wrap gap-3">
-                <Select value={assignService} onValueChange={setAssignService}>
-                  <SelectTrigger className="w-[180px]" data-testid="select-assign-service"><SelectValue placeholder={t("service_type_placeholder")} /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(SERVICE_TYPES).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Input
-                  value={assignCountry}
-                  onChange={(e) => setAssignCountry(e.target.value)}
-                  placeholder={t("country_code")}
-                  className="w-[130px]"
-                  data-testid="input-assign-country"
-                />
-                <Select value={assignUser} onValueChange={setAssignUser}>
-                  <SelectTrigger className="w-[200px]" data-testid="select-assign-user"><SelectValue placeholder={t("assign_to_placeholder")} /></SelectTrigger>
-                  <SelectContent>
-                    {allUsers?.filter((u) => u.role !== "customer").map((u) => (
-                      <SelectItem key={u.id} value={u.userId}>{u.companyName || u.userId}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  onClick={() => {
-                    if (assignService && assignUser) {
-                      createAssignment.mutate({
-                        serviceType: assignService,
-                        assignedUserId: assignUser,
-                        countryCode: assignCountry || undefined,
-                      });
-                      setAssignService("");
-                      setAssignUser("");
-                      setAssignCountry("");
-                    }
-                  }}
-                  disabled={!assignService || !assignUser || createAssignment.isPending}
-                  data-testid="button-create-assignment"
-                >{t("assign")}</Button>
-              </div>
-            </CardContent>
-          </Card>
-          )}
-
-          {assignments && assignments.length > 0 ? (
-            <div className="space-y-2">
-              {assignments.map((a) => {
-                const Icon = serviceIcons[a.serviceType] || ClipboardList;
-                return (
-                  <Card key={a.id} data-testid={`card-assignment-${a.id}`}>
-                    <CardContent className="p-4 flex flex-wrap items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-md bg-primary/10 flex items-center justify-center">
-                          <Icon className="h-4 w-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm" data-testid={`text-assignment-type-${a.id}`}>{SERVICE_TYPES[a.serviceType]}</p>
-                          <p className="text-xs text-muted-foreground" data-testid={`text-assignment-country-${a.id}`}>
-                            {a.countryCode ? `${t("country_prefix")} ${a.countryCode}` : t("global")}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm text-muted-foreground" data-testid={`text-assignment-user-${a.id}`}>
-                          {getUserName(a.assignedUserId)}
-                        </span>
-                        <Badge data-testid={`badge-assignment-status-${a.id}`}>{a.status || "assigned"}</Badge>
-                        {isAdmin && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteAssignment.mutate(a.id)}
-                            data-testid={`button-delete-assignment-${a.id}`}
-                          ><Trash2 className="h-4 w-4" /></Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center py-12">
-                <ClipboardList className="h-10 w-10 text-muted-foreground/40 mb-3" />
-                <p className="text-sm text-muted-foreground">{t("no_assignments_yet")}</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
 
         {/* TAB D: Fulfillment */}
         <TabsContent value="fulfillment" className="mt-4">

@@ -7,6 +7,7 @@ import { sendPaymentStatusNotification } from "../email";
 import { offlineProvider } from "./offlineProvider";
 import { stripeProvider } from "./stripeProvider";
 import type { PaymentProvider, PaymentWebhookEvent } from "./provider";
+import { autoConfirmBookingIfEligible, recordSchedulePayment } from "../../routes/shared";
 
 /** Provider registry. PAYMENT_PROVIDER env selects the active gateway;
  *  Stripe and offline providers are registered here. */
@@ -107,6 +108,11 @@ export async function processPaymentEvent(providerName: string, event: PaymentWe
         await auditPayment(payment.id, "status_changed", prev, "paid", `webhook ${event.id}`);
         await notifyCustomerAndAdmins(updated, "Payment received", `Payment of ${Number(updated.amount).toFixed(2)} ${updated.currency} was received.`);
         await emailCustomerPaymentReceived(updated);
+        await autoConfirmBookingIfEligible(payment.bookingId, "Auto-confirmed on payment receipt (webhook)");
+        const instId = (payment.metadata as any)?.installmentId;
+        if (instId) {
+          await recordSchedulePayment(instId, payment.amount);
+        }
       }
       break;
     }

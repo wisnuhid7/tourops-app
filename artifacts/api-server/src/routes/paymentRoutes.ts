@@ -1,14 +1,14 @@
 import type { Express, Request, Response } from "express";
 import { z } from "zod/v4";
 import rateLimit from "express-rate-limit";
-import { db, payments, refunds, paymentEvents, bookings, users, type Payment } from "@workspace/db";
+import { db, payments, refunds, paymentEvents, bookings, users, bookingPaymentSchedules, type Payment } from "@workspace/db";
 import { and, desc, asc, eq, ilike, or, sql, count } from "drizzle-orm";
 import { storage } from "../storage";
 import { logger } from "../lib/logger";
 import { routeError } from "../lib/routeError";
 import { isAuthenticated } from "../replit_integrations/auth";
 import { getPaymentProvider, processPaymentEvent, applyRefundTotals } from "../lib/payments";
-import { canAccessBooking } from "./shared";
+import { canAccessBooking, autoConfirmBookingIfEligible, recordSchedulePayment } from "./shared";
 import { FINANCE_ROLES, getUserId, requireRole } from "../middleware/auth";
 
 // Checkout endpoints are authenticated but still rate-limited: they trigger
@@ -86,9 +86,20 @@ export function registerPaymentRoutes(app: Express): void {
       const rows = await db.select().from(payments).where(eq(payments.bookingId, booking.id)).orderBy(desc(payments.createdAt));
       const covered = paidCoverage(rows);
       const openPayment = rows.find((p) => p.provider !== "manual" && ["pending", "processing"].includes(p.status || "") && p.paymentIntentId);
+      const schedules = await db.select().from(bookingPaymentSchedules).where(eq(bookingPaymentSchedules.bookingId, booking.id)).orderBy(asc(bookingPaymentSchedules.installmentNumber));
       res.json({
         booking: { id: booking.id, bookingCode: booking.bookingCode, groupName: booking.groupName, partySizeExpected: booking.partySizeExpected, status: booking.status, tourId: booking.tourId },
         summary,
+        schedules: schedules.map((s) => ({
+          id: s.id,
+          installmentNumber: s.installmentNumber,
+          label: s.label,
+          percentage: s.percentage,
+          amount: Math.round(Number(s.amount)),
+          paidAmount: Math.round(Number(s.paidAmount || 0)),
+          status: s.status,
+          dueDate: s.dueDate,
+        })),
         alreadyPaid: covered,
         fullyPaid: covered >= summary.total && summary.total > 0,
         openPayment: openPayment ? { id: openPayment.id, status: openPayment.status, amount: openPayment.amount, currency: openPayment.currency } : null,
@@ -96,7 +107,7 @@ export function registerPaymentRoutes(app: Express): void {
     } catch (e: any) { routeError(res, e); }
   });
 
-  // Create (or resume) a payment intent for the booking's outstanding total.
+  // Create (or resume) a payment intent for the booking's outstanding total or installment.
   app.post("/api/checkout/:bookingId/intent", isAuthenticated, checkoutLimiter, async (req, res) => {
     try {
       const userId = getUserId(req);
@@ -109,6 +120,22 @@ export function registerPaymentRoutes(app: Express): void {
       const summary = await computeCheckoutSummary(booking);
       if (summary.total <= 0) return res.status(400).json({ message: "Nothing to pay for this booking" });
 
+      const body = req.body || {};
+      const installmentId = typeof body.installmentId === "string" ? body.installmentId : undefined;
+      let targetAmount = summary.total;
+      let targetSchedule: any = null;
+      if (installmentId) {
+        const [sched] = await db.select().from(bookingPaymentSchedules).where(and(
+          eq(bookingPaymentSchedules.id, installmentId),
+          eq(bookingPaymentSchedules.bookingId, booking.id)
+        ));
+        if (!sched) return res.status(404).json({ message: "Installment schedule not found" });
+        if (sched.status === "paid") return res.status(409).json({ message: "This installment is already paid" });
+        const remaining = Math.max(1, Math.round(Number(sched.amount) - Number(sched.paidAmount || 0)));
+        targetAmount = remaining;
+        targetSchedule = sched;
+      }
+
       const provider = getPaymentProvider();
       if (process.env.NODE_ENV === "production" && provider.name === "offline_test") {
         return res.status(503).json({ message: "Online payments are not configured yet" });
@@ -118,12 +145,17 @@ export function registerPaymentRoutes(app: Express): void {
       const result = await db.transaction(async (tx) => {
         await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${"checkout:" + booking.id}))`);
         const rows = await tx.select().from(payments).where(eq(payments.bookingId, booking.id));
-        // Duplicate payment prevention: block when paid/processing already covers the total.
-        if (paidCoverage(rows) >= summary.total) {
+        // Duplicate payment prevention: block when paid/processing already covers the total (for full payment).
+        if (!installmentId && paidCoverage(rows) >= summary.total) {
           return { conflict: "This booking is already paid" as const };
         }
-        // Session recovery: reuse an open online payment instead of stacking intents.
-        const open = rows.find((p) => p.provider !== "manual" && p.status === "pending" && p.paymentIntentId);
+        // Session recovery: reuse an open online payment for the same target instead of stacking intents.
+        const open = rows.find((p) =>
+          p.provider !== "manual" &&
+          p.status === "pending" &&
+          p.paymentIntentId &&
+          (p.metadata as any)?.installmentId === (installmentId || null)
+        );
         if (open) {
           return {
             payment: open,
@@ -133,26 +165,26 @@ export function registerPaymentRoutes(app: Express): void {
           };
         }
         const intent = await provider.createIntent({
-          amount: summary.total,
+          amount: targetAmount,
           currency: summary.currency,
           bookingId: booking.id,
           customerId: userId,
-          metadata: { bookingCode: booking.bookingCode || "" },
+          metadata: { bookingCode: booking.bookingCode || "", installmentId: targetSchedule?.id || "" },
         });
         const [payment] = await tx.insert(payments).values({
           bookingId: booking.id,
           customerId: booking.customerId,
           provider: provider.name,
           paymentIntentId: intent.intentId,
-          amount: summary.total,
-          subtotal: summary.subtotal,
-          taxes: summary.taxes,
-          fees: summary.fees,
-          discount: summary.discount,
+          amount: targetAmount,
+          subtotal: targetSchedule ? targetAmount : summary.subtotal,
+          taxes: targetSchedule ? 0 : summary.taxes,
+          fees: targetSchedule ? 0 : summary.fees,
+          discount: targetSchedule ? 0 : summary.discount,
           currency: summary.currency,
           method: "card",
           status: "pending",
-          metadata: { taxRate: summary.taxRate, clientSecret: intent.clientSecret },
+          metadata: { taxRate: summary.taxRate, clientSecret: intent.clientSecret, installmentId: targetSchedule?.id || null },
           createdBy: userId,
         }).returning();
         return { payment, intentId: intent.intentId, clientSecret: intent.clientSecret, resumed: false };
@@ -162,7 +194,7 @@ export function registerPaymentRoutes(app: Express): void {
       if (resumed) {
         return res.json({ paymentId: payment.id, intentId, clientSecret, status: payment.status, amount: payment.amount, currency: payment.currency, resumed: true });
       }
-      await storage.createAuditLog({ entityType: "payment", entityId: payment.id, action: "created", changedBy: userId, previousValue: null, newValue: `intent ${intentId} for ${summary.total.toFixed(2)} ${summary.currency}`, note: `booking ${booking.bookingCode}` } as any);
+      await storage.createAuditLog({ entityType: "payment", entityId: payment.id, action: "created", changedBy: userId, previousValue: null, newValue: `intent ${intentId} for ${targetAmount.toFixed(2)} ${summary.currency}`, note: `booking ${booking.bookingCode}` } as any);
       res.json({ paymentId: payment.id, intentId, clientSecret, status: payment.status, amount: payment.amount, currency: payment.currency, resumed: false });
     } catch (e: any) { routeError(res, e); }
   });
@@ -211,6 +243,15 @@ export function registerPaymentRoutes(app: Express): void {
         sql`${payments.status} NOT IN ('paid', 'refunded', 'partially_refunded')`,
       ));
       await storage.createAuditLog({ entityType: "payment", entityId: payment.id, action: "status_changed", changedBy: userId, previousValue: prev, newValue: nextStatus, note: result.failureReason ?? "checkout confirm" } as any);
+
+      if (nextStatus === "paid") {
+        await autoConfirmBookingIfEligible(booking.id, "Auto-confirmed on checkout confirmation");
+        const instId = (payment.metadata as any)?.installmentId;
+        if (instId) {
+          await recordSchedulePayment(instId, payment.amount);
+        }
+      }
+
       // Success side effects (notify/email) run via the provider webhook so
       // they behave identically for sync and async settlements.
       res.json({ status: nextStatus, paymentId: payment.id, failureReason: result.failureReason ?? null });

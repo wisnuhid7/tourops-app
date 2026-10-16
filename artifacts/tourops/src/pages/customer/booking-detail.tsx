@@ -1013,19 +1013,29 @@ export default function CustomerBookingDetail() {
 
         <TabsContent value="travelers" className="mt-4 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <p className="text-sm text-muted-foreground">{travelers?.length || 0} {t("of_label")} {booking.partySizeExpected} {t("travelers_added_suffix")}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-muted-foreground">{travelers?.length || 0} {t("of_label")} {booking.partySizeExpected} {t("travelers_added_suffix")}</p>
+              {(travelers?.length || 0) >= (booking.partySizeExpected || 1) && (
+                <Badge variant="secondary" className="text-xs">Kuota Penuh</Badge>
+              )}
+            </div>
             <div className="flex items-center gap-2">
             <Link href="/manage-passengers">
               <Button size="sm" variant="outline" data-testid="button-manage-travelers">
                 <Users className="h-4 w-4 mr-1" />{t("manage_passengers")}
               </Button>
             </Link>
-            <Dialog open={showAddTraveler} onOpenChange={setShowAddTraveler}>
-              <DialogTrigger asChild>
-                <Button size="sm" data-testid="button-add-traveler"><Plus className="h-4 w-4 mr-1" />{t("add_traveler")}</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>{t("add_traveler")}</DialogTitle></DialogHeader>
+            {(travelers?.length || 0) >= (booking.partySizeExpected || 1) ? (
+              <Button size="sm" disabled data-testid="button-add-traveler-disabled">
+                <Plus className="h-4 w-4 mr-1" />{t("add_traveler")}
+              </Button>
+            ) : (
+              <Dialog open={showAddTraveler} onOpenChange={setShowAddTraveler}>
+                <DialogTrigger asChild>
+                  <Button size="sm" data-testid="button-add-traveler"><Plus className="h-4 w-4 mr-1" />{t("add_traveler")}</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>{t("add_traveler")}</DialogTitle></DialogHeader>
                 <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
                   <div className="grid grid-cols-2 gap-3">
                     <div><Label>{t("first_name")} *</Label><Input value={firstName} onChange={(e) => setFirstName(e.target.value)} data-testid="input-traveler-first" /></div>
@@ -1068,6 +1078,7 @@ export default function CustomerBookingDetail() {
                 </div>
               </DialogContent>
             </Dialog>
+            )}
             </div>
           </div>
 

@@ -13,9 +13,21 @@ import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe, Stripe } from "@stripe/stripe-js";
 import { StripeCheckoutForm } from "@/components/StripeCheckoutForm";
 
+interface PaymentScheduleItem {
+  id: string;
+  installmentNumber: number;
+  label: string;
+  percentage: string;
+  amount: number;
+  paidAmount: number;
+  status: string;
+  dueDate: string;
+}
+
 interface CheckoutData {
   booking: { id: string; bookingCode: string | null; status: string | null; tourId: string };
   summary: { subtotal: number; taxes: number; fees: number; discount: number; total: number; currency: string; taxRate: number };
+  schedules?: PaymentScheduleItem[];
   alreadyPaid: number;
   fullyPaid: boolean;
   openPayment: { id: string; status: string; amount: number; currency: string } | null;
@@ -52,6 +64,7 @@ export default function Checkout() {
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [stripeClientSecret, setStripeClientSecret] = useState<string | null>(null);
   const [isInitializingIntent, setIsInitializingIntent] = useState(false);
+  const [selectedInstallmentId, setSelectedInstallmentId] = useState<string | null>(null);
   const [phase, setPhase] = useState<"form" | "processing" | "success" | "failed">("form");
   const [failureReason, setFailureReason] = useState<string | null>(null);
 
@@ -66,17 +79,29 @@ export default function Checkout() {
     enabled: !!bookingId,
   });
 
+  const currentPayableAmount = useMemo(() => {
+    if (!data) return 0;
+    if (selectedInstallmentId && data.schedules) {
+      const sched = data.schedules.find((s) => s.id === selectedInstallmentId);
+      if (sched) return Math.max(0, sched.amount - sched.paidAmount);
+    }
+    return Math.max(0, data.summary.total - data.alreadyPaid);
+  }, [data, selectedInstallmentId]);
+
   const isStripe = config?.provider === "stripe" && !!config.publishableKey;
   const stripePromise = useMemo(() => {
     return isStripe && config?.publishableKey ? getStripePromise(config.publishableKey) : null;
   }, [isStripe, config?.publishableKey]);
 
-  // For Stripe: automatically prepare PaymentIntent on mount once checkout data is ready
+  // For Stripe: automatically prepare PaymentIntent on mount or when installment selection changes
   useEffect(() => {
-    if (!isStripe || !data || data.fullyPaid || stripeClientSecret || isInitializingIntent || !bookingId) return;
+    if (!isStripe || !data || data.fullyPaid || !bookingId) return;
 
     setIsInitializingIntent(true);
-    apiRequest("POST", `/api/checkout/${bookingId}/intent`)
+    setStripeClientSecret(null);
+    apiRequest("POST", `/api/checkout/${bookingId}/intent`, {
+      installmentId: selectedInstallmentId || undefined,
+    })
       .then((res) => res.json())
       .then((intent) => {
         if (intent.paymentId) setPaymentId(intent.paymentId);
@@ -88,7 +113,7 @@ export default function Checkout() {
       .finally(() => {
         setIsInitializingIntent(false);
       });
-  }, [isStripe, data, bookingId, stripeClientSecret, isInitializingIntent]);
+  }, [isStripe, data, bookingId, selectedInstallmentId]);
 
   // Session recovery: if an online payment is already processing, resume it.
   useEffect(() => {
@@ -116,7 +141,9 @@ export default function Checkout() {
 
   const payMutation = useMutation({
     mutationFn: async () => {
-      const intentRes = await apiRequest("POST", `/api/checkout/${bookingId}/intent`);
+      const intentRes = await apiRequest("POST", `/api/checkout/${bookingId}/intent`, {
+        installmentId: selectedInstallmentId || undefined,
+      });
       const intent = await intentRes.json();
       setPaymentId(intent.paymentId);
       const confirmRes = await apiRequest("POST", `/api/checkout/${bookingId}/confirm`, {
@@ -181,6 +208,69 @@ export default function Checkout() {
         </CardContent>
       </Card>
 
+      {data.schedules && data.schedules.length > 0 && !data.fullyPaid && phase !== "success" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Pilihan Pembayaran</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div
+              className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                selectedInstallmentId === null
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:bg-muted/50"
+              }`}
+              onClick={() => setSelectedInstallmentId(null)}
+            >
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="font-semibold text-sm">Bayar Lunas (Total)</p>
+                  <p className="text-xs text-muted-foreground">Lunasi seluruh tagihan booking</p>
+                </div>
+                <span className="font-bold text-sm">
+                  {fmt(Math.max(0, summary.total - data.alreadyPaid), summary.currency)}
+                </span>
+              </div>
+            </div>
+
+            {data.schedules.map((sched) => {
+              const remaining = Math.max(0, sched.amount - sched.paidAmount);
+              const isPaid = sched.status === "paid" || remaining === 0;
+              return (
+                <div
+                  key={sched.id}
+                  className={`p-3 rounded-lg border transition-colors ${
+                    isPaid
+                      ? "opacity-60 bg-muted/30 cursor-not-allowed"
+                      : selectedInstallmentId === sched.id
+                      ? "border-primary bg-primary/5 cursor-pointer"
+                      : "border-border hover:bg-muted/50 cursor-pointer"
+                  }`}
+                  onClick={() => {
+                    if (!isPaid) setSelectedInstallmentId(sched.id);
+                  }}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-sm">{sched.label} ({sched.percentage}%)</p>
+                        {isPaid && <Badge variant="outline" className="text-xs text-green-600 border-green-300">Lunas</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Jatuh tempo: {new Date(sched.dueDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <span className="font-bold text-sm">
+                      {fmt(remaining, summary.currency)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
       {phase === "success" || data.fullyPaid ? (
         <Card className="border-green-300 bg-green-50 dark:bg-green-950/30">
           <CardContent className="p-8 text-center space-y-3">
@@ -231,7 +321,7 @@ export default function Checkout() {
                 <StripeCheckoutForm
                   bookingId={booking.id}
                   paymentId={paymentId || ""}
-                  totalCents={summary.total}
+                  totalCents={currentPayableAmount}
                   currency={summary.currency}
                   onSuccess={() => {
                     qc.invalidateQueries({ queryKey: ["/api/checkout", bookingId] });
@@ -276,7 +366,7 @@ export default function Checkout() {
               disabled={payMutation.isPending || card.replace(/\D/g, "").length < 12}
               data-testid="button-confirm-payment"
             >
-              {payMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : `${t("complete_payment")} · ${fmt(summary.total, summary.currency)}`}
+              {payMutation.isPending ? <Loader2 className="h-5 w-5 animate-spin" /> : `${t("complete_payment")} · ${fmt(currentPayableAmount, summary.currency)}`}
             </Button>
             <p className="text-[10px] text-center text-muted-foreground">{t("card_data_not_stored")}</p>
             <Badge variant="outline" className="w-full justify-center text-[10px] font-normal">{t("test_cards_hint")}</Badge>

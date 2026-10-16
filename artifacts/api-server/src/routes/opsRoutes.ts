@@ -33,7 +33,7 @@ import {
   getUserId,
   requireRole,
 } from "../middleware/auth";
-import { getUserName } from "./shared";
+import { getUserName, autoConfirmBookingIfEligible } from "./shared";
 
 // Bookings-adjacent operations: travelers, assignments, workflows, documents,
 // messages, and payments. Includes the local canReadWorkflow helper. Extracted
@@ -60,6 +60,13 @@ export function registerOpsRoutes(app: Express): void {
       if (!isOwner && !isAdmin && !isLeaderOfGroup) {
         return res.status(403).json({ message: "Forbidden" });
       }
+      const existing = await storage.getTravelers(booking.id);
+      const expectedLimit = booking.partySizeExpected || 1;
+      if (!isAdmin && existing.length >= expectedLimit) {
+        return res.status(409).json({
+          message: `Party size quota reached (${existing.length}/${expectedLimit}). Please contact support or admin to adjust party size.`,
+        });
+      }
       const parsed = insertTravelerSchema.safeParse({ ...req.body, bookingId: req.params.id as string });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.message });
       res.json(await storage.createTraveler(parsed.data));
@@ -83,6 +90,14 @@ export function registerOpsRoutes(app: Express): void {
       const travelers = req.body.travelers;
       if (!Array.isArray(travelers)) {
         return res.status(400).json({ message: "Expected an array of travelers" });
+      }
+
+      const existing = await storage.getTravelers(booking.id);
+      const expectedLimit = booking.partySizeExpected || 1;
+      if (!isAdmin && existing.length + travelers.length > expectedLimit) {
+        return res.status(409).json({
+          message: `Cannot add ${travelers.length} travelers. Expected party size is ${expectedLimit} (${existing.length} already registered).`,
+        });
       }
 
       const results = [];
@@ -637,8 +652,9 @@ export function registerOpsRoutes(app: Express): void {
       }
       const updated = await storage.updatePayment(req.params.id as string, parsedPatch.data);
       
-      // Notify customer if payment is confirmed as paid (non-blocking)
+      // Notify customer if payment is confirmed as paid (non-blocking) and auto-confirm booking
       if (req.body.status === "paid") {
+        await autoConfirmBookingIfEligible(updated.bookingId, "Auto-confirmed on manual payment verification");
         try {
           const booking = await storage.getBooking(updated.bookingId);
           if (booking) {

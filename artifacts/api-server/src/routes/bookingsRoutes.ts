@@ -32,7 +32,7 @@ import {
   getUserId,
   requireRole,
 } from "../middleware/auth";
-import { canAccessBooking, getUserName, initializeBookingWorkflows, publicTourPricing, upload } from "./shared";
+import { canAccessBooking, confirmBookingSideEffects, getUserName, initializeBookingWorkflows, publicTourPricing, upload } from "./shared";
 
 // Bookings and everything that hangs off a booking: customer-facing booking
 // routes, documents, payments, leader group participants, self-cancellation,
@@ -307,66 +307,7 @@ export function registerBookingsRoutes(app: Express): void {
       
       // Auto-initialize workflows and manage capacity if status changed to confirmed
       if (req.body.status === "confirmed" && oldBooking?.status !== "confirmed") {
-        await initializeBookingWorkflows(req.params.id as string);
-        
-        // Auto-payout for affiliate
-        if (updated.affiliateId) {
-          const aff = await storage.getAffiliates().then(list => list.find(a => a.id === updated.affiliateId));
-          if (aff) {
-            const commRate = parseFloat(aff.commissionRate?.toString() || "10");
-            const commAmount = (updated.totalPrice || 0) * (commRate / 100);
-            await storage.createAffiliatePayout({
-              affiliateId: aff.id,
-              bookingId: updated.id,
-              amount: commAmount.toString(),
-              status: "pending"
-            });
-          }
-        }
-        
-        // Automated Document Delivery: Generate Itinerary PDF
-        if (updated.tourId) {
-          try {
-            console.log(`[Automation] Generating automated itinerary for booking ${updated.bookingCode}`);
-            const { pdfService } = await import("../lib/pdf");
-            const pdfBuffer = await pdfService.generateItinerary(updated.tourId);
-            // In a real app, we would upload to S3/Storage and get a URL
-            // For now, we simulate by creating a document record
-            await storage.createDocument({
-              bookingId: updated.id,
-              docType: "voucher",
-              fileName: `Itinerary_${updated.bookingCode}.pdf`,
-              fileUrl: `/api/tours/${updated.tourId}/pdf`, // Link to the generation endpoint
-              status: "approved"
-            });
-
-            // Notify Customer
-            await storage.createNotification({
-              userId: updated.customerId,
-              title: "Booking Confirmed! ✨",
-              message: `Your booking ${updated.bookingCode} is confirmed. Your official itinerary PDF is now available in your documents.`,
-              type: "booking_update"
-            });
-          } catch (pdfErr) {
-            console.error("Automated PDF generation failed:", pdfErr);
-          }
-        }
-        
-        // Auto capacity management (deduct seats — atomic update to avoid race conditions)
-        if (oldBooking && oldBooking.departureId) {
-          const partySize = oldBooking.partySizeExpected || 0;
-          await db.transaction(async (tx) => {
-            await tx.update(tourDepartures)
-              .set({
-                capacityBooked: sql`LEAST(${tourDepartures.capacityTotal}, COALESCE(${tourDepartures.capacityBooked}, 0) + ${partySize})`
-              })
-              .where(eq(tourDepartures.id, oldBooking.departureId!));
-            const [dep] = await tx.select().from(tourDepartures).where(eq(tourDepartures.id, oldBooking.departureId!));
-            if (dep && (dep.capacityBooked || 0) >= (dep.capacityTotal || 0)) {
-              await tx.update(tourDepartures).set({ status: "sold_out" }).where(eq(tourDepartures.id, dep.id));
-            }
-          });
-        }
+        await confirmBookingSideEffects(req.params.id as string, updated);
       } else if ((req.body.status === "cancelled" || req.body.status === "rejected") && oldBooking?.status === "confirmed") {
         // Restore capacity if confirmed booking is cancelled/rejected (atomic)
         if (oldBooking && oldBooking.departureId) {

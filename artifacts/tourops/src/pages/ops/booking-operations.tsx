@@ -21,8 +21,7 @@ import type { Booking, UserProfile } from "@workspace/db";
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   draft: ["submitted", "cancelled"],
   submitted: ["confirmed", "cancelled"],
-  confirmed: ["in_operation", "cancelled"],
-  in_operation: ["completed", "cancelled"],
+  confirmed: ["completed", "cancelled"],
   completed: [],
   cancelled: [],
 };

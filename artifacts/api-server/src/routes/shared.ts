@@ -13,7 +13,7 @@ import { storage } from "../storage";
 import { authStorage } from "../replit_integrations/auth/storage";
 import { getUserId, isStaffViewer } from "../middleware/auth";
 import { and, eq, sql } from "drizzle-orm";
-import { cities, countries, db } from "@workspace/db";
+import { cities, countries, db, tourDepartures, bookings, bookingPaymentSchedules, bookingStatusHistory } from "@workspace/db";
 import { pricingService } from "../lib/pricing";
 import { BOOKING_ROOM_TYPES, accommodationForTour } from "../services/rate-resolver";
 import { ROOM_TYPE_OCCUPANCY } from "../services/booking-pricing";
@@ -134,6 +134,120 @@ export async function initializeBookingWorkflows(bookingId: string) {
   // the canonical service-specific steps. It checks each service type
   // independently, allowing partially initialized bookings to be repaired.
   await storage.initializeBookingWorkflows(bookingId);
+}
+
+export async function confirmBookingSideEffects(bookingId: string, updatedBooking?: any) {
+  const booking = updatedBooking || await storage.getBooking(bookingId);
+  if (!booking) return;
+
+  // 1. Initialize 5 workflows (idempotent)
+  await storage.initializeBookingWorkflows(booking.id);
+
+  // 2. Auto-payout for affiliate
+  if (booking.affiliateId) {
+    try {
+      const aff = await storage.getAffiliates().then(list => list.find(a => a.id === booking.affiliateId));
+      if (aff) {
+        const commRate = parseFloat(aff.commissionRate?.toString() || "10");
+        const commAmount = (booking.totalPrice || 0) * (commRate / 100);
+        await storage.createAffiliatePayout({
+          affiliateId: aff.id,
+          bookingId: booking.id,
+          amount: commAmount.toString(),
+          status: "pending"
+        });
+      }
+    } catch (affErr) {
+      console.error("Affiliate payout error:", affErr);
+    }
+  }
+
+  // 3. Automated Document Delivery: Generate Itinerary PDF & Notify Customer
+  if (booking.tourId) {
+    try {
+      const { pdfService } = await import("../lib/pdf");
+      await pdfService.generateItinerary(booking.tourId);
+      await storage.createDocument({
+        bookingId: booking.id,
+        docType: "voucher",
+        fileName: `Itinerary_${booking.bookingCode}.pdf`,
+        fileUrl: `/api/tours/${booking.tourId}/pdf`,
+        status: "approved"
+      });
+
+      await storage.createNotification({
+        userId: booking.customerId,
+        title: "Booking Confirmed! ✨",
+        message: `Your booking ${booking.bookingCode} is confirmed. Your official itinerary PDF is now available in your documents.`,
+        type: "booking_update"
+      });
+    } catch (pdfErr) {
+      console.error("Automated PDF generation failed:", pdfErr);
+    }
+  }
+
+  // 4. Auto capacity management (deduct seats atomically)
+  if (booking.departureId) {
+    const partySize = booking.partySizeExpected || 0;
+    try {
+      await db.transaction(async (tx) => {
+        await tx.update(tourDepartures)
+          .set({
+            capacityBooked: sql`LEAST(${tourDepartures.capacityTotal}, COALESCE(${tourDepartures.capacityBooked}, 0) + ${partySize})`
+          })
+          .where(eq(tourDepartures.id, booking.departureId!));
+        const [dep] = await tx.select().from(tourDepartures).where(eq(tourDepartures.id, booking.departureId!));
+        if (dep && (dep.capacityBooked || 0) >= (dep.capacityTotal || 0)) {
+          await tx.update(tourDepartures).set({ status: "sold_out" }).where(eq(tourDepartures.id, dep.id));
+        }
+      });
+    } catch (capErr) {
+      console.error("Capacity deduction error:", capErr);
+    }
+  }
+}
+
+export async function recordSchedulePayment(scheduleId: string, amount: number) {
+  try {
+    const [sched] = await db.select().from(bookingPaymentSchedules).where(eq(bookingPaymentSchedules.id, scheduleId));
+    if (!sched) return;
+    const currentPaid = parseFloat(sched.paidAmount?.toString() || "0");
+    const targetAmount = parseFloat(sched.amount?.toString() || "0");
+    const newPaid = currentPaid + amount;
+    const isPaid = newPaid >= targetAmount;
+    await db.update(bookingPaymentSchedules).set({
+      paidAmount: newPaid.toString(),
+      status: isPaid ? "paid" : "partially_paid",
+      updatedAt: new Date(),
+    }).where(eq(bookingPaymentSchedules.id, sched.id));
+  } catch (err) {
+    console.error("Failed to record schedule payment:", err);
+  }
+}
+
+export async function autoConfirmBookingIfEligible(bookingId: string, note = "Payment received") {
+  const booking = await storage.getBooking(bookingId);
+  if (!booking) return;
+  if (["submitted", "draft"].includes(booking.status || "")) {
+    const fromStatus = booking.status ?? "submitted";
+    await db.update(bookings).set({ status: "confirmed" }).where(eq(bookings.id, booking.id));
+    await db.insert(bookingStatusHistory).values({
+      bookingId: booking.id,
+      fromStatus,
+      toStatus: "confirmed",
+      changedBy: null,
+      reason: note,
+    }).catch(() => {});
+    await storage.createAuditLog({
+      entityType: "booking",
+      entityId: booking.id,
+      action: "status_changed",
+      previousValue: booking.status,
+      newValue: "confirmed",
+      note,
+    }).catch(() => {});
+    await confirmBookingSideEffects(booking.id, { ...booking, status: "confirmed" });
+  }
 }
 
 // Guard for public-facing tour sub-resources: an unpublished (draft) tour and

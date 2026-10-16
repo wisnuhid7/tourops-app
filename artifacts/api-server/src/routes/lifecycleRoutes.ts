@@ -30,7 +30,7 @@ import { routeError } from "../lib/routeError";
 import { isAuthenticated } from "../replit_integrations/auth";
 import { authStorage } from "../replit_integrations/auth/storage";
 import { enqueueEmail } from "../lib/emailQueue";
-import { canAccessBooking } from "./shared";
+import { canAccessBooking, confirmBookingSideEffects } from "./shared";
 import { getUserId, requireRole } from "../middleware/auth";
 
 const OPS_ROLES = ["super_admin", "admin", "operations_manager"];
@@ -87,8 +87,7 @@ export function travelerCompletion(t: typeof travelers.$inferSelect, invited: bo
 const STATUS_TRANSITIONS: Record<string, string[]> = {
   draft: ["submitted", "cancelled"],
   submitted: ["confirmed", "cancelled"],
-  confirmed: ["in_operation", "cancelled"],
-  in_operation: ["completed", "cancelled"],
+  confirmed: ["completed", "cancelled"],
   completed: [],
   cancelled: [],
 };
@@ -401,7 +400,7 @@ export function registerLifecycleRoutes(app: Express): void {
     try {
       if (!await requireRole(req, res, OPS_ROLES)) return;
       const parsed = z.object({
-        status: z.enum(["draft", "submitted", "confirmed", "in_operation", "completed", "cancelled"]),
+        status: z.enum(["draft", "submitted", "confirmed", "completed", "cancelled"]),
         reason: z.string().trim().max(500).optional(),
       }).safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Invalid status" });
@@ -416,6 +415,11 @@ export function registerLifecycleRoutes(app: Express): void {
         .where(and(eq(bookings.id, id), eq(bookings.status, from as any)))
         .returning();
       if (!row) return res.status(409).json({ message: "Booking was updated concurrently; reload and retry" });
+
+      if (parsed.data.status === "confirmed") {
+        await confirmBookingSideEffects(id, row);
+      }
+
       // Cancellation releases seats.
       if (parsed.data.status === "cancelled") {
         if (booking.departureId && booking.partySizeExpected) {

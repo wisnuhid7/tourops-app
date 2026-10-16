@@ -230,8 +230,7 @@ export const bookingTypeEnum = pgEnum("booking_type", [
   "custom_family",
 ]);
 
-// "in_operation" = trip is actively running (between departure and completion).
-export const bookingStatusEnum = pgEnum("booking_status", ["draft", "submitted", "confirmed", "in_operation", "cancelled", "completed"]);
+export const bookingStatusEnum = pgEnum("booking_status", ["draft", "submitted", "confirmed", "cancelled", "completed"]);
 export const fulfillmentStatusEnum = pgEnum("fulfillment_status", ["pending", "in_progress", "blocked", "completed"]);
 
 export const bookings = pgTable("bookings", {

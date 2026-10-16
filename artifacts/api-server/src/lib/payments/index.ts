@@ -61,7 +61,7 @@ async function emailCustomerPaymentReceived(payment: typeof payments.$inferSelec
     const [user] = await db.select().from(users).where(eq(users.id, payment.customerId));
     const [booking] = await db.select().from(bookings).where(eq(bookings.id, payment.bookingId));
     if (user?.email && booking) {
-      sendPaymentStatusNotification(user.email, booking.bookingCode || booking.id, (payment.amount / 100).toFixed(2), payment.currency || "USD");
+      sendPaymentStatusNotification(user.email, booking.bookingCode || booking.id, Number(payment.amount).toFixed(2), payment.currency || "USD");
     }
   } catch (err) {
     logger.error({ err, paymentId: payment.id }, "payment email failed");
@@ -105,7 +105,7 @@ export async function processPaymentEvent(providerName: string, event: PaymentWe
         .where(eq(payments.id, payment.id)).returning();
       if (prev !== "paid") {
         await auditPayment(payment.id, "status_changed", prev, "paid", `webhook ${event.id}`);
-        await notifyCustomerAndAdmins(updated, "Payment received", `Payment of ${((updated.amount) / 100).toFixed(2)} ${updated.currency} was received.`);
+        await notifyCustomerAndAdmins(updated, "Payment received", `Payment of ${Number(updated.amount).toFixed(2)} ${updated.currency} was received.`);
         await emailCustomerPaymentReceived(updated);
       }
       break;
@@ -136,7 +136,7 @@ export async function processPaymentEvent(providerName: string, event: PaymentWe
       if (refund.status !== "succeeded") {
         await db.update(refunds).set({ status: "succeeded", providerRefundId: event.providerRefundId ?? refund.providerRefundId, updatedAt: new Date() }).where(eq(refunds.id, refund.id));
         await applyRefundTotals(refund.paymentId);
-        await auditPayment(refund.paymentId, "refund_succeeded", null, `${(refund.amount / 100).toFixed(2)} ${refund.currency}`, `webhook ${event.id}`);
+        await auditPayment(refund.paymentId, "refund_succeeded", null, `${Number(refund.amount).toFixed(2)} ${refund.currency}`, `webhook ${event.id}`);
       }
       break;
     }

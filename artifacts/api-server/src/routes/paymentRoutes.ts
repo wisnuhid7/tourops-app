@@ -21,11 +21,11 @@ const checkoutLimiter = rateLimit({
   message: { message: "Too many checkout requests. Please try again later." },
 });
 
-/** All money is integer cents. Booking.totalPrice is whole currency units. */
+/** All money is integer units. Booking.totalPrice is whole currency units. */
 async function computeCheckoutSummary(booking: { totalPrice: number | null; currency: string | null }) {
-  const subtotal = Math.round((booking.totalPrice || 0) * 100);
+  const subtotal = Math.round(booking.totalPrice || 0);
   const feeSetting = await storage.getGlobalSettingByKey("default_service_fee");
-  const fees = Math.round(Number(feeSetting?.value || 0) * 100);
+  const fees = Math.round(Number(feeSetting?.value || 0));
   const taxSetting = await storage.getGlobalSettingByKey("checkout_tax_rate_percent");
   const taxRate = Number(taxSetting?.value || 0);
   const taxes = Math.round((subtotal * taxRate) / 100);
@@ -162,7 +162,7 @@ export function registerPaymentRoutes(app: Express): void {
       if (resumed) {
         return res.json({ paymentId: payment.id, intentId, clientSecret, status: payment.status, amount: payment.amount, currency: payment.currency, resumed: true });
       }
-      await storage.createAuditLog({ entityType: "payment", entityId: payment.id, action: "created", changedBy: userId, previousValue: null, newValue: `intent ${intentId} for ${(summary.total / 100).toFixed(2)} ${summary.currency}`, note: `booking ${booking.bookingCode}` } as any);
+      await storage.createAuditLog({ entityType: "payment", entityId: payment.id, action: "created", changedBy: userId, previousValue: null, newValue: `intent ${intentId} for ${summary.total.toFixed(2)} ${summary.currency}`, note: `booking ${booking.bookingCode}` } as any);
       res.json({ paymentId: payment.id, intentId, clientSecret, status: payment.status, amount: payment.amount, currency: payment.currency, resumed: false });
     } catch (e: any) { routeError(res, e); }
   });
@@ -321,7 +321,7 @@ export function registerPaymentRoutes(app: Express): void {
       const remaining = payment.amount - (payment.refundedAmount || 0);
       const amount = parsed.data.amount ?? remaining;
       if (amount <= 0 || amount > remaining) {
-        return res.status(400).json({ message: `Refund must be between 0.01 and ${(remaining / 100).toFixed(2)} ${payment.currency}` });
+        return res.status(400).json({ message: `Refund must be between 0.01 and ${remaining.toFixed(2)} ${payment.currency}` });
       }
 
       // Serialize refunds per payment (advisory xact lock) and re-check the
@@ -332,7 +332,7 @@ export function registerPaymentRoutes(app: Express): void {
         const existing = await tx.select().from(refunds).where(eq(refunds.paymentId, payment.id));
         const committed = existing.filter((r) => r.status !== "failed").reduce((sum, r) => sum + r.amount, 0);
         if (amount > payment.amount - committed) {
-          return { conflict: `Refund exceeds remaining balance of ${((payment.amount - committed) / 100).toFixed(2)} ${payment.currency}` as string };
+          return { conflict: `Refund exceeds remaining balance of ${(payment.amount - committed).toFixed(2)} ${payment.currency}` as string };
         }
         const [row] = await tx.insert(refunds).values({
           paymentId: payment.id,
@@ -350,7 +350,7 @@ export function registerPaymentRoutes(app: Express): void {
       if ("conflict" in insertResult) return res.status(409).json({ message: insertResult.conflict });
       const refund = insertResult.refund;
       await applyRefundTotals(payment.id);
-      await storage.createAuditLog({ entityType: "payment", entityId: payment.id, action: "refund_requested", changedBy: userId, previousValue: null, newValue: `${(amount / 100).toFixed(2)} ${payment.currency}`, note: parsed.data.reason } as any);
+      await storage.createAuditLog({ entityType: "payment", entityId: payment.id, action: "refund_requested", changedBy: userId, previousValue: null, newValue: `${amount.toFixed(2)} ${payment.currency}`, note: parsed.data.reason } as any);
 
       // Manual (offline-recorded) payments have no provider transaction; the
       // refund is recorded as immediately succeeded.
@@ -369,7 +369,7 @@ export function registerPaymentRoutes(app: Express): void {
       // Notify customer + finance staff.
       try {
         if (payment.customerId && finalRefund?.status !== "failed") {
-          await storage.createNotification({ userId: payment.customerId, title: "Refund update", message: `A refund of ${(amount / 100).toFixed(2)} ${payment.currency} was ${finalRefund?.status} for your booking.`, type: "payment_received" } as any);
+          await storage.createNotification({ userId: payment.customerId, title: "Refund update", message: `A refund of ${amount.toFixed(2)} ${payment.currency} was ${finalRefund?.status} for your booking.`, type: "payment_received" } as any);
         }
       } catch (err) { logger.error({ err }, "refund notification failed"); }
       res.json({ refund: finalRefund, payment: finalPayment });

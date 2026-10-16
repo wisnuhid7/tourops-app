@@ -245,7 +245,7 @@ export default function AdminBookingDetail() {
   const createPayment = useMutation({
     mutationFn: (data: any) => apiRequest("POST", `/api/bookings/${bookingId}/payments`, {
       ...data,
-      amount: Math.round(parseFloat(data.amount) * 100)
+      amount: Math.round(parseFloat(data.amount))
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "payments"] });
@@ -259,7 +259,7 @@ export default function AdminBookingDetail() {
   const createInvoice = useMutation({
     mutationFn: (data: any) => apiRequest("POST", `/api/bookings/${bookingId}/invoices`, {
       ...data,
-      amount: Math.round(parseFloat(data.amount) * 100)
+      amount: Math.round(parseFloat(data.amount))
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "invoices"] });
@@ -1388,7 +1388,7 @@ export default function AdminBookingDetail() {
                         <SelectContent>
                           <SelectItem value="none">{t("none_option")}</SelectItem>
                           {invoices?.map((inv) => (
-                            <SelectItem key={inv.id} value={inv.id}>{inv.invoiceNumber} - {inv.currency} {(inv.amount / 100).toFixed(2)}</SelectItem>
+                            <SelectItem key={inv.id} value={inv.id}>{inv.invoiceNumber} - {inv.currency} {Number(inv.amount).toFixed(2)}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -1435,7 +1435,7 @@ export default function AdminBookingDetail() {
                           <DollarSign className="h-4 w-4 text-muted-foreground" />
                           <div>
                             <p className="font-medium text-sm" data-testid={`text-payment-amount-${p.id}`}>
-                              {p.currency} {(p.amount / 100).toFixed(2)}
+                              {p.currency} {Number(p.amount).toFixed(2)}
                             </p>
                             <p className="text-xs text-muted-foreground" data-testid={`text-payment-method-${p.id}`}>
                               {PAYMENT_METHODS[p.method || "bank_transfer"] || p.method}
@@ -1572,7 +1572,7 @@ export default function AdminBookingDetail() {
                             {inv.invoiceNumber}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {inv.currency} {(inv.amount / 100).toFixed(2)} | {t("due_label")} {inv.dueDate || t("not_available")}
+                            {inv.currency} {Number(inv.amount).toFixed(2)} | {t("due_label")} {inv.dueDate || t("not_available")}
                           </p>
                         </div>
                       </div>

@@ -26,8 +26,8 @@ interface CheckoutConfig {
   publishableKey: string;
 }
 
-const fmt = (cents: number, currency: string) =>
-  `$${(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
+const fmt = (amt: number, currency: string) =>
+  `$${Number(amt).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 
 let cachedStripePromise: Promise<Stripe | null> | null = null;
 let cachedKey = "";

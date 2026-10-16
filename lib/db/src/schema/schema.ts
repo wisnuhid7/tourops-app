@@ -443,7 +443,7 @@ export const paymentStatusEnum = pgEnum("payment_status", ["pending", "processin
 export const paymentMethodEnum = pgEnum("payment_method", ["bank_transfer", "card", "cash", "other"]);
 export const refundStatusEnum = pgEnum("refund_status", ["none", "pending", "partial", "full", "failed"]);
 
-// All monetary columns on payments/refunds are integer minor units (cents).
+// All monetary columns on payments/refunds match booking currency units (e.g. USD).
 export const payments = pgTable("payments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bookingId: varchar("booking_id").notNull(),
@@ -452,7 +452,7 @@ export const payments = pgTable("payments", {
   provider: text("provider").default("manual"), // 'manual' | 'offline_test' | 'stripe' (future)
   paymentIntentId: text("payment_intent_id"),
   transactionId: text("transaction_id"),
-  amount: integer("amount").notNull(), // grand total charged, cents
+  amount: integer("amount").notNull(), // grand total charged, whole currency units
   subtotal: integer("subtotal"),
   taxes: integer("taxes").default(0),
   fees: integer("fees").default(0),

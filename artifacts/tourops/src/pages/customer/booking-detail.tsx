@@ -1419,7 +1419,7 @@ export default function CustomerBookingDetail() {
                 <Card key={pmt.id} data-testid={`card-payment-${pmt.id}`}>
                   <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="text-sm font-medium">${(pmt.amount / 100).toFixed(2)} {pmt.currency}</p>
+                      <p className="text-sm font-medium">${Number(pmt.amount).toFixed(2)} {pmt.currency}</p>
                       <p className="text-xs text-muted-foreground">
                         {pmt.method?.replace(/_/g, " ")} - {pmt.createdAt ? new Date(pmt.createdAt).toLocaleDateString() : ""}
                       </p>

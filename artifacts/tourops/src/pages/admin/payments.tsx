@@ -33,8 +33,8 @@ interface PaymentDetail {
   audit: { id: string; action: string; previousValue: string | null; newValue: string | null; note: string | null; createdAt: string }[];
 }
 
-const fmt = (cents: number | null | undefined, currency?: string | null) =>
-  `$${(((cents ?? 0)) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${currency ? ` ${currency}` : ""}`;
+const fmt = (amt: number | null | undefined, currency?: string | null) =>
+  `$${(((amt ?? 0))).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}${currency ? ` ${currency}` : ""}`;
 
 const statusVariant: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   paid: "default", pending: "secondary", processing: "secondary", failed: "destructive", canceled: "outline", refunded: "outline", partially_refunded: "outline",
@@ -93,7 +93,7 @@ export default function AdminPayments() {
   const refundMutation = useMutation({
     mutationFn: async () => {
       const body: Record<string, unknown> = { reason: refundReason.trim(), notes: refundNotes.trim() || undefined };
-      if (refundAmount.trim()) body.amount = Math.round(Number(refundAmount) * 100);
+      if (refundAmount.trim()) body.amount = Math.round(Number(refundAmount));
       return (await apiRequest("POST", `/api/payments/${detailId}/refunds`, body)).json();
     },
     onSuccess: (res: { refund: Refund }) => {
@@ -236,7 +236,7 @@ export default function AdminPayments() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">{t("refund_amount_optional")} ({t("max_label")} {fmt(remaining, detail.payment.currency)})</Label>
-                      <Input type="number" step="0.01" min="0.01" max={(remaining / 100).toFixed(2)} placeholder={(remaining / 100).toFixed(2)} value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} data-testid="input-refund-amount" />
+                      <Input type="number" step="0.01" min="0.01" max={remaining.toFixed(2)} placeholder={remaining.toFixed(2)} value={refundAmount} onChange={(e) => setRefundAmount(e.target.value)} data-testid="input-refund-amount" />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">{t("refund_reason")}</Label>

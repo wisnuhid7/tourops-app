@@ -54,7 +54,7 @@ export default function LeaderPayments() {
 
   const safeAmount = (amt: string | number | null | undefined): number => {
     const n = Number(amt);
-    return isNaN(n) ? 0 : n / 100;
+    return isNaN(n) ? 0 : n;
   };
 
   const totalsByStatus = useMemo(() => {
@@ -178,7 +178,7 @@ export default function LeaderPayments() {
                       <td className="p-3">
                         <p className="text-xs text-muted-foreground">{p.travelers.join(", ") || t("n_a")}</p>
                       </td>
-                      <td className="p-3 font-medium">${(Number(p.amount) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {p.currency}</td>
+                      <td className="p-3 font-medium">${Number(p.amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {p.currency}</td>
                       <td className="p-3 text-muted-foreground">{p.method || t("n_a")}</td>
                       <td className="p-3">
                         <Badge variant={PAYMENT_STATUS_VARIANT[p.status] || "secondary"} className="capitalize">

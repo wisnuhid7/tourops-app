@@ -46,7 +46,7 @@ export const stripeProvider: PaymentProvider = {
     const stripe = getStripeClient();
     try {
       const pi = await stripe.paymentIntents.create({
-        amount: input.amount,
+        amount: Math.round(input.amount * 100),
         currency: input.currency.toLowerCase(),
         automatic_payment_methods: { enabled: true },
         metadata: {
@@ -98,7 +98,7 @@ export const stripeProvider: PaymentProvider = {
     const stripe = getStripeClient();
     try {
       const refundParams: Stripe.RefundCreateParams = {
-        amount: input.amount,
+        amount: Math.round(input.amount * 100),
         metadata: {
           refundId: input.refundId,
         },

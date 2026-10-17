@@ -217,6 +217,12 @@
       "skillPath": "skills/playwright-automation/SKILL.md",
       "computedHash": "bbbb613ebc86099bac39a336ce6b72619503941718f928e23b9759aa22dd4976"
     },
+    "prd": {
+      "source": "github/awesome-copilot",
+      "sourceType": "github",
+      "skillPath": "skills/prd/SKILL.md",
+      "computedHash": "1f3e1f005fc40fda85d250ae906c8ee4f7e8e833e23adfeca6542c19609fd7cd"
+    },
     "qa-dashboard": {
       "source": "petrkindlmann/qa-skills",
       "sourceType": "github",

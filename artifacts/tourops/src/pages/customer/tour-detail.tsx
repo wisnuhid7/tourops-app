@@ -14,11 +14,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import { PublicHeader } from "@/components/public-header";
-import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer, Plane, Flag, Bed, Bus, Utensils, User, CircleDollarSign, Languages, Star, Mail, Phone, Cake, Receipt } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer, Plane, PlaneTakeoff, Flag, Bed, Bus, Utensils, User, CircleDollarSign, Languages, Star, Mail, Phone, Cake, Receipt } from "lucide-react";
 import { getFullImageUrl, getGoogleMapsEmbedUrl } from "@/lib/utils";
 import { Link } from "wouter";
 import { useState, useRef } from "react";
 import type { Tour, TourDeparture, TourDay } from "@workspace/db";
+import { BookingDrawer } from "@/components/booking-drawer";
 
 function PublicGroupsList({ departureId }: { departureId: string }) {
   const { t } = useLanguage();
@@ -254,6 +255,9 @@ export default function TourDetail() {
   const { data: days } = useQuery<TourDay[]>({ queryKey: ["/api/tours", tourId, "days"] });
   const { data: tourHotels } = useQuery<any[]>({ queryKey: ["/api/tours", tourId, "hotels"], enabled: !!tourId });
 
+  const [isBookingDrawerOpen, setIsBookingDrawerOpen] = useState(false);
+  const [drawerDepartureId, setDrawerDepartureId] = useState("");
+
   const [showBooking, setShowBooking] = useState(false);
   const [bookingType, setBookingType] = useState("join_public_group");
   const [departureId, setDepartureId] = useState("");
@@ -393,7 +397,7 @@ export default function TourDetail() {
     : 0;
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl mx-auto">
+    <div className="p-6 pb-28 space-y-6 max-w-4xl mx-auto">
       <PublicHeader />
       {/* Join Group Dialog (Automatic) */}
       <Dialog open={!!urlJoinCode && !!joinedGroupData && !bookingConfirmed} onOpenChange={(v) => !v && navigate(`/tours/${tourId}`)}>
@@ -478,6 +482,19 @@ export default function TourDetail() {
                     {Number(tour.singleSupplement) > 0 && <p>{t("single_supp")} +${Number(tour.singleSupplement).toLocaleString()}</p>}
                   </div>
                 )}
+                <Button
+                  onClick={() => {
+                    if (openDepartures.length > 0 && !drawerDepartureId) {
+                      setDrawerDepartureId(openDepartures[0].id);
+                    }
+                    setIsBookingDrawerOpen(true);
+                  }}
+                  className="w-full mt-3 font-semibold shadow-md gap-2"
+                  size="sm"
+                >
+                  <PlaneTakeoff className="h-4 w-4" />
+                  {t("book_this_tour") || "Book Tour / Select Dates"}
+                </Button>
               </div>
             ) : null}
           </div>
@@ -671,127 +688,17 @@ export default function TourDetail() {
                         </div>
                       </div>
                     </div>
-                    {isAuthenticated ? (
-                      <Dialog open={showBooking && departureId === dep.id} onOpenChange={(open) => { setShowBooking(open); if (open) setDepartureId(dep.id); }}>
-                        <DialogTrigger asChild>
-                          <Button data-testid={`button-book-${dep.id}`}>{t("book_now")}</Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader><DialogTitle>{t("book_this_tour")}</DialogTitle></DialogHeader>
-                          <div className="space-y-4">
-                            <div>
-                              <Label>{t("booking_type")}</Label>
-                              <Select value={bookingType} onValueChange={setBookingType}>
-                                <SelectTrigger data-testid="select-booking-type"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="join_public_group">{t("join_public_group")}</SelectItem>
-                                  <SelectItem value="leader_group">{t("create_leader_group")}</SelectItem>
-                                  <SelectItem value="private_family">{t("private_family")}</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            {bookingType === "leader_group" && (
-                              <div><Label>{t("group_name")}</Label><Input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder={t("my_travel_group_placeholder")} data-testid="input-group-name" /></div>
-                            )}
-                            <div><Label>{t("party_size")}</Label><Input type="number" min={1} value={partySize} onChange={(e) => setPartySize(parseInt(e.target.value) || 1)} data-testid="input-party-size" /></div>
-                            {roomTypeOptions.length > 0 && (
-                              <div>
-                                <Label>{t("room_type")}</Label>
-                                <Select value={roomType} onValueChange={setRoomType}>
-                                  <SelectTrigger data-testid="select-room-type"><SelectValue placeholder={t("select_room_type")} /></SelectTrigger>
-                                  <SelectContent>
-                                    {roomTypeOptions.map((o) => (
-                                      <SelectItem key={o.value} value={o.value} data-testid={`option-room-${o.value}`}>
-                                        {t(o.labelKey as any)} — {o.currency} {o.minRate} {t("per_night_label")}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            )}
-                            <div><Label>{t("notes_optional")}</Label><Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("special_requests_placeholder")} /></div>
-
-                            {/* ── Price Breakdown ── */}
-                            {pricePreviewError ? (
-                              <p className="text-sm text-destructive text-center py-2">{t("booking_failed")}</p>
-                            ) : pricePreviewFetching && !pricePreview ? (
-                              <Skeleton className="h-24 w-full" />
-                            ) : pricePreview && (
-                              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-2 text-sm">
-                                <p className="font-semibold flex items-center gap-1.5 text-primary">
-                                  <Receipt className="h-4 w-4" />{t("booking_price_breakdown")}
-                                </p>
-                                <div className="space-y-1 text-muted-foreground">
-                                  <div className="flex justify-between">
-                                    <span>{pricePreview.partySize} × {pricePreview.currency} {pricePreview.perPersonPrice.toLocaleString()} / {t("per_person")}</span>
-                                    <span className="font-medium text-foreground">{pricePreview.currency} {pricePreview.perPersonSubtotal.toLocaleString()}</span>
-                                  </div>
-                                  {pricePreview.currencyMismatch ? (
-                                    // Accommodation is in a different currency — booking would be rejected.
-                                    // Hide grand total (it would be wrong) and block confirmation.
-                                    <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1.5 pt-1 border-t border-primary/20 mt-2">
-                                      <Bed className="h-3.5 w-3.5 flex-shrink-0" />
-                                      {t("accommodation_cost_label")}: pricing unavailable — please contact us
-                                    </p>
-                                  ) : (
-                                    <>
-                                      {pricePreview.accommodationCost > 0 && (
-                                        <>
-                                          <div className="flex justify-between">
-                                            <span className="flex items-center gap-1">
-                                              <Bed className="h-3.5 w-3.5" />
-                                              {t("accommodation_cost_label")}
-                                              {roomType && ` (${t(roomType === "matrimonial" ? "room_matrimonial" : roomType === "doble" ? "room_double" : "room_triple")})`}
-                                            </span>
-                                            <span className="font-medium text-foreground">{pricePreview.currency} {pricePreview.accommodationCost.toLocaleString()}</span>
-                                          </div>
-                                          <div className="text-xs">
-                                            {t("booking_rooms_needed")}: {pricePreview.roomsNeeded}
-                                          </div>
-                                        </>
-                                      )}
-                                      <div className="flex justify-between border-t border-primary/20 pt-2 font-bold text-foreground">
-                                        <span>{t("grand_total")}</span>
-                                        <span>{pricePreview.currency} {pricePreview.grandTotal.toLocaleString()}</span>
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            <Button
-                              className="w-full"
-                              onClick={() => submitBooking({
-                                tourId: tour.id,
-                                departureId: dep.id,
-                                bookingType,
-                                groupName: bookingType === "leader_group" ? groupName : undefined,
-                                partySizeExpected: partySize,
-                                roomType: roomType || undefined,
-                                notes,
-                                // Per-person price excludes accommodation — the server
-                                // prices and adds the selected room type itself.
-                                totalPrice: Number(dep.pricePerPerson || publicPricing?.perPersonBase || tour.basePrice || 0) * partySize,
-                              })}
-                              disabled={
-                                bookMutation.isPending ||
-                                (roomTypeOptions.length > 0 && !roomType) ||
-                                !pricePreview ||
-                                pricePreviewFetching ||
-                                pricePreviewError ||
-                                pricePreview.currencyMismatch
-                              }
-                              data-testid="button-confirm-booking"
-                            >
-                              {bookMutation.isPending ? t("loading") : pricePreviewFetching ? t("loading") : t("confirm_booking")}
-                            </Button>
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    ) : (
-                      <a href="/#login"><Button data-testid="button-sign-in-to-book">{t("sign_in_to_book")}</Button></a>
-                    )}
+                    <Button
+                      onClick={() => {
+                        setDrawerDepartureId(dep.id);
+                        setIsBookingDrawerOpen(true);
+                      }}
+                      data-testid={`button-book-${dep.id}`}
+                      className="gap-1.5 shadow-sm"
+                    >
+                      <Calendar className="h-4 w-4" />
+                      {t("book_now")}
+                    </Button>
                   </div>
                   <PublicGroupsList departureId={dep.id} />
                 </CardContent>
@@ -800,6 +707,45 @@ export default function TourDetail() {
           </div>
         )}
       </div>
+
+      {/* Floating Bottom Booking Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-md border-t shadow-lg py-3 px-4 sm:px-6">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+          <div className="space-y-0.5">
+            <p className="text-[11px] uppercase font-bold tracking-wider text-muted-foreground line-clamp-1">
+              {language === 'en' ? tour.title : ((tour as any).translations?.[language]?.title || tour.title)}
+            </p>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-xl font-bold text-primary">
+                ${startingFromPrice.toLocaleString()}
+              </span>
+              <span className="text-xs text-muted-foreground">/ {t("per_person")}</span>
+            </div>
+          </div>
+          <Button
+            onClick={() => {
+              if (openDepartures.length > 0 && !drawerDepartureId) {
+                setDrawerDepartureId(openDepartures[0].id);
+              }
+              setIsBookingDrawerOpen(true);
+            }}
+            className="shadow-lg shadow-primary/20 gap-2 font-semibold px-5"
+          >
+            <PlaneTakeoff className="h-4 w-4" />
+            <span>{t("book_this_tour") || "Book Tour / Select Dates"}</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Modern Multi-step Booking Drawer */}
+      <BookingDrawer
+        isOpen={isBookingDrawerOpen}
+        onClose={() => setIsBookingDrawerOpen(false)}
+        tour={tour}
+        departures={departures || []}
+        tourHotels={tourHotels || []}
+        initialDepartureId={drawerDepartureId}
+      />
     </div>
   );
 }

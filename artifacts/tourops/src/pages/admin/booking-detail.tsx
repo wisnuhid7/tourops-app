@@ -584,7 +584,7 @@ export default function AdminBookingDetail() {
             </div>
           )}
 
-          <div className="mt-7 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-primary/10 pt-5 text-sm sm:grid-cols-4">
+          <div className="mt-7 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-primary/10 pt-5 text-sm sm:grid-cols-5">
             <div>
               <p className="text-xs text-muted-foreground">{t("customer")}</p>
               <p className="mt-1 truncate font-medium" title={customerName}>{customerName}</p>
@@ -592,6 +592,10 @@ export default function AdminBookingDetail() {
             <div>
               <p className="text-xs text-muted-foreground">{t("party_size")}</p>
               <p className="mt-1 font-medium" data-testid="text-party-size">{travelers?.length || 0} / {booking.partySizeExpected || 1} {t("travelers_suffix")}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">{t("departure_city") || "Departure City"}</p>
+              <p className="mt-1 font-medium truncate" title={booking.departureCity || t("not_available")}>{booking.departureCity || t("not_available")}</p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground">{t("departure_date")}</p>
@@ -705,6 +709,12 @@ export default function AdminBookingDetail() {
                     <p className="text-xs text-muted-foreground">{t("departure_id")}</p>
                     <p className="font-medium font-mono text-xs" data-testid="summary-departure-id">{booking.departureId || t("not_available")}</p>
                   </div>
+                  {booking.departureCity && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">{t("departure_city") || "Departure City"}</p>
+                      <p className="font-medium text-xs" data-testid="summary-departure-city">{booking.departureCity}</p>
+                    </div>
+                  )}
                   {booking.leaderUserId && (
                     <div>
                       <p className="text-xs text-muted-foreground">{t("leader_user")}</p>

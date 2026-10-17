@@ -422,6 +422,7 @@ export default function CustomerBookingDetail() {
         ['Booking Code', booking.bookingCode],
         ['Tour ID', booking.tourId || "N/A"],
         ['Departure ID', booking.departureId || "N/A"],
+        ['Departure City', booking.departureCity || "N/A"],
         ['Status', booking.status?.toUpperCase() || "SUBMITTED"],
         ['Party Size', booking.partySizeExpected !== undefined && booking.partySizeExpected !== null ? String(booking.partySizeExpected) : "1"],
         ['Total Price', `${booking.totalPrice?.toLocaleString() || "0"} ${booking.currency || "USD"}`],
@@ -761,6 +762,12 @@ export default function CustomerBookingDetail() {
               <p className="text-xs text-muted-foreground">{t("party_size")}</p>
               <p className="font-medium mt-0.5">{booking.partySizeExpected || 1}</p>
             </div>
+            {booking.departureCity && (
+              <div>
+                <p className="text-xs text-muted-foreground">{t("departure_city") || "Departure City"}</p>
+                <p className="font-medium mt-0.5">{booking.departureCity}</p>
+              </div>
+            )}
             {departure?.startDate && (
               <div>
                 <p className="text-xs text-muted-foreground">{t("departure_date")}</p>
@@ -847,6 +854,12 @@ export default function CustomerBookingDetail() {
                     <div className="flex justify-between gap-2">
                       <span className="text-muted-foreground">{t("destination")}</span>
                       <span className="text-right max-w-[200px]">{destination}</span>
+                    </div>
+                  )}
+                  {booking.departureCity && (
+                    <div className="flex justify-between gap-2">
+                      <span className="text-muted-foreground">{t("departure_city") || "Departure"}</span>
+                      <span className="text-right font-medium max-w-[200px]">{booking.departureCity}</span>
                     </div>
                   )}
                   {departure?.startDate && (

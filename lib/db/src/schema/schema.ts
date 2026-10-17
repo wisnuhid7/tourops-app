@@ -259,6 +259,8 @@ export const bookings = pgTable("bookings", {
   internalNotes: text("internal_notes"),
   isUrgent: boolean("is_urgent").default(false),
   affiliateId: varchar("affiliate_id"),
+  departureCity: text("departure_city"),
+  departureAirportId: varchar("departure_airport_id"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   customerIdIdx: index("bookings_customer_id_idx").on(table.customerId),

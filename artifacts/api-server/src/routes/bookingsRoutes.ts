@@ -223,6 +223,8 @@ export function registerBookingsRoutes(app: Express): void {
         joinCode, 
         leaderUserId, 
         affiliateId,
+        departureCity: req.body.departureCity || (req.body.isLandOnly ? "Land Only (Self Arrival)" : null),
+        departureAirportId: req.body.departureAirportId || null,
         roomType: roomType ?? null,
         accommodationCost: accommodationCost ?? null,
         currency: bookingCurrency ?? req.body.currency ?? "USD",
@@ -349,6 +351,8 @@ export function registerBookingsRoutes(app: Express): void {
       const joinSchema = z.object({
         joinCode: z.string().min(1),
         partySizeExpected: z.number().int().min(1).max(50).optional(),
+        departureCity: z.string().optional(),
+        departureAirportId: z.string().optional(),
       });
       const parsed = joinSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Join code required" });
@@ -391,6 +395,8 @@ export function registerBookingsRoutes(app: Express): void {
       try {
         const booking = await storage.createBooking({
           tourId: original.tourId, departureId: original.departureId,
+          departureCity: parsed.data.departureCity ?? original.departureCity ?? null,
+          departureAirportId: parsed.data.departureAirportId ?? original.departureAirportId ?? null,
           customerId: userId, bookingType: "join_leader_group", bookingCode,
           groupName: original.groupName, leaderUserId: original.customerId,
           partySizeExpected: partySize, totalPrice,

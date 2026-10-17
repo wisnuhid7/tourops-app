@@ -32,7 +32,7 @@ import {
   getUserId,
   requireRole,
 } from "../middleware/auth";
-import { canAccessBooking, confirmBookingSideEffects, getUserName, initializeBookingWorkflows, publicTourPricing, upload } from "./shared";
+import { canAccessBooking, confirmBookingSideEffects, getUserName, initializeBookingWorkflows, publicTourPricing, upload, computeCheckoutSummary } from "./shared";
 
 // Bookings and everything that hangs off a booking: customer-facing booking
 // routes, documents, payments, leader group participants, self-cancellation,
@@ -216,6 +216,12 @@ export function registerBookingsRoutes(app: Express): void {
         }
       }
 
+      const feeSetting = await storage.getGlobalSettingByKey?.("default_service_fee");
+      const defaultFees = Math.round(Number(feeSetting?.value || 0));
+      const taxSetting = await storage.getGlobalSettingByKey?.("checkout_tax_rate_percent");
+      const taxRate = Number(taxSetting?.value || 0);
+      const computedTaxes = Math.round(((totalPrice ?? 0) * taxRate) / 100);
+
       const booking = await storage.createBooking({
         ...req.body, 
         customerId, 
@@ -229,6 +235,8 @@ export function registerBookingsRoutes(app: Express): void {
         accommodationCost: accommodationCost ?? null,
         currency: bookingCurrency ?? req.body.currency ?? "USD",
         totalPrice,
+        taxAmount: computedTaxes.toString(),
+        serviceFeeAmount: defaultFees.toString(),
         status: req.body.status || ("submitted" as const), 
         fulfillmentStatus: req.body.fulfillmentStatus || ("pending" as const),
       });
@@ -430,7 +438,8 @@ export function registerBookingsRoutes(app: Express): void {
       const booking = await storage.getBooking(req.params.id as string);
       if (!booking) return res.status(404).json({ message: "Booking not found" });
       if (booking.customerId !== userId) return res.status(403).json({ message: "Not your booking" });
-      res.json(booking);
+      const pricingSummary = await computeCheckoutSummary(booking);
+      res.json({ ...booking, pricingSummary });
     } catch (e: any) { routeError(res, e); }
   });
 
@@ -574,7 +583,8 @@ export function registerBookingsRoutes(app: Express): void {
         return res.status(409).json({ message: "Payments have already been made; payment schedule cannot be modified" });
       }
 
-      const total = new Decimal(booking.totalPrice);
+      const summary = await computeCheckoutSummary(booking);
+      const total = new Decimal(summary.total);
       const now = new Date();
       let depDate: Date | null = null;
       if (booking.departureId) {

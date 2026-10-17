@@ -449,3 +449,32 @@ export async function ensureCityExists(cityName: string | null | undefined, coun
       });
     }
   }
+
+/** All money is integer units. Booking.totalPrice is whole currency units. */
+export async function computeCheckoutSummary(booking: {
+  totalPrice: number | null;
+  currency: string | null;
+  taxAmount?: string | number | null;
+  serviceFeeAmount?: string | number | null;
+}) {
+  const subtotal = Math.round(booking.totalPrice || 0);
+  const feeSetting = await storage.getGlobalSettingByKey?.("default_service_fee");
+  const fees = booking.serviceFeeAmount != null
+    ? Math.round(Number(booking.serviceFeeAmount))
+    : Math.round(Number(feeSetting?.value || 0));
+  const taxSetting = await storage.getGlobalSettingByKey?.("checkout_tax_rate_percent");
+  const taxRate = Number(taxSetting?.value || 0);
+  const taxes = booking.taxAmount != null
+    ? Math.round(Number(booking.taxAmount))
+    : Math.round((subtotal * taxRate) / 100);
+  const discount = 0; // promo codes not supported yet
+  return {
+    subtotal,
+    taxes,
+    fees,
+    discount,
+    total: subtotal + taxes + fees - discount,
+    currency: booking.currency || "USD",
+    taxRate,
+  };
+}

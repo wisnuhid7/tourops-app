@@ -22,7 +22,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { storage } from "../storage";
 import { routeError } from "../lib/routeError";
 import { isAuthenticated } from "../replit_integrations/auth";
-import { canAccessBooking, syncBookingPaymentSchedules } from "./shared";
+import { canAccessBooking, syncBookingPaymentSchedules, computeCheckoutSummary } from "./shared";
 import { getUserId, requireRole } from "../middleware/auth";
 import { runTestSeed, resetTestData, runValidationOnly, latestSeedRun, testSeedBlockedReason, isTestEnvironment } from "../test-seed";
 import { runPaymentReminderJob } from "../lib/paymentReminderJob";
@@ -217,7 +217,8 @@ export function registerServiceOpsRoutes(app: Express): void {
         .where(eq(bookingPaymentSchedules.bookingId, bookingId));
       if (existing.some(s => s.status === "paid" || s.status === "partially_paid" || new Decimal(s.paidAmount).greaterThan(0)))
         return res.status(409).json({ message: "Schedule has recorded payments; it cannot be regenerated" });
-      const total = new Decimal(booking.totalPrice);
+      const summary = await computeCheckoutSummary(booking);
+      const total = new Decimal(summary.total);
       const rows = await db.transaction(async (tx) => {
         await tx.delete(bookingPaymentSchedules).where(eq(bookingPaymentSchedules.bookingId, bookingId));
         // Last installment absorbs rounding so amounts sum exactly to the total.

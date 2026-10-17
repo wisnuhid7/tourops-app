@@ -8,7 +8,7 @@ import { logger } from "../lib/logger";
 import { routeError } from "../lib/routeError";
 import { isAuthenticated } from "../replit_integrations/auth";
 import { getPaymentProvider, processPaymentEvent, applyRefundTotals } from "../lib/payments";
-import { canAccessBooking, autoConfirmBookingIfEligible, recordSchedulePayment, syncBookingPaymentSchedules } from "./shared";
+import { canAccessBooking, autoConfirmBookingIfEligible, recordSchedulePayment, syncBookingPaymentSchedules, computeCheckoutSummary } from "./shared";
 import { FINANCE_ROLES, getUserId, requireRole } from "../middleware/auth";
 
 // Checkout endpoints are authenticated but still rate-limited: they trigger
@@ -20,18 +20,6 @@ const checkoutLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: "Too many checkout requests. Please try again later." },
 });
-
-/** All money is integer units. Booking.totalPrice is whole currency units. */
-async function computeCheckoutSummary(booking: { totalPrice: number | null; currency: string | null }) {
-  const subtotal = Math.round(booking.totalPrice || 0);
-  const feeSetting = await storage.getGlobalSettingByKey("default_service_fee");
-  const fees = Math.round(Number(feeSetting?.value || 0));
-  const taxSetting = await storage.getGlobalSettingByKey("checkout_tax_rate_percent");
-  const taxRate = Number(taxSetting?.value || 0);
-  const taxes = Math.round((subtotal * taxRate) / 100);
-  const discount = 0; // promo codes not supported yet
-  return { subtotal, taxes, fees, discount, total: subtotal + taxes + fees - discount, currency: booking.currency || "USD", taxRate };
-}
 
 function paidCoverage(rows: Payment[]): number {
   return rows
@@ -88,6 +76,28 @@ export function registerPaymentRoutes(app: Express): void {
       const covered = paidCoverage(rows);
       const openPayment = rows.find((p) => p.provider !== "manual" && ["pending", "processing"].includes(p.status || "") && p.paymentIntentId);
       const schedules = await db.select().from(bookingPaymentSchedules).where(eq(bookingPaymentSchedules.bookingId, booking.id)).orderBy(asc(bookingPaymentSchedules.installmentNumber));
+
+      // Self-anneal: if schedules were previously generated without service fee & tax (sum == subtotal),
+      // and no payment has been made yet, re-scale them so the installment schedule reflects summary.total.
+      if (schedules.length > 0 && covered === 0) {
+        const schedSum = schedules.reduce((acc, s) => acc + Number(s.amount), 0);
+        if (Math.abs(schedSum - summary.total) > 0.01 && Math.abs(schedSum - summary.subtotal) <= 1) {
+          let allocated = 0;
+          for (let i = 0; i < schedules.length; i++) {
+            const s = schedules[i];
+            const isLast = i === schedules.length - 1;
+            const pct = Number(s.percentage) || (schedSum > 0 ? (Number(s.amount) / schedSum) * 100 : 0);
+            const newAmt = isLast ? Math.round(summary.total - allocated) : Math.round((summary.total * pct) / 100);
+            allocated += newAmt;
+            await db.update(bookingPaymentSchedules).set({
+              amount: newAmt.toFixed(2),
+              updatedAt: new Date(),
+            }).where(eq(bookingPaymentSchedules.id, s.id));
+            (s as any).amount = newAmt;
+          }
+        }
+      }
+
       res.json({
         booking: { id: booking.id, bookingCode: booking.bookingCode, groupName: booking.groupName, partySizeExpected: booking.partySizeExpected, status: booking.status, tourId: booking.tourId },
         summary,
@@ -173,16 +183,23 @@ export function registerPaymentRoutes(app: Express): void {
           customerId: userId,
           metadata: { bookingCode: booking.bookingCode || "", installmentId: targetSchedule?.id || "" },
         });
+
+        const instRatio = (targetSchedule && summary.total > 0) ? (targetAmount / summary.total) : 1;
+        const instTaxes = targetSchedule ? Math.round(summary.taxes * instRatio) : summary.taxes;
+        const instFees = targetSchedule ? Math.round(summary.fees * instRatio) : summary.fees;
+        const instDiscount = targetSchedule ? Math.round(summary.discount * instRatio) : summary.discount;
+        const instSubtotal = targetSchedule ? (targetAmount - instTaxes - instFees + instDiscount) : summary.subtotal;
+
         const [payment] = await tx.insert(payments).values({
           bookingId: booking.id,
           customerId: booking.customerId,
           provider: provider.name,
           paymentIntentId: intent.intentId,
           amount: targetAmount,
-          subtotal: targetSchedule ? targetAmount : summary.subtotal,
-          taxes: targetSchedule ? 0 : summary.taxes,
-          fees: targetSchedule ? 0 : summary.fees,
-          discount: targetSchedule ? 0 : summary.discount,
+          subtotal: instSubtotal,
+          taxes: instTaxes,
+          fees: instFees,
+          discount: instDiscount,
           currency: summary.currency,
           method: "card",
           status: "pending",

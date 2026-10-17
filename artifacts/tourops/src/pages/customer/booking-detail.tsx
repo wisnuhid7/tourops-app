@@ -371,7 +371,8 @@ export default function CustomerBookingDetail() {
   const hasMissingPassportDetails = Array.isArray(travelers) && travelers.some((traveler) => !traveler.passportNumber);
   const hasPendingPayment = Array.isArray(pmts) && pmts.some((payment) => payment.status === "pending");
 
-  const totalPrice = Math.round(Number(booking?.totalPrice || 0));
+  const pricingSummary = (booking as any)?.pricingSummary;
+  const totalPrice = Math.round(Number(pricingSummary?.total ?? booking?.totalPrice ?? 0));
   const totalPaid = Array.isArray(pmts)
     ? pmts.filter((p) => p.status === "paid").reduce((sum, p) => sum + (Number(p.amount) - Number(p.refundedAmount || 0)), 0)
     : 0;
@@ -415,18 +416,26 @@ export default function CustomerBookingDetail() {
     doc.setFontSize(14);
     doc.text("Booking Summary", 15, 55);
 
+    const invoiceBody: any[] = [
+      ['Booking Code', booking.bookingCode],
+      ['Tour ID', booking.tourId || "N/A"],
+      ['Departure ID', booking.departureId || "N/A"],
+      ['Departure City', booking.departureCity || "N/A"],
+      ['Status', booking.status?.toUpperCase() || "SUBMITTED"],
+      ['Party Size', booking.partySizeExpected !== undefined && booking.partySizeExpected !== null ? String(booking.partySizeExpected) : "1"],
+    ];
+
+    if (pricingSummary) {
+      invoiceBody.push(['Subtotal', `$${Number(pricingSummary.subtotal).toLocaleString()} ${booking.currency || "USD"}`]);
+      invoiceBody.push([`Taxes${pricingSummary.taxRate ? ` (${pricingSummary.taxRate}%)` : ""}`, `$${Number(pricingSummary.taxes).toLocaleString()} ${booking.currency || "USD"}`]);
+      invoiceBody.push(['Service Fee', `$${Number(pricingSummary.fees).toLocaleString()} ${booking.currency || "USD"}`]);
+    }
+    invoiceBody.push(['Total Price', `$${totalPrice.toLocaleString()} ${booking.currency || "USD"}`]);
+
     autoTable(doc, {
       startY: 60,
       head: [['Field', 'Details']],
-      body: [
-        ['Booking Code', booking.bookingCode],
-        ['Tour ID', booking.tourId || "N/A"],
-        ['Departure ID', booking.departureId || "N/A"],
-        ['Departure City', booking.departureCity || "N/A"],
-        ['Status', booking.status?.toUpperCase() || "SUBMITTED"],
-        ['Party Size', booking.partySizeExpected !== undefined && booking.partySizeExpected !== null ? String(booking.partySizeExpected) : "1"],
-        ['Total Price', `${booking.totalPrice?.toLocaleString() || "0"} ${booking.currency || "USD"}`],
-      ],
+      body: invoiceBody,
       theme: 'striped',
       headStyles: { fillColor: [240, 240, 240], textColor: [100, 100, 100], fontSize: 10 },
       styles: { fontSize: 10 }
@@ -891,10 +900,33 @@ export default function CustomerBookingDetail() {
                     </div>
                   )}
                   {booking.totalPrice != null && (
-                    <div className="flex justify-between gap-2">
-                      <span className="text-muted-foreground">{t("total_price")}</span>
-                      <span className="font-medium">${booking.totalPrice}</span>
-                    </div>
+                    <>
+                      {pricingSummary ? (
+                        <>
+                          <div className="flex justify-between gap-2 text-xs text-muted-foreground pt-1 border-t">
+                            <span>{t("subtotal")}</span>
+                            <span>${Number(pricingSummary.subtotal).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between gap-2 text-xs text-muted-foreground">
+                            <span>{t("taxes")}{pricingSummary.taxRate ? ` (${pricingSummary.taxRate}%)` : ""}</span>
+                            <span>${Number(pricingSummary.taxes).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between gap-2 text-xs text-muted-foreground">
+                            <span>{t("service_fees")}</span>
+                            <span>${Number(pricingSummary.fees).toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between gap-2 pt-1 border-t font-semibold">
+                            <span>{t("total_price")}</span>
+                            <span className="font-bold text-primary">${totalPrice.toLocaleString()}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex justify-between gap-2">
+                          <span className="text-muted-foreground">{t("total_price")}</span>
+                          <span className="font-medium">${totalPrice.toLocaleString()}</span>
+                        </div>
+                      )}
+                    </>
                   )}
                   {booking.notes && (
                     <div className="flex justify-between gap-2">
@@ -1556,6 +1588,17 @@ export default function CustomerBookingDetail() {
                   </div>
                 </div>
 
+                {pricingSummary && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground bg-muted/30 px-3.5 py-2 rounded-md border border-slate-100 dark:border-slate-800">
+                    <span className="font-medium text-foreground">{t("order_summary")}:</span>
+                    <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                      <span>{t("subtotal")}: <strong className="text-foreground">${Number(pricingSummary.subtotal).toLocaleString()}</strong></span>
+                      <span>{t("taxes")}{pricingSummary.taxRate ? ` (${pricingSummary.taxRate}%)` : ""}: <strong className="text-foreground">${Number(pricingSummary.taxes).toLocaleString()}</strong></span>
+                      <span>{t("service_fees")}: <strong className="text-foreground">${Number(pricingSummary.fees).toLocaleString()}</strong></span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-1.5 pt-1">
                   <div className="flex justify-between text-xs text-muted-foreground font-medium">
                     <span>{t("payment_progress_label")}</span>
@@ -1870,7 +1913,13 @@ export default function CustomerBookingDetail() {
           {/* 5. Jadwal Pembayaran (Installments Schedule) */}
           {Array.isArray(schedule) && schedule.length > 0 && (
             <div className="space-y-2 pt-2">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("payment_schedule_title")}</h3>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("payment_schedule_title")}</h3>
+                <Badge variant="outline" className="text-[11px] font-normal text-muted-foreground">
+                  {t("includes_tax_and_fees")}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground -mt-1">{t("installment_tax_fee_note")}</p>
               {schedule.map((inst) => {
                 const now = new Date();
                 const due = new Date(inst.dueDate);

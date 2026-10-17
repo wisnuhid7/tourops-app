@@ -239,7 +239,8 @@ export default function Checkout() {
               </Badge>
             </div>
           </CardHeader>
-          <CardContent className="space-y-3 text-sm">
+          <CardContent className="space-y-3.5 text-sm">
+            {/* Informasi Cicilan yang Aktif */}
             <div className="p-3.5 bg-primary/5 rounded-lg border border-primary/15 space-y-1">
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-sm text-primary">
@@ -254,18 +255,70 @@ export default function Checkout() {
               </p>
             </div>
 
-            <div className="space-y-2 pt-1 text-xs">
+            {/* Rincian Paket Termasuk Pajak & Service Fee */}
+            <div className="space-y-1.5 text-xs border-b border-slate-100 dark:border-slate-800 pb-3">
               <div className="flex justify-between text-muted-foreground">
+                <span>{t("subtotal")}</span>
+                <span data-testid="text-subtotal">{fmt(summary.subtotal, summary.currency)}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>{t("taxes")}{summary.taxRate ? ` (${summary.taxRate}%)` : ""}</span>
+                <span data-testid="text-taxes">{fmt(summary.taxes, summary.currency)}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>{t("service_fees")}</span>
+                <span data-testid="text-fees">{fmt(summary.fees, summary.currency)}</span>
+              </div>
+              {summary.discount > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span>{t("discount")}</span>
+                  <span>-{fmt(summary.discount, summary.currency)}</span>
+                </div>
+              )}
+              <div className="flex justify-between font-semibold text-foreground pt-1 border-t border-dashed border-slate-200 dark:border-slate-700">
                 <span>{t("checkout_total_tour_package")}</span>
                 <span>{fmt(summary.total, summary.currency)}</span>
               </div>
-              <div className="flex justify-between text-muted-foreground">
+            </div>
+
+            {/* Rincian Porsi Cicilan Ini */}
+            {(() => {
+              const instRatio = summary.total > 0 ? (currentPayableAmount / summary.total) : (Number(selectedSched.percentage) / 100);
+              const instTaxes = Math.round(summary.taxes * instRatio);
+              const instFees = Math.round(summary.fees * instRatio);
+              const instSubtotal = Math.max(0, currentPayableAmount - instTaxes - instFees);
+              return (
+                <div className="space-y-1.5 text-xs text-muted-foreground bg-slate-50 dark:bg-slate-900/60 p-3 rounded-md border border-slate-100 dark:border-slate-800">
+                  <div className="text-[11px] font-semibold text-foreground mb-1 flex items-center justify-between">
+                    <span>{t("installment_portion_breakdown")}</span>
+                    <Badge variant="outline" className="text-[10px] font-normal py-0">
+                      {t("includes_tax_and_fees")}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>{t("subtotal")}</span>
+                    <span>{fmt(instSubtotal, summary.currency)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>{t("taxes")}{summary.taxRate ? ` (${summary.taxRate}%)` : ""}</span>
+                    <span>{fmt(instTaxes, summary.currency)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>{t("service_fees")}</span>
+                    <span>{fmt(instFees, summary.currency)}</span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {data.alreadyPaid > 0 && (
+              <div className="flex justify-between text-xs text-muted-foreground pt-1">
                 <span>{t("checkout_already_paid_previously")}</span>
                 <span className="text-emerald-600 font-medium">
                   {fmt(data.alreadyPaid, summary.currency)}
                 </span>
               </div>
-            </div>
+            )}
 
             <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-3 font-bold text-base">
               <span>{t("checkout_amount_paying_now")}</span>
@@ -295,7 +348,7 @@ export default function Checkout() {
         <Card className="border-slate-200 dark:border-slate-800">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{t("checkout_installment_options")}</CardTitle>
-            <p className="text-xs text-muted-foreground">{t("checkout_installment_select_hint")}</p>
+            <p className="text-xs text-muted-foreground">{t("installment_tax_fee_note")}</p>
           </CardHeader>
           <CardContent className="space-y-2.5">
             {data.schedules.map((sched) => {

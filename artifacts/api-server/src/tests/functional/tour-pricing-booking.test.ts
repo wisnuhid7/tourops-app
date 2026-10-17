@@ -150,6 +150,7 @@ vi.mock("../../storage", () => ({
     },
     getAllCountries: async () => [],
     updateProfile: async () => ({}),
+    getGlobalSettingByKey: async () => undefined,
   },
 }));
 

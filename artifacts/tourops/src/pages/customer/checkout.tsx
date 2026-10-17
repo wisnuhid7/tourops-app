@@ -473,7 +473,7 @@ export default function Checkout() {
                   variant="outline"
                   className="border-emerald-600 text-emerald-700 hover:bg-emerald-100"
                   onClick={() => {
-                    const nextUnpaid = data.schedules.find((s) => s.status !== "paid" && (s.amount - s.paidAmount) > 0);
+                    const nextUnpaid = data.schedules?.find((s) => s.status !== "paid" && (s.amount - s.paidAmount) > 0);
                     if (nextUnpaid) {
                       setSelectedInstallmentId(nextUnpaid.id);
                       setPhase("form");

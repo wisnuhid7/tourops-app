@@ -211,6 +211,12 @@
       "skillPath": "skills/performance-testing/SKILL.md",
       "computedHash": "5738d69453dfd7f9be7c7d158153dda891a2c6f44ceac47b6dfb870fdbac5af2"
     },
+    "planning-and-task-breakdown": {
+      "source": "addyosmani/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/planning-and-task-breakdown/SKILL.md",
+      "computedHash": "0dc14a1402cdabd376f2d81d2225fcb4a18ee63d58b945ff83affeb024285b8f"
+    },
     "playwright-automation": {
       "source": "petrkindlmann/qa-skills",
       "sourceType": "github",

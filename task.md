@@ -46,14 +46,14 @@
 #### Task 2: Atomic Capacity Seat Hold on Booking Creation (US-03)
 **Description:** Implement atomic 30-minute seat reservations on `POST /api/bookings`. When a booking is submitted, atomically increment `capacityBooked` on `tour_departures` inside a PostgreSQL transaction using `SELECT ... FOR UPDATE` and set `hold_expires_at = NOW() + INTERVAL '30 minutes'` with initial status `pending_payment`.
 **Acceptance criteria:**
-- [x] `POST /api/bookings` locks the target `tour_departures` row using `SELECT ... FOR UPDATE`.
-- [x] Rejects the booking with HTTP 409 if `capacityBooked + partySize > capacityTotal`.
-- [x] Atomically increments `capacityBooked` by `partySize` and inserts booking with status `pending_payment` and `hold_expires_at` 30 minutes in the future.
-- [x] Concurrency test validates that concurrent bookings competing for the last seat result in exactly one successful hold.
+- [ ] `POST /api/bookings` locks the target `tour_departures` row using `SELECT ... FOR UPDATE`.
+- [ ] Rejects the booking with HTTP 409 if `capacityBooked + partySize > capacityTotal`.
+- [ ] Atomically increments `capacityBooked` by `partySize` and inserts booking with status `pending_payment` and `hold_expires_at` 30 minutes in the future.
+- [ ] Concurrency test validates that concurrent bookings competing for the last seat result in exactly one successful hold.
 **Verification:**
-- [x] Tests pass: `pnpm --filter @workspace/api-server run test -- -t "capacity hold"`
-- [x] Build succeeds: `pnpm run typecheck`
-- [x] Manual check: Attempt simultaneous bookings exceeding departure capacity via test script.
+- [ ] Tests pass: `pnpm --filter @workspace/api-server run test -- -t "capacity hold"`
+- [ ] Build succeeds: `pnpm run typecheck`
+- [ ] Manual check: Attempt simultaneous bookings exceeding departure capacity via test script.
 **Dependencies:** Task 1  
 **Files likely touched:** `artifacts/api-server/src/routes/bookingsRoutes.ts`, `artifacts/api-server/src/routes/shared.ts`, `artifacts/api-server/test/capacity-hold.test.ts`  
 **Estimated scope:** Medium (3 files)
@@ -63,14 +63,14 @@
 #### Task 3: Booking Request Idempotency via Header Validation (US-03)
 **Description:** Add idempotent execution to `POST /api/bookings` by requiring and validating the `Idempotency-Key` header (UUID) to prevent accidental duplicate bookings and duplicate charges.
 **Acceptance criteria:**
-- [x] `POST /api/bookings` validates presence and UUID format of `Idempotency-Key` header.
-- [x] If an identical key with identical payload is received within 24 hours, returns the previously created booking with HTTP 200 and an `Idempotent-Replay: true` header.
-- [x] If the same key is reused with a differing payload, returns HTTP 422 Unprocessable Entity.
-- [x] Frontend booking submit button enters a disabled, loading state while request is in flight.
+- [ ] `POST /api/bookings` validates presence and UUID format of `Idempotency-Key` header.
+- [ ] If an identical key with identical payload is received within 24 hours, returns the previously created booking with HTTP 200 and an `Idempotent-Replay: true` header.
+- [ ] If the same key is reused with a differing payload, returns HTTP 422 Unprocessable Entity.
+- [ ] Frontend booking submit button enters a disabled, loading state while request is in flight.
 **Verification:**
-- [x] Tests pass: `pnpm --filter @workspace/api-server run test -- -t "idempotency"`
-- [x] Build succeeds: `pnpm run typecheck`
-- [x] Manual check: Replay identical `POST /api/bookings` request and verify no new database row is inserted.
+- [ ] Tests pass: `pnpm --filter @workspace/api-server run test -- -t "idempotency"`
+- [ ] Build succeeds: `pnpm run typecheck`
+- [ ] Manual check: Replay identical `POST /api/bookings` request and verify no new database row is inserted.
 **Dependencies:** Task 2  
 **Files likely touched:** `artifacts/api-server/src/routes/bookingsRoutes.ts`, `artifacts/tourops/src/components/booking-drawer.tsx`  
 **Estimated scope:** Small (2 files)
@@ -78,25 +78,25 @@
 ---
 
 ### Checkpoint 1: Seat Holds & Idempotency
-- [x] Database schema migrations applied cleanly.
-- [x] Booking creation atomically locks departure capacity.
-- [x] Duplicate submit requests are safely rejected/replayed without data corruption.
-- [x] `pnpm run typecheck` passes without errors.
+- [ ] Database schema migrations applied cleanly.
+- [ ] Booking creation atomically locks departure capacity.
+- [ ] Duplicate submit requests are safely rejected/replayed without data corruption.
+- [ ] `pnpm run typecheck` passes without errors.
 
 ---
 
 #### Task 4: Dynamic Staged Installment Generator Engine (US-04)
 **Description:** Implement the business logic that generates staged installment schedules based on $D$ (number of days between booking date and tour departure date), strictly enforcing the mathematical invariant that the sum of installments equals `totalPrice` exactly.
 **Acceptance criteria:**
-- [x] For $D \le 30$ days: generates 1 installment (100% full payment due at checkout).
-- [x] For $31 \le D \le 90$ days: generates 2 installments (30% deposit at checkout, 70% due at $D-30$).
-- [x] For $D \ge 91$ days: generates 3 installments (20% deposit at checkout, 30% due at $D-90$, 50% due at $D-30$).
-- [x] Enforces invariant: $\sum_{i=1}^{n} \text{amount}(S_i) = \text{totalPrice}$ exactly by calculating the last installment as $S_n = \text{totalPrice} - \sum_{i=1}^{n-1} S_i$.
-- [x] Stores multi-language labels (`labelEn`, `labelId`) and creates snapshot rows in `booking_payment_schedules`.
+- [ ] For $D \le 30$ days: generates 1 installment (100% full payment due at checkout).
+- [ ] For $31 \le D \le 90$ days: generates 2 installments (30% deposit at checkout, 70% due at $D-30$).
+- [ ] For $D \ge 91$ days: generates 3 installments (20% deposit at checkout, 30% due at $D-90$, 50% due at $D-30$).
+- [ ] Enforces invariant: $\sum_{i=1}^{n} \text{amount}(S_i) = \text{totalPrice}$ exactly by calculating the last installment as $S_n = \text{totalPrice} - \sum_{i=1}^{n-1} S_i$.
+- [ ] Stores multi-language labels (`labelEn`, `labelId`) and creates snapshot rows in `booking_payment_schedules`.
 **Verification:**
-- [x] Tests pass: `pnpm --filter @workspace/api-server run test -- -t "installment"` (32/32 test files passed, 358 tests passed).
-- [x] Build succeeds: `pnpm run typecheck`
-- [x] Manual check: Unit test fixtures covering $D=15, 30, 31, 60, 90, 91, 180$ days verify exact totals with no rounding drift.
+- [ ] Tests pass: `pnpm --filter @workspace/api-server run test -- -t "installment generator"`
+- [ ] Build succeeds: `pnpm run typecheck`
+- [ ] Manual check: Unit test fixtures covering $D=15, 30, 31, 60, 90, 91, 180$ days verify exact totals with no rounding drift.
 **Dependencies:** Task 1  
 **Files likely touched:** `artifacts/api-server/src/routes/shared.ts`, `artifacts/api-server/src/routes/bookingsRoutes.ts`, `artifacts/api-server/test/installments.test.ts`  
 **Estimated scope:** Medium (3 files)

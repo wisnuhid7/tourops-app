@@ -95,8 +95,6 @@ export function registerPaymentRoutes(app: Express): void {
           id: s.id,
           installmentNumber: s.installmentNumber,
           label: s.label,
-          labelEn: s.labelEn,
-          labelId: s.labelId,
           percentage: s.percentage,
           amount: Math.round(Number(s.amount)),
           paidAmount: Math.round(Number(s.paidAmount || 0)),

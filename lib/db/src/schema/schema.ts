@@ -277,7 +277,6 @@ export const bookings = pgTable("bookings", {
   departureAirportId: varchar("departure_airport_id"),
   holdExpiresAt: timestamp("hold_expires_at"),
   idempotencyKey: varchar("idempotency_key"),
-  requestHash: text("request_hash"),
   roomAllocations: jsonb("room_allocations").$type<Array<RoomAllocation>>(),
   singleSupplementCost: numeric("single_supplement_cost"),
   departureSurcharge: numeric("departure_surcharge"),
@@ -1770,8 +1769,6 @@ export const bookingPaymentSchedules = pgTable("booking_payment_schedules", {
   bookingId: varchar("booking_id").notNull(),
   installmentNumber: integer("installment_number").notNull(),
   label: text("label").notNull(),           // e.g. "Deposit", "Second Payment"
-  labelEn: text("label_en"),
-  labelId: text("label_id"),
   percentage: numeric("percentage").notNull(), // of booking total, decimal string e.g. "20"
   amount: numeric("amount").notNull(),         // decimal-string money in booking currency
   currency: text("currency").notNull().default("USD"),
@@ -1785,8 +1782,6 @@ export const bookingPaymentSchedules = pgTable("booking_payment_schedules", {
   uniqueInstallment: uniqueIndex("booking_payment_schedules_unique_installment").on(table.bookingId, table.installmentNumber),
 }));
 
-export const insertBookingPaymentScheduleSchema = createInsertSchema(bookingPaymentSchedules).omit({ id: true, createdAt: true, updatedAt: true });
-export type InsertBookingPaymentSchedule = z.infer<typeof insertBookingPaymentScheduleSchema>;
 export type BookingPaymentSchedule = typeof bookingPaymentSchedules.$inferSelect;
 
 // --- Test-data seed runs (staging only; report of each seed execution) ---

@@ -42,21 +42,15 @@ const state = vi.hoisted(() => ({
 // ---------------------------------------------------------------------------
 // Mock: @workspace/db – prevent real DB connections.
 // ---------------------------------------------------------------------------
-vi.mock("@workspace/db", async (importOriginal) => {
-  if (!process.env.DATABASE_URL) {
-    process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db";
-  }
-  const actual = await importOriginal<Record<string, unknown>>();
+vi.mock("@workspace/db", () => {
   const chain: any = {
     from: () => chain,
     where: () => chain,
     leftJoin: () => chain,
     limit: () => chain,
-    offset: () => chain,
     orderBy: () => chain,
     values: () => chain,
     set: () => chain,
-    for: () => chain,
     onConflictDoNothing: () => chain,
     returning: () => Promise.resolve([]),
     then: (resolve: (rows: any[]) => void) => resolve([]),
@@ -66,12 +60,11 @@ vi.mock("@workspace/db", async (importOriginal) => {
     insert: () => chain,
     update: () => chain,
     delete: () => chain,
-    transaction: async (fn: (tx: any) => Promise<unknown>) => fn(fakeDb),
   };
-  return {
-    ...actual,
-    db: fakeDb,
-  };
+  return new Proxy(
+    { db: fakeDb },
+    { get: (t, p) => (p in t ? (t as any)[p] : { __table: String(p) }) },
+  );
 });
 
 // ---------------------------------------------------------------------------
@@ -225,12 +218,6 @@ describe("server-authoritative tour pricing", () => {
     resetState();
     app = express();
     app.use(express.json());
-    app.use((req, _res, next) => {
-      if (!req.headers["idempotency-key"]) {
-        req.headers["idempotency-key"] = crypto.randomUUID();
-      }
-      next();
-    });
     const server = createServer(app);
     await registerRoutes(server, app);
   });

@@ -4,13 +4,12 @@ import { and, eq, or, sql } from "drizzle-orm";
 import { z } from "zod/v4";
 import { routeError } from "../lib/routeError";
 import { storage } from "../storage";
-import { generateCode, generateCode as genCode, computePayloadHash } from "../lib/utils";
+import { generateCode, generateCode as genCode } from "../lib/utils";
 import { pdfService } from "../lib/pdf";
 import { sendNewBookingNotification } from "../lib/email";
 import { isAuthenticated } from "../replit_integrations/auth";
 import { accommodationForTour, tourOffersRoomTypes, BOOKING_ROOM_TYPES, type BookingRoomType } from "../services/rate-resolver";
 import { calculateBookingPrice, isUsableDeparturePrice, resolvePerPersonPrice } from "../services/booking-pricing";
-import { generateInstallmentSchedule } from "../services/installment-generator";
 import {
   bookings,
   bookingPaymentSchedules,
@@ -121,40 +120,6 @@ export function registerBookingsRoutes(app: Express): void {
         return res.status(400).json({ message: "Use the join code flow (POST /api/bookings/join) to join a group" });
       }
 
-      // Validate Idempotency-Key header (US-03)
-      const idempotencyKey = req.header("idempotency-key");
-      const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      if (!idempotencyKey || !UUID_REGEX.test(idempotencyKey)) {
-        return res.status(400).json({
-          message: "Idempotency-Key header is required and must be a valid UUID",
-          code: "INVALID_IDEMPOTENCY_KEY",
-        });
-      }
-
-      // Compute deterministic payload hash for replay/conflict detection
-      const requestHash = computePayloadHash(req.body);
-
-      // Check existing booking with this idempotency key (valid within 24h)
-      if (typeof storage.getBookingByIdempotencyKey === "function") {
-        const existingBooking = await storage.getBookingByIdempotencyKey(idempotencyKey);
-        if (existingBooking) {
-          const ageMs = existingBooking.createdAt
-            ? Date.now() - new Date(existingBooking.createdAt).getTime()
-            : 0;
-          if (ageMs <= 24 * 60 * 60 * 1000) {
-            if (existingBooking.requestHash === requestHash) {
-              res.setHeader("Idempotent-Replay", "true");
-              return res.status(200).json(existingBooking);
-            } else {
-              return res.status(422).json({
-                message: "Idempotency key already used with differing payload",
-                code: "IDEMPOTENCY_CONFLICT",
-              });
-            }
-          }
-        }
-      }
-
       const bookingCode = `BK-${generateCode(8)}`;
       const joinCode = req.body.bookingType === "leader_group" ? genCode(6) : undefined;
       const leaderUserId = (req.body.bookingType === "leader_group" || req.body.bookingType === "private_family") ? customerId : undefined;
@@ -164,239 +129,108 @@ export function registerBookingsRoutes(app: Express): void {
         if (aff) affiliateId = aff.id;
       }
 
-      // ---- Server-authoritative pricing & capacity hold ----------------
+      // ---- Server-authoritative pricing --------------------------------
       // The client's totalPrice is display-only and NEVER trusted (except an
       // explicit staff override). Per-person price is resolved server-side:
       // departure price when set, otherwise the computed full selling price
       // (base + components + markup + fee), otherwise the tour base price.
       const partySize = Math.max(1, Number(req.body.partySizeExpected) || 1);
-
-      const runTransaction = async <T>(callback: (tx: any) => Promise<T>): Promise<T> => {
-        if (typeof (db as any).transaction === "function") {
-          return (db as any).transaction(callback);
-        }
-        return callback(db);
-      };
-
-      const booking = await runTransaction(async (tx) => {
-        let perPersonPrice: number | undefined;
+      let perPersonPrice: number | undefined;
+      if (req.body.tourId) {
         let departurePrice: string | number | null = null;
-        let dep: any;
-
-        if (req.body.tourId) {
-          if (req.body.departureId) {
-            // Lock target tour_departures row using SELECT ... FOR UPDATE
-            if (typeof tx.select === "function") {
-              const q = tx.select().from(tourDepartures).where(eq(tourDepartures.id, req.body.departureId));
-              const rows = typeof (q as any).for === "function" ? await (q as any).for("update") : await q;
-              dep = rows?.[0];
-            }
-            if (!dep && typeof storage.getDeparture === "function") {
-              dep = await storage.getDeparture(req.body.departureId);
-            }
-            if (!dep || dep.tourId !== req.body.tourId) {
-              const err: any = new Error("Departure does not belong to this tour");
-              err.statusCode = 400;
-              throw err;
-            }
-
-            // Atomic capacity seat hold validation (US-03)
-            const capacityTotal = Number(dep.capacityTotal ?? 20);
-            const capacityBooked = Number(dep.capacityBooked ?? 0);
-            const capacityRemaining = Math.max(0, capacityTotal - capacityBooked);
-
-            if (capacityBooked + partySize > capacityTotal) {
-              const err: any = new Error("Not enough capacity remaining on this departure");
-              err.statusCode = 409;
-              err.code = "CAPACITY_EXCEEDED";
-              err.capacityTotal = capacityTotal;
-              err.capacityBooked = capacityBooked;
-              err.capacityRemaining = capacityRemaining;
-              throw err;
-            }
-
-            // Increment capacityBooked and mark sold_out if capacity met
-            const newBooked = capacityBooked + partySize;
-            const newStatus = newBooked >= capacityTotal ? "sold_out" : dep.status;
-
-            if (typeof tx.update === "function") {
-              await tx.update(tourDepartures)
-                .set({
-                  capacityBooked: newBooked,
-                  ...(newStatus !== dep.status ? { status: newStatus } : {}),
-                })
-                .where(eq(tourDepartures.id, dep.id));
-            } else if (typeof storage.updateDeparture === "function") {
-              await storage.updateDeparture(dep.id, {
-                capacityBooked: newBooked,
-                ...(newStatus !== dep.status ? { status: newStatus } : {}),
-              }, tx);
-            }
-
-            departurePrice = dep.pricePerPerson;
+        if (req.body.departureId) {
+          const dep = await storage.getDeparture(req.body.departureId);
+          if (!dep || dep.tourId !== req.body.tourId) {
+            return res.status(400).json({ message: "Departure does not belong to this tour" });
           }
-
-          let publicPerPersonBase: number | null = null;
-          let tourBasePrice: string | number | null = null;
-          if (!isUsableDeparturePrice(departurePrice)) {
-            const pp = await publicTourPricing(req.body.tourId);
-            if (pp && pp.perPersonBase > 0) publicPerPersonBase = pp.perPersonBase;
-            else {
-              const tourRow = await storage.getTour(req.body.tourId);
-              tourBasePrice = tourRow?.basePrice ?? null;
-            }
-          }
-          // Shared precedence with GET /api/tours/:tourId/price-preview
-          // (services/booking-pricing.ts).
-          perPersonPrice = resolvePerPersonPrice({ departurePrice, publicPerPersonBase, tourBasePrice });
+          departurePrice = dep.pricePerPerson;
         }
+        let publicPerPersonBase: number | null = null;
+        let tourBasePrice: string | number | null = null;
+        if (!isUsableDeparturePrice(departurePrice)) {
+          const pp = await publicTourPricing(req.body.tourId);
+          if (pp && pp.perPersonBase > 0) publicPerPersonBase = pp.perPersonBase;
+          else {
+            const tourRow = await storage.getTour(req.body.tourId);
+            tourBasePrice = tourRow?.basePrice ?? null;
+          }
+        }
+        // Shared precedence with GET /api/tours/:tourId/price-preview
+        // (services/booking-pricing.ts).
+        perPersonPrice = resolvePerPersonPrice({ departurePrice, publicPerPersonBase, tourBasePrice });
+      }
 
-        // Room-type selection: accommodation is priced server-side from the
-        // hotel's registered nightly rate × the tour's hotel nights, for as
-        // many rooms as the party needs. Never trust a client-provided figure.
-        let roomType: BookingRoomType | undefined;
-        let accommodationCost: string | undefined;
-        let totalPrice: number | undefined;
-        let bookingCurrency: string | undefined;
-        if (req.body.roomType != null && req.body.roomType !== "") {
-          if (!BOOKING_ROOM_TYPES.includes(req.body.roomType)) {
-            const err: any = new Error(`roomType must be one of: ${BOOKING_ROOM_TYPES.join(", ")}`);
-            err.statusCode = 400;
-            throw err;
+      // Room-type selection: accommodation is priced server-side from the
+      // hotel's registered nightly rate × the tour's hotel nights, for as
+      // many rooms as the party needs. Never trust a client-provided figure.
+      let roomType: BookingRoomType | undefined;
+      let accommodationCost: string | undefined;
+      let totalPrice: number | undefined;
+      let bookingCurrency: string | undefined;
+      if (req.body.roomType != null && req.body.roomType !== "") {
+        if (!BOOKING_ROOM_TYPES.includes(req.body.roomType)) {
+          return res.status(400).json({ message: `roomType must be one of: ${BOOKING_ROOM_TYPES.join(", ")}` });
+        }
+        if (!req.body.tourId) return res.status(400).json({ message: "roomType requires a tourId" });
+        roomType = req.body.roomType;
+        const acc = await accommodationForTour(db, req.body.tourId, roomType!);
+        // Only add accommodation when its currency matches the booking currency
+        // (no FX conversion yet) — never sum mixed currencies.
+        const bodyCurrency = (req.body.currency || "USD").toUpperCase();
+        if (new Decimal(acc.total).greaterThan(0) && acc.currency.toUpperCase() !== bodyCurrency) {
+          return res.status(400).json({
+            message: `Accommodation is priced in ${acc.currency} but the booking is in ${bodyCurrency}; currency conversion is not supported yet.`,
+          });
+        }
+        // Shared math with GET /api/tours/:tourId/price-preview so the persisted
+        // total equals the quoted preview total (services/booking-pricing.ts).
+        const math = calculateBookingPrice({
+          perPersonPrice: perPersonPrice ?? 0,
+          partySize,
+          bookingCurrency: bodyCurrency,
+          roomType,
+          accommodation: { total: acc.total, currency: acc.currency },
+        });
+        accommodationCost = math.accommodationCost.toFixed(2);
+        bookingCurrency = acc.currency;
+        totalPrice = math.grandTotal.toNumber();
+      } else {
+        if (req.body.tourId && req.body.bookingType !== "join_leader_group") {
+          // Customers starting a booking on a tour that offers room types must
+          // pick one. (join_leader_group participants share the leader's rooms;
+          // accommodation is billed on the leader's booking.)
+          if (await tourOffersRoomTypes(db, req.body.tourId)) {
+            return res.status(400).json({ message: "Please select a room type (matrimonial, doble, or triple) for this tour." });
           }
-          if (!req.body.tourId) {
-            const err: any = new Error("roomType requires a tourId");
-            err.statusCode = 400;
-            throw err;
-          }
-          roomType = req.body.roomType;
-          const acc = await accommodationForTour(db, req.body.tourId, roomType!);
-          // Only add accommodation when its currency matches the booking currency
-          // (no FX conversion yet) — never sum mixed currencies.
-          const bodyCurrency = (req.body.currency || "USD").toUpperCase();
-          if (new Decimal(acc.total).greaterThan(0) && acc.currency.toUpperCase() !== bodyCurrency) {
-            const err: any = new Error(`Accommodation is priced in ${acc.currency} but the booking is in ${bodyCurrency}; currency conversion is not supported yet.`);
-            err.statusCode = 400;
-            throw err;
-          }
-          // Shared math with GET /api/tours/:tourId/price-preview so the persisted
-          // total equals the quoted preview total (services/booking-pricing.ts).
-          const math = calculateBookingPrice({
-            perPersonPrice: perPersonPrice ?? 0,
+        }
+        if (perPersonPrice !== undefined) {
+          // Tour-derived total, finalized to a whole currency unit (shared with
+          // the price-preview endpoint via services/booking-pricing.ts).
+          totalPrice = calculateBookingPrice({
+            perPersonPrice,
             partySize,
-            bookingCurrency: bodyCurrency,
-            roomType,
-            accommodation: { total: acc.total, currency: acc.currency },
-          });
-          accommodationCost = math.accommodationCost.toFixed(2);
-          bookingCurrency = acc.currency;
-          totalPrice = math.grandTotal.toNumber();
-        } else {
-          if (req.body.tourId && req.body.bookingType !== "join_leader_group") {
-            // Customers starting a booking on a tour that offers room types must
-            // pick one. (join_leader_group participants share the leader's rooms;
-            // accommodation is billed on the leader's booking.)
-            if (await tourOffersRoomTypes(db, req.body.tourId)) {
-              const err: any = new Error("Please select a room type (matrimonial, doble, or triple) for this tour.");
-              err.statusCode = 400;
-              throw err;
-            }
-          }
-          if (perPersonPrice !== undefined) {
-            // Tour-derived total, finalized to a whole currency unit (shared with
-            // the price-preview endpoint via services/booking-pricing.ts).
-            totalPrice = calculateBookingPrice({
-              perPersonPrice,
-              partySize,
-              bookingCurrency: (req.body.currency || "USD").toUpperCase(),
-            }).grandTotal.toNumber();
-          } else if (isStaff) {
-            totalPrice = req.body.totalPrice;
-          }
+            bookingCurrency: (req.body.currency || "USD").toUpperCase(),
+          }).grandTotal.toNumber();
+        } else if (isStaff) {
+          totalPrice = req.body.totalPrice;
         }
+      }
 
-        const initialStatus = req.body.status || ("pending_payment" as const);
-        const holdExpiresAt = initialStatus === "pending_payment"
-          ? (req.body.holdExpiresAt ? new Date(req.body.holdExpiresAt) : new Date(Date.now() + 30 * 60 * 1000))
-          : (req.body.holdExpiresAt ? new Date(req.body.holdExpiresAt) : null);
-
-        const created = await storage.createBooking({
-          ...req.body, 
-          customerId, 
-          bookingCode, 
-          joinCode, 
-          leaderUserId, 
-          affiliateId,
-          departureCity: req.body.departureCity || (req.body.isLandOnly ? "Land Only (Self Arrival)" : null),
-          departureAirportId: req.body.departureAirportId || null,
-          roomType: roomType ?? null,
-          accommodationCost: accommodationCost ?? null,
-          currency: bookingCurrency ?? req.body.currency ?? "USD",
-          totalPrice,
-          status: initialStatus, 
-          holdExpiresAt,
-          idempotencyKey,
-          requestHash,
-          fulfillmentStatus: req.body.fulfillmentStatus || ("pending" as const),
-        }, tx);
-
-        // Generate and persist installment schedule snapshot (US-04)
-        if (created.totalPrice && Number(created.totalPrice) > 0) {
-          let departureStartDate = dep?.startDate ?? null;
-          if (!departureStartDate && req.body.departureId) {
-            const [dRow] = typeof tx.select === "function"
-              ? await tx.select().from(tourDepartures).where(eq(tourDepartures.id, req.body.departureId))
-              : [];
-            if (dRow?.startDate) departureStartDate = dRow.startDate;
-          }
-          const schedules = generateInstallmentSchedule({
-            totalPrice: created.totalPrice,
-            currency: created.currency ?? "USD",
-            bookingDate: created.createdAt ? new Date(created.createdAt) : new Date(),
-            departureDate: departureStartDate ? new Date(departureStartDate) : null,
-            bookingId: created.id,
-            plan: req.body.paymentPlan,
-          });
-
-          if (schedules.length > 0) {
-            if (typeof storage.createPaymentSchedules === "function") {
-              await storage.createPaymentSchedules(
-                schedules.map((s) => ({
-                  bookingId: created.id,
-                  installmentNumber: s.installmentNumber,
-                  label: s.label,
-                  labelEn: s.labelEn,
-                  labelId: s.labelId,
-                  percentage: s.percentage,
-                  amount: s.amount,
-                  paidAmount: s.paidAmount,
-                  currency: s.currency,
-                  dueDate: s.dueDate,
-                  status: s.status,
-                })),
-                tx
-              );
-            } else if (typeof tx?.insert === "function") {
-              await tx.insert(bookingPaymentSchedules).values(
-                schedules.map((s) => ({
-                  bookingId: created.id,
-                  installmentNumber: s.installmentNumber,
-                  label: s.label,
-                  labelEn: s.labelEn,
-                  labelId: s.labelId,
-                  percentage: s.percentage,
-                  amount: s.amount,
-                  paidAmount: s.paidAmount,
-                  currency: s.currency,
-                  dueDate: s.dueDate,
-                  status: s.status,
-                }))
-              );
-            }
-          }
-        }
-
-        return created;
+      const booking = await storage.createBooking({
+        ...req.body, 
+        customerId, 
+        bookingCode, 
+        joinCode, 
+        leaderUserId, 
+        affiliateId,
+        departureCity: req.body.departureCity || (req.body.isLandOnly ? "Land Only (Self Arrival)" : null),
+        departureAirportId: req.body.departureAirportId || null,
+        roomType: roomType ?? null,
+        accommodationCost: accommodationCost ?? null,
+        currency: bookingCurrency ?? req.body.currency ?? "USD",
+        totalPrice,
+        status: req.body.status || ("submitted" as const), 
+        fulfillmentStatus: req.body.fulfillmentStatus || ("pending" as const),
       });
 
       if (req.body.bookingType === "leader_group") {
@@ -424,47 +258,7 @@ export function registerBookingsRoutes(app: Express): void {
       }
 
       res.json(booking);
-    } catch (e: any) {
-      const idempotencyKey = req.header("idempotency-key");
-      // Handle concurrent duplicate key race condition
-      if (
-        (e.code === "23505" || e.message?.includes("duplicate key") || e.message?.includes("bookings_idempotency_key_idx")) &&
-        idempotencyKey &&
-        typeof storage.getBookingByIdempotencyKey === "function"
-      ) {
-        const winner = await storage.getBookingByIdempotencyKey(idempotencyKey);
-        if (winner) {
-          const reqHash = computePayloadHash(req.body);
-          if (winner.requestHash === reqHash) {
-            res.setHeader("Idempotent-Replay", "true");
-            return res.status(200).json(winner);
-          } else {
-            return res.status(422).json({
-              message: "Idempotency key already used with differing payload",
-              code: "IDEMPOTENCY_CONFLICT",
-            });
-          }
-        }
-      }
-
-      if (
-        e.statusCode === 409 ||
-        e.code === "CAPACITY_EXCEEDED" ||
-        (typeof e.message === "string" && e.message.includes("tour_departures_capacity_check"))
-      ) {
-        return res.status(409).json({
-          message: e.message || "Not enough capacity remaining on this departure",
-          code: "CAPACITY_EXCEEDED",
-          capacityTotal: e.capacityTotal,
-          capacityBooked: e.capacityBooked,
-          capacityRemaining: e.capacityRemaining,
-        });
-      }
-      if (e.statusCode === 400) {
-        return res.status(400).json({ message: e.message });
-      }
-      routeError(res, e);
-    }
+    } catch (e: any) { routeError(res, e); }
   });
 
   app.patch("/api/bookings/:id", isAuthenticated, async (req, res) => {
@@ -771,7 +565,7 @@ export function registerBookingsRoutes(app: Express): void {
       }
 
       const parsed = z.object({
-        plan: z.enum(["full", "two_stage", "three_stage", "staged", "auto"]),
+        plan: z.enum(["full", "two_stage", "three_stage"]),
       }).safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Invalid plan" });
 
@@ -780,60 +574,63 @@ export function registerBookingsRoutes(app: Express): void {
         return res.status(409).json({ message: "Payments have already been made; payment schedule cannot be modified" });
       }
 
+      const total = new Decimal(booking.totalPrice);
+      const now = new Date();
       let depDate: Date | null = null;
       if (booking.departureId) {
         const [dep] = await db.select().from(tourDepartures).where(eq(tourDepartures.id, booking.departureId));
         if (dep?.startDate) depDate = new Date(dep.startDate);
       }
 
-      const planOpt = parsed.data.plan === "full" ? "full" : "staged";
-      const schedules = generateInstallmentSchedule({
-        totalPrice: booking.totalPrice,
-        currency: booking.currency ?? "USD",
-        bookingDate: booking.createdAt ? new Date(booking.createdAt) : new Date(),
-        departureDate: depDate,
-        bookingId: booking.id,
-        plan: planOpt,
-      });
+      // Final due date: 14 days before departure, or 30 days from now if no departure or departure is too close
+      let finalDue = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      if (depDate) {
+        const h14 = new Date(depDate.getTime() - 14 * 24 * 60 * 60 * 1000);
+        if (h14 > now) {
+          finalDue = h14;
+        } else {
+          const h3 = new Date(depDate.getTime() - 3 * 24 * 60 * 60 * 1000);
+          finalDue = h3 > now ? h3 : new Date(now.getTime() + 24 * 60 * 60 * 1000);
+        }
+      }
+
+      let installments: { label: string; percentage: number; dueDate: Date }[] = [];
+      if (parsed.data.plan === "two_stage") {
+        installments = [
+          { label: "Uang Muka (DP 30%)", percentage: 30, dueDate: now },
+          { label: "Pelunasan Akhir (70%)", percentage: 70, dueDate: finalDue },
+        ];
+      } else if (parsed.data.plan === "three_stage") {
+        const midTime = now.getTime() + (finalDue.getTime() - now.getTime()) / 2;
+        const midDue = new Date(midTime);
+        installments = [
+          { label: "Uang Muka (DP 30%)", percentage: 30, dueDate: now },
+          { label: "Angsuran Ke-2 (35%)", percentage: 35, dueDate: midDue },
+          { label: "Pelunasan Akhir (35%)", percentage: 35, dueDate: finalDue },
+        ];
+      }
 
       const rows = await db.transaction(async (tx) => {
         await tx.delete(bookingPaymentSchedules).where(eq(bookingPaymentSchedules.bookingId, booking.id));
-        if (schedules.length === 0) return [];
-        if (typeof storage.createPaymentSchedules === "function") {
-          return storage.createPaymentSchedules(
-            schedules.map((s) => ({
-              bookingId: booking.id,
-              installmentNumber: s.installmentNumber,
-              label: s.label,
-              labelEn: s.labelEn,
-              labelId: s.labelId,
-              percentage: s.percentage,
-              amount: s.amount,
-              paidAmount: s.paidAmount,
-              currency: s.currency,
-              dueDate: s.dueDate,
-              status: s.status,
-            })),
-            tx
-          );
-        } else if (typeof tx?.insert === "function") {
-          return tx.insert(bookingPaymentSchedules).values(
-            schedules.map((s) => ({
-              bookingId: booking.id,
-              installmentNumber: s.installmentNumber,
-              label: s.label,
-              labelEn: s.labelEn,
-              labelId: s.labelId,
-              percentage: s.percentage,
-              amount: s.amount,
-              paidAmount: s.paidAmount,
-              currency: s.currency,
-              dueDate: s.dueDate,
-              status: s.status,
-            }))
-          ).returning();
+        if (parsed.data.plan === "full" || installments.length === 0) {
+          return [];
         }
-        return [];
+        let allocated = new Decimal(0);
+        const values = installments.map((inst, i) => {
+          const isLast = i === installments.length - 1;
+          const amount = isLast ? total.minus(allocated) : total.mul(inst.percentage).div(100).toDecimalPlaces(2);
+          allocated = allocated.plus(amount);
+          return {
+            bookingId: booking.id,
+            installmentNumber: i + 1,
+            label: inst.label,
+            percentage: String(inst.percentage),
+            amount: amount.toFixed(2),
+            currency: booking.currency ?? "USD",
+            dueDate: inst.dueDate,
+          };
+        });
+        return tx.insert(bookingPaymentSchedules).values(values).returning();
       });
 
       await storage.createAuditLog({

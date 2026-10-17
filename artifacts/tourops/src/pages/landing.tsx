@@ -8,6 +8,7 @@ import { LanguageSwitcher } from "@/components/language-switcher";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
+import { PublicHeader } from "@/components/public-header";
 import {
   Globe,
   Shield,
@@ -317,99 +318,7 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20 selection:text-primary">
       {/* ── Fixed Modern Glass Navbar ───────────────────────── */}
-      <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-background/80 border-b border-border/50 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-4 h-16">
-            {/* Logo */}
-            <Link href="/">
-              <div className="flex items-center gap-2.5 cursor-pointer group">
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center text-primary-foreground shadow-sm shadow-primary/25 transition-transform group-hover:scale-105 active:scale-95">
-                  <Globe className="h-5 w-5" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-bold text-lg leading-tight tracking-tight" data-testid="text-brand-name">
-                    TourOps
-                  </span>
-                  <span className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground">
-                    Tour Operations
-                  </span>
-                </div>
-              </div>
-            </Link>
-
-            {/* Nav Links */}
-            <nav className="hidden md:flex items-center gap-1">
-              <a
-                href="#features"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-full hover:bg-muted/60 transition-colors"
-              >
-                {t("nav_features")}
-              </a>
-              <Link href="/tours">
-                <span className="text-sm font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-full hover:bg-muted/60 transition-colors cursor-pointer inline-block">
-                  {t("tours")}
-                </span>
-              </Link>
-              <a
-                href="#tours-showcase"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-full hover:bg-muted/60 transition-colors"
-              >
-                {t("nav_showcase")}
-              </a>
-              <a
-                href="#destinations"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-full hover:bg-muted/60 transition-colors"
-              >
-                {t("nav_destinations")}
-              </a>
-              <a
-                href="#how-it-works"
-                className="text-sm font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-full hover:bg-muted/60 transition-colors"
-              >
-                {t("nav_how_it_works")}
-              </a>
-            </nav>
-
-            {/* Action Buttons */}
-            <div className="flex items-center gap-2">
-              <LanguageSwitcher />
-              <ThemeToggle />
-
-              <Link href="/staff/login">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="hidden lg:inline-flex text-xs font-medium text-muted-foreground hover:text-foreground active:scale-[0.96]"
-                  data-testid="button-staff-portal"
-                >
-                  {t("staff_portal")}
-                </Button>
-              </Link>
-
-              <Link href="/login">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-lg font-medium transition-transform active:scale-[0.96]"
-                  data-testid="button-login"
-                >
-                  {t("sign_in")}
-                </Button>
-              </Link>
-
-              <Link href="/login?mode=register">
-                <Button
-                  size="sm"
-                  className="rounded-lg font-semibold shadow-sm shadow-primary/20 transition-transform active:scale-[0.96]"
-                  data-testid="button-register"
-                >
-                  {t("sign_up")}
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+      <PublicHeader fixed />
 
       {/* ── Hero Section ───────────────────────────────────── */}
       <section className="relative pt-24 pb-20 md:pt-32 md:pb-28 overflow-hidden bg-slate-950 text-white">

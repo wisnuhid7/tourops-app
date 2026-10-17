@@ -88,15 +88,15 @@
 #### Task 4: Dynamic Staged Installment Generator Engine (US-04)
 **Description:** Implement the business logic that generates staged installment schedules based on $D$ (number of days between booking date and tour departure date), strictly enforcing the mathematical invariant that the sum of installments equals `totalPrice` exactly.
 **Acceptance criteria:**
-- [ ] For $D \le 30$ days: generates 1 installment (100% full payment due at checkout).
-- [ ] For $31 \le D \le 90$ days: generates 2 installments (30% deposit at checkout, 70% due at $D-30$).
-- [ ] For $D \ge 91$ days: generates 3 installments (20% deposit at checkout, 30% due at $D-90$, 50% due at $D-30$).
-- [ ] Enforces invariant: $\sum_{i=1}^{n} \text{amount}(S_i) = \text{totalPrice}$ exactly by calculating the last installment as $S_n = \text{totalPrice} - \sum_{i=1}^{n-1} S_i$.
-- [ ] Stores multi-language labels (`labelEn`, `labelId`) and creates snapshot rows in `booking_payment_schedules`.
+- [x] For $D \le 30$ days: generates 1 installment (100% full payment due at checkout).
+- [x] For $31 \le D \le 90$ days: generates 2 installments (30% deposit at checkout, 70% due at $D-30$).
+- [x] For $D \ge 91$ days: generates 3 installments (20% deposit at checkout, 30% due at $D-90$, 50% due at $D-30$).
+- [x] Enforces invariant: $\sum_{i=1}^{n} \text{amount}(S_i) = \text{totalPrice}$ exactly by calculating the last installment as $S_n = \text{totalPrice} - \sum_{i=1}^{n-1} S_i$.
+- [x] Stores multi-language labels (`labelEn`, `labelId`) and creates snapshot rows in `booking_payment_schedules`.
 **Verification:**
-- [ ] Tests pass: `pnpm --filter @workspace/api-server run test -- -t "installment generator"`
-- [ ] Build succeeds: `pnpm run typecheck`
-- [ ] Manual check: Unit test fixtures covering $D=15, 30, 31, 60, 90, 91, 180$ days verify exact totals with no rounding drift.
+- [x] Tests pass: `pnpm --filter @workspace/api-server run test -- -t "installment"` (32/32 test files passed, 358 tests passed).
+- [x] Build succeeds: `pnpm run typecheck`
+- [x] Manual check: Unit test fixtures covering $D=15, 30, 31, 60, 90, 91, 180$ days verify exact totals with no rounding drift.
 **Dependencies:** Task 1  
 **Files likely touched:** `artifacts/api-server/src/routes/shared.ts`, `artifacts/api-server/src/routes/bookingsRoutes.ts`, `artifacts/api-server/test/installments.test.ts`  
 **Estimated scope:** Medium (3 files)

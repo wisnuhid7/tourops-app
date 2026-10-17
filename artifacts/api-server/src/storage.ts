@@ -4,6 +4,7 @@ import { users } from "@workspace/db";
 import {
   userProfiles, tours, tourDays, tourDepartures,
   bookings, travelers, bookingAssignments,
+  bookingPaymentSchedules,
   bookingWorkflows, workflowSteps, documents, messages, payments,
   countries, cities, airports, sights, hotels, transportCompanies, airlineAgencies,
   busTypes, transportRoutes, transportRoutePricing,
@@ -14,6 +15,7 @@ import {
   type TourDay, type InsertTourDay,
   type TourDeparture, type InsertTourDeparture,
   type Booking, type InsertBooking,
+  type BookingPaymentSchedule, type InsertBookingPaymentSchedule,
   type Traveler, type InsertTraveler,
   type BookingAssignment, type InsertBookingAssignment,
   type BookingWorkflow, type InsertBookingWorkflow,
@@ -164,6 +166,8 @@ export interface IStorage {
   createBooking(data: InsertBooking, tx?: any): Promise<Booking>;
   updateBooking(id: string, data: Partial<Booking>): Promise<Booking>;
   deleteBooking(id: string): Promise<void>;
+  createPaymentSchedules(schedules: InsertBookingPaymentSchedule[], tx?: any): Promise<BookingPaymentSchedule[]>;
+  getPaymentSchedules(bookingId: string): Promise<BookingPaymentSchedule[]>;
 
   getTraveler(id: string): Promise<Traveler | undefined>;
   getTravelers(bookingId: string): Promise<Traveler[]>;
@@ -733,6 +737,7 @@ export class DatabaseStorage implements IStorage {
   async deleteBooking(id: string): Promise<void> {
     await db.transaction(async (tx) => {
       // Cascade delete manually since schema lacks onDelete: "cascade"
+      await tx.delete(bookingPaymentSchedules).where(eq(bookingPaymentSchedules.bookingId, id));
       await tx.delete(travelers).where(eq(travelers.bookingId, id));
       await tx.delete(documents).where(eq(documents.bookingId, id));
       await tx.delete(payments).where(eq(payments.bookingId, id));
@@ -747,6 +752,18 @@ export class DatabaseStorage implements IStorage {
 
       await tx.delete(bookings).where(eq(bookings.id, id));
     });
+  }
+
+  async createPaymentSchedules(schedules: InsertBookingPaymentSchedule[], tx?: any): Promise<BookingPaymentSchedule[]> {
+    if (!schedules.length) return [];
+    const client = tx || db;
+    return client.insert(bookingPaymentSchedules).values(schedules).returning();
+  }
+
+  async getPaymentSchedules(bookingId: string): Promise<BookingPaymentSchedule[]> {
+    return db.select().from(bookingPaymentSchedules)
+      .where(eq(bookingPaymentSchedules.bookingId, bookingId))
+      .orderBy(bookingPaymentSchedules.installmentNumber);
   }
 
   async getTraveler(id: string): Promise<Traveler | undefined> {

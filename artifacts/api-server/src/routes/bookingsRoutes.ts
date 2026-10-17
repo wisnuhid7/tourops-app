@@ -10,6 +10,7 @@ import { sendNewBookingNotification } from "../lib/email";
 import { isAuthenticated } from "../replit_integrations/auth";
 import { accommodationForTour, tourOffersRoomTypes, BOOKING_ROOM_TYPES, type BookingRoomType } from "../services/rate-resolver";
 import { calculateBookingPrice, isUsableDeparturePrice, resolvePerPersonPrice } from "../services/booking-pricing";
+import { generateInstallmentSchedule } from "../services/installment-generator";
 import {
   bookings,
   bookingPaymentSchedules,
@@ -180,11 +181,11 @@ export function registerBookingsRoutes(app: Express): void {
       const booking = await runTransaction(async (tx) => {
         let perPersonPrice: number | undefined;
         let departurePrice: string | number | null = null;
+        let dep: any;
 
         if (req.body.tourId) {
           if (req.body.departureId) {
             // Lock target tour_departures row using SELECT ... FOR UPDATE
-            let dep: any;
             if (typeof tx.select === "function") {
               const q = tx.select().from(tourDepartures).where(eq(tourDepartures.id, req.body.departureId));
               const rows = typeof (q as any).for === "function" ? await (q as any).for("update") : await q;
@@ -338,6 +339,62 @@ export function registerBookingsRoutes(app: Express): void {
           requestHash,
           fulfillmentStatus: req.body.fulfillmentStatus || ("pending" as const),
         }, tx);
+
+        // Generate and persist installment schedule snapshot (US-04)
+        if (created.totalPrice && Number(created.totalPrice) > 0) {
+          let departureStartDate = dep?.startDate ?? null;
+          if (!departureStartDate && req.body.departureId) {
+            const [dRow] = typeof tx.select === "function"
+              ? await tx.select().from(tourDepartures).where(eq(tourDepartures.id, req.body.departureId))
+              : [];
+            if (dRow?.startDate) departureStartDate = dRow.startDate;
+          }
+          const schedules = generateInstallmentSchedule({
+            totalPrice: created.totalPrice,
+            currency: created.currency ?? "USD",
+            bookingDate: created.createdAt ? new Date(created.createdAt) : new Date(),
+            departureDate: departureStartDate ? new Date(departureStartDate) : null,
+            bookingId: created.id,
+            plan: req.body.paymentPlan,
+          });
+
+          if (schedules.length > 0) {
+            if (typeof storage.createPaymentSchedules === "function") {
+              await storage.createPaymentSchedules(
+                schedules.map((s) => ({
+                  bookingId: created.id,
+                  installmentNumber: s.installmentNumber,
+                  label: s.label,
+                  labelEn: s.labelEn,
+                  labelId: s.labelId,
+                  percentage: s.percentage,
+                  amount: s.amount,
+                  paidAmount: s.paidAmount,
+                  currency: s.currency,
+                  dueDate: s.dueDate,
+                  status: s.status,
+                })),
+                tx
+              );
+            } else if (typeof tx?.insert === "function") {
+              await tx.insert(bookingPaymentSchedules).values(
+                schedules.map((s) => ({
+                  bookingId: created.id,
+                  installmentNumber: s.installmentNumber,
+                  label: s.label,
+                  labelEn: s.labelEn,
+                  labelId: s.labelId,
+                  percentage: s.percentage,
+                  amount: s.amount,
+                  paidAmount: s.paidAmount,
+                  currency: s.currency,
+                  dueDate: s.dueDate,
+                  status: s.status,
+                }))
+              );
+            }
+          }
+        }
 
         return created;
       });
@@ -714,7 +771,7 @@ export function registerBookingsRoutes(app: Express): void {
       }
 
       const parsed = z.object({
-        plan: z.enum(["full", "two_stage", "three_stage"]),
+        plan: z.enum(["full", "two_stage", "three_stage", "staged", "auto"]),
       }).safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ message: "Invalid plan" });
 
@@ -723,63 +780,60 @@ export function registerBookingsRoutes(app: Express): void {
         return res.status(409).json({ message: "Payments have already been made; payment schedule cannot be modified" });
       }
 
-      const total = new Decimal(booking.totalPrice);
-      const now = new Date();
       let depDate: Date | null = null;
       if (booking.departureId) {
         const [dep] = await db.select().from(tourDepartures).where(eq(tourDepartures.id, booking.departureId));
         if (dep?.startDate) depDate = new Date(dep.startDate);
       }
 
-      // Final due date: 14 days before departure, or 30 days from now if no departure or departure is too close
-      let finalDue = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-      if (depDate) {
-        const h14 = new Date(depDate.getTime() - 14 * 24 * 60 * 60 * 1000);
-        if (h14 > now) {
-          finalDue = h14;
-        } else {
-          const h3 = new Date(depDate.getTime() - 3 * 24 * 60 * 60 * 1000);
-          finalDue = h3 > now ? h3 : new Date(now.getTime() + 24 * 60 * 60 * 1000);
-        }
-      }
-
-      let installments: { label: string; percentage: number; dueDate: Date }[] = [];
-      if (parsed.data.plan === "two_stage") {
-        installments = [
-          { label: "Uang Muka (DP 30%)", percentage: 30, dueDate: now },
-          { label: "Pelunasan Akhir (70%)", percentage: 70, dueDate: finalDue },
-        ];
-      } else if (parsed.data.plan === "three_stage") {
-        const midTime = now.getTime() + (finalDue.getTime() - now.getTime()) / 2;
-        const midDue = new Date(midTime);
-        installments = [
-          { label: "Uang Muka (DP 30%)", percentage: 30, dueDate: now },
-          { label: "Angsuran Ke-2 (35%)", percentage: 35, dueDate: midDue },
-          { label: "Pelunasan Akhir (35%)", percentage: 35, dueDate: finalDue },
-        ];
-      }
+      const planOpt = parsed.data.plan === "full" ? "full" : "staged";
+      const schedules = generateInstallmentSchedule({
+        totalPrice: booking.totalPrice,
+        currency: booking.currency ?? "USD",
+        bookingDate: booking.createdAt ? new Date(booking.createdAt) : new Date(),
+        departureDate: depDate,
+        bookingId: booking.id,
+        plan: planOpt,
+      });
 
       const rows = await db.transaction(async (tx) => {
         await tx.delete(bookingPaymentSchedules).where(eq(bookingPaymentSchedules.bookingId, booking.id));
-        if (parsed.data.plan === "full" || installments.length === 0) {
-          return [];
+        if (schedules.length === 0) return [];
+        if (typeof storage.createPaymentSchedules === "function") {
+          return storage.createPaymentSchedules(
+            schedules.map((s) => ({
+              bookingId: booking.id,
+              installmentNumber: s.installmentNumber,
+              label: s.label,
+              labelEn: s.labelEn,
+              labelId: s.labelId,
+              percentage: s.percentage,
+              amount: s.amount,
+              paidAmount: s.paidAmount,
+              currency: s.currency,
+              dueDate: s.dueDate,
+              status: s.status,
+            })),
+            tx
+          );
+        } else if (typeof tx?.insert === "function") {
+          return tx.insert(bookingPaymentSchedules).values(
+            schedules.map((s) => ({
+              bookingId: booking.id,
+              installmentNumber: s.installmentNumber,
+              label: s.label,
+              labelEn: s.labelEn,
+              labelId: s.labelId,
+              percentage: s.percentage,
+              amount: s.amount,
+              paidAmount: s.paidAmount,
+              currency: s.currency,
+              dueDate: s.dueDate,
+              status: s.status,
+            }))
+          ).returning();
         }
-        let allocated = new Decimal(0);
-        const values = installments.map((inst, i) => {
-          const isLast = i === installments.length - 1;
-          const amount = isLast ? total.minus(allocated) : total.mul(inst.percentage).div(100).toDecimalPlaces(2);
-          allocated = allocated.plus(amount);
-          return {
-            bookingId: booking.id,
-            installmentNumber: i + 1,
-            label: inst.label,
-            percentage: String(inst.percentage),
-            amount: amount.toFixed(2),
-            currency: booking.currency ?? "USD",
-            dueDate: inst.dueDate,
-          };
-        });
-        return tx.insert(bookingPaymentSchedules).values(values).returning();
+        return [];
       });
 
       await storage.createAuditLog({

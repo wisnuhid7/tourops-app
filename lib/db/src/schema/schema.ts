@@ -1,5 +1,5 @@
 import { sql, relations } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp, pgEnum, json, jsonb, index, uniqueIndex, numeric, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, pgEnum, json, jsonb, index, uniqueIndex, numeric, decimal, check } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -209,6 +209,7 @@ export const tourDepartures = pgTable("tour_departures", {
 }, (table) => ({
   tourIdIdx: index("tour_departures_tour_id_idx").on(table.tourId),
   statusIdx: index("tour_departures_status_idx").on(table.status),
+  capacityCheck: check("tour_departures_capacity_check", sql`${table.capacityBooked} <= ${table.capacityTotal}`),
 }));
 
 export const insertTourDepartureSchema = createInsertSchema(tourDepartures, {
@@ -230,8 +231,21 @@ export const bookingTypeEnum = pgEnum("booking_type", [
   "custom_family",
 ]);
 
-export const bookingStatusEnum = pgEnum("booking_status", ["draft", "submitted", "confirmed", "cancelled", "completed"]);
+export const bookingStatusEnum = pgEnum("booking_status", [
+  "draft",
+  "submitted",
+  "pending_payment",
+  "confirmed",
+  "cancelled",
+  "cancelled_unpaid",
+  "cancelled_by_customer",
+  "cancelled_by_operator",
+  "expired",
+  "completed",
+]);
 export const fulfillmentStatusEnum = pgEnum("fulfillment_status", ["pending", "in_progress", "blocked", "completed"]);
+
+export type RoomAllocation = { roomType: string; count: number };
 
 export const bookings = pgTable("bookings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -261,6 +275,14 @@ export const bookings = pgTable("bookings", {
   affiliateId: varchar("affiliate_id"),
   departureCity: text("departure_city"),
   departureAirportId: varchar("departure_airport_id"),
+  holdExpiresAt: timestamp("hold_expires_at"),
+  idempotencyKey: varchar("idempotency_key"),
+  roomAllocations: jsonb("room_allocations").$type<Array<RoomAllocation>>(),
+  singleSupplementCost: numeric("single_supplement_cost"),
+  departureSurcharge: numeric("departure_surcharge"),
+  discountAmount: numeric("discount_amount"),
+  taxAmount: numeric("tax_amount"),
+  serviceFeeAmount: numeric("service_fee_amount"),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => ({
   customerIdIdx: index("bookings_customer_id_idx").on(table.customerId),
@@ -268,6 +290,8 @@ export const bookings = pgTable("bookings", {
   departureIdIdx: index("bookings_departure_id_idx").on(table.departureId),
   codeIdx: index("bookings_code_idx").on(table.bookingCode),
   statusIdx: index("bookings_status_idx").on(table.status),
+  idempotencyKeyIdx: uniqueIndex("bookings_idempotency_key_idx").on(table.idempotencyKey),
+  holdExpiresAtIdx: index("bookings_hold_expires_at_idx").on(table.holdExpiresAt),
 }));
 
 export const insertBookingSchema = createInsertSchema(bookings).omit({ id: true, createdAt: true });

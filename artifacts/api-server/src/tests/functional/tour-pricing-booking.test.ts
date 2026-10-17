@@ -42,15 +42,21 @@ const state = vi.hoisted(() => ({
 // ---------------------------------------------------------------------------
 // Mock: @workspace/db – prevent real DB connections.
 // ---------------------------------------------------------------------------
-vi.mock("@workspace/db", () => {
+vi.mock("@workspace/db", async (importOriginal) => {
+  if (!process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db";
+  }
+  const actual = await importOriginal<Record<string, unknown>>();
   const chain: any = {
     from: () => chain,
     where: () => chain,
     leftJoin: () => chain,
     limit: () => chain,
+    offset: () => chain,
     orderBy: () => chain,
     values: () => chain,
     set: () => chain,
+    for: () => chain,
     onConflictDoNothing: () => chain,
     returning: () => Promise.resolve([]),
     then: (resolve: (rows: any[]) => void) => resolve([]),
@@ -60,11 +66,12 @@ vi.mock("@workspace/db", () => {
     insert: () => chain,
     update: () => chain,
     delete: () => chain,
+    transaction: async (fn: (tx: any) => Promise<unknown>) => fn(fakeDb),
   };
-  return new Proxy(
-    { db: fakeDb },
-    { get: (t, p) => (p in t ? (t as any)[p] : { __table: String(p) }) },
-  );
+  return {
+    ...actual,
+    db: fakeDb,
+  };
 });
 
 // ---------------------------------------------------------------------------

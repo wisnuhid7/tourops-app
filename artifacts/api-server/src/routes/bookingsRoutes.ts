@@ -129,108 +129,181 @@ export function registerBookingsRoutes(app: Express): void {
         if (aff) affiliateId = aff.id;
       }
 
-      // ---- Server-authoritative pricing --------------------------------
+      // ---- Server-authoritative pricing & capacity hold ----------------
       // The client's totalPrice is display-only and NEVER trusted (except an
       // explicit staff override). Per-person price is resolved server-side:
       // departure price when set, otherwise the computed full selling price
       // (base + components + markup + fee), otherwise the tour base price.
       const partySize = Math.max(1, Number(req.body.partySizeExpected) || 1);
-      let perPersonPrice: number | undefined;
-      if (req.body.tourId) {
+
+      const runTransaction = async <T>(callback: (tx: any) => Promise<T>): Promise<T> => {
+        if (typeof (db as any).transaction === "function") {
+          return (db as any).transaction(callback);
+        }
+        return callback(db);
+      };
+
+      const booking = await runTransaction(async (tx) => {
+        let perPersonPrice: number | undefined;
         let departurePrice: string | number | null = null;
-        if (req.body.departureId) {
-          const dep = await storage.getDeparture(req.body.departureId);
-          if (!dep || dep.tourId !== req.body.tourId) {
-            return res.status(400).json({ message: "Departure does not belong to this tour" });
-          }
-          departurePrice = dep.pricePerPerson;
-        }
-        let publicPerPersonBase: number | null = null;
-        let tourBasePrice: string | number | null = null;
-        if (!isUsableDeparturePrice(departurePrice)) {
-          const pp = await publicTourPricing(req.body.tourId);
-          if (pp && pp.perPersonBase > 0) publicPerPersonBase = pp.perPersonBase;
-          else {
-            const tourRow = await storage.getTour(req.body.tourId);
-            tourBasePrice = tourRow?.basePrice ?? null;
-          }
-        }
-        // Shared precedence with GET /api/tours/:tourId/price-preview
-        // (services/booking-pricing.ts).
-        perPersonPrice = resolvePerPersonPrice({ departurePrice, publicPerPersonBase, tourBasePrice });
-      }
 
-      // Room-type selection: accommodation is priced server-side from the
-      // hotel's registered nightly rate × the tour's hotel nights, for as
-      // many rooms as the party needs. Never trust a client-provided figure.
-      let roomType: BookingRoomType | undefined;
-      let accommodationCost: string | undefined;
-      let totalPrice: number | undefined;
-      let bookingCurrency: string | undefined;
-      if (req.body.roomType != null && req.body.roomType !== "") {
-        if (!BOOKING_ROOM_TYPES.includes(req.body.roomType)) {
-          return res.status(400).json({ message: `roomType must be one of: ${BOOKING_ROOM_TYPES.join(", ")}` });
-        }
-        if (!req.body.tourId) return res.status(400).json({ message: "roomType requires a tourId" });
-        roomType = req.body.roomType;
-        const acc = await accommodationForTour(db, req.body.tourId, roomType!);
-        // Only add accommodation when its currency matches the booking currency
-        // (no FX conversion yet) — never sum mixed currencies.
-        const bodyCurrency = (req.body.currency || "USD").toUpperCase();
-        if (new Decimal(acc.total).greaterThan(0) && acc.currency.toUpperCase() !== bodyCurrency) {
-          return res.status(400).json({
-            message: `Accommodation is priced in ${acc.currency} but the booking is in ${bodyCurrency}; currency conversion is not supported yet.`,
-          });
-        }
-        // Shared math with GET /api/tours/:tourId/price-preview so the persisted
-        // total equals the quoted preview total (services/booking-pricing.ts).
-        const math = calculateBookingPrice({
-          perPersonPrice: perPersonPrice ?? 0,
-          partySize,
-          bookingCurrency: bodyCurrency,
-          roomType,
-          accommodation: { total: acc.total, currency: acc.currency },
-        });
-        accommodationCost = math.accommodationCost.toFixed(2);
-        bookingCurrency = acc.currency;
-        totalPrice = math.grandTotal.toNumber();
-      } else {
-        if (req.body.tourId && req.body.bookingType !== "join_leader_group") {
-          // Customers starting a booking on a tour that offers room types must
-          // pick one. (join_leader_group participants share the leader's rooms;
-          // accommodation is billed on the leader's booking.)
-          if (await tourOffersRoomTypes(db, req.body.tourId)) {
-            return res.status(400).json({ message: "Please select a room type (matrimonial, doble, or triple) for this tour." });
+        if (req.body.tourId) {
+          if (req.body.departureId) {
+            // Lock target tour_departures row using SELECT ... FOR UPDATE
+            let dep: any;
+            if (typeof tx.select === "function") {
+              const q = tx.select().from(tourDepartures).where(eq(tourDepartures.id, req.body.departureId));
+              const rows = typeof (q as any).for === "function" ? await (q as any).for("update") : await q;
+              dep = rows?.[0];
+            }
+            if (!dep && typeof storage.getDeparture === "function") {
+              dep = await storage.getDeparture(req.body.departureId);
+            }
+            if (!dep || dep.tourId !== req.body.tourId) {
+              const err: any = new Error("Departure does not belong to this tour");
+              err.statusCode = 400;
+              throw err;
+            }
+
+            // Atomic capacity seat hold validation (US-03)
+            const capacityTotal = Number(dep.capacityTotal ?? 20);
+            const capacityBooked = Number(dep.capacityBooked ?? 0);
+            const capacityRemaining = Math.max(0, capacityTotal - capacityBooked);
+
+            if (capacityBooked + partySize > capacityTotal) {
+              const err: any = new Error("Not enough capacity remaining on this departure");
+              err.statusCode = 409;
+              err.code = "CAPACITY_EXCEEDED";
+              err.capacityTotal = capacityTotal;
+              err.capacityBooked = capacityBooked;
+              err.capacityRemaining = capacityRemaining;
+              throw err;
+            }
+
+            // Increment capacityBooked and mark sold_out if capacity met
+            const newBooked = capacityBooked + partySize;
+            const newStatus = newBooked >= capacityTotal ? "sold_out" : dep.status;
+
+            if (typeof tx.update === "function") {
+              await tx.update(tourDepartures)
+                .set({
+                  capacityBooked: newBooked,
+                  ...(newStatus !== dep.status ? { status: newStatus } : {}),
+                })
+                .where(eq(tourDepartures.id, dep.id));
+            } else if (typeof storage.updateDeparture === "function") {
+              await storage.updateDeparture(dep.id, {
+                capacityBooked: newBooked,
+                ...(newStatus !== dep.status ? { status: newStatus } : {}),
+              }, tx);
+            }
+
+            departurePrice = dep.pricePerPerson;
           }
+
+          let publicPerPersonBase: number | null = null;
+          let tourBasePrice: string | number | null = null;
+          if (!isUsableDeparturePrice(departurePrice)) {
+            const pp = await publicTourPricing(req.body.tourId);
+            if (pp && pp.perPersonBase > 0) publicPerPersonBase = pp.perPersonBase;
+            else {
+              const tourRow = await storage.getTour(req.body.tourId);
+              tourBasePrice = tourRow?.basePrice ?? null;
+            }
+          }
+          // Shared precedence with GET /api/tours/:tourId/price-preview
+          // (services/booking-pricing.ts).
+          perPersonPrice = resolvePerPersonPrice({ departurePrice, publicPerPersonBase, tourBasePrice });
         }
-        if (perPersonPrice !== undefined) {
-          // Tour-derived total, finalized to a whole currency unit (shared with
-          // the price-preview endpoint via services/booking-pricing.ts).
-          totalPrice = calculateBookingPrice({
-            perPersonPrice,
+
+        // Room-type selection: accommodation is priced server-side from the
+        // hotel's registered nightly rate × the tour's hotel nights, for as
+        // many rooms as the party needs. Never trust a client-provided figure.
+        let roomType: BookingRoomType | undefined;
+        let accommodationCost: string | undefined;
+        let totalPrice: number | undefined;
+        let bookingCurrency: string | undefined;
+        if (req.body.roomType != null && req.body.roomType !== "") {
+          if (!BOOKING_ROOM_TYPES.includes(req.body.roomType)) {
+            const err: any = new Error(`roomType must be one of: ${BOOKING_ROOM_TYPES.join(", ")}`);
+            err.statusCode = 400;
+            throw err;
+          }
+          if (!req.body.tourId) {
+            const err: any = new Error("roomType requires a tourId");
+            err.statusCode = 400;
+            throw err;
+          }
+          roomType = req.body.roomType;
+          const acc = await accommodationForTour(db, req.body.tourId, roomType!);
+          // Only add accommodation when its currency matches the booking currency
+          // (no FX conversion yet) — never sum mixed currencies.
+          const bodyCurrency = (req.body.currency || "USD").toUpperCase();
+          if (new Decimal(acc.total).greaterThan(0) && acc.currency.toUpperCase() !== bodyCurrency) {
+            const err: any = new Error(`Accommodation is priced in ${acc.currency} but the booking is in ${bodyCurrency}; currency conversion is not supported yet.`);
+            err.statusCode = 400;
+            throw err;
+          }
+          // Shared math with GET /api/tours/:tourId/price-preview so the persisted
+          // total equals the quoted preview total (services/booking-pricing.ts).
+          const math = calculateBookingPrice({
+            perPersonPrice: perPersonPrice ?? 0,
             partySize,
-            bookingCurrency: (req.body.currency || "USD").toUpperCase(),
-          }).grandTotal.toNumber();
-        } else if (isStaff) {
-          totalPrice = req.body.totalPrice;
+            bookingCurrency: bodyCurrency,
+            roomType,
+            accommodation: { total: acc.total, currency: acc.currency },
+          });
+          accommodationCost = math.accommodationCost.toFixed(2);
+          bookingCurrency = acc.currency;
+          totalPrice = math.grandTotal.toNumber();
+        } else {
+          if (req.body.tourId && req.body.bookingType !== "join_leader_group") {
+            // Customers starting a booking on a tour that offers room types must
+            // pick one. (join_leader_group participants share the leader's rooms;
+            // accommodation is billed on the leader's booking.)
+            if (await tourOffersRoomTypes(db, req.body.tourId)) {
+              const err: any = new Error("Please select a room type (matrimonial, doble, or triple) for this tour.");
+              err.statusCode = 400;
+              throw err;
+            }
+          }
+          if (perPersonPrice !== undefined) {
+            // Tour-derived total, finalized to a whole currency unit (shared with
+            // the price-preview endpoint via services/booking-pricing.ts).
+            totalPrice = calculateBookingPrice({
+              perPersonPrice,
+              partySize,
+              bookingCurrency: (req.body.currency || "USD").toUpperCase(),
+            }).grandTotal.toNumber();
+          } else if (isStaff) {
+            totalPrice = req.body.totalPrice;
+          }
         }
-      }
 
-      const booking = await storage.createBooking({
-        ...req.body, 
-        customerId, 
-        bookingCode, 
-        joinCode, 
-        leaderUserId, 
-        affiliateId,
-        departureCity: req.body.departureCity || (req.body.isLandOnly ? "Land Only (Self Arrival)" : null),
-        departureAirportId: req.body.departureAirportId || null,
-        roomType: roomType ?? null,
-        accommodationCost: accommodationCost ?? null,
-        currency: bookingCurrency ?? req.body.currency ?? "USD",
-        totalPrice,
-        status: req.body.status || ("submitted" as const), 
-        fulfillmentStatus: req.body.fulfillmentStatus || ("pending" as const),
+        const initialStatus = req.body.status || ("pending_payment" as const);
+        const holdExpiresAt = initialStatus === "pending_payment"
+          ? (req.body.holdExpiresAt ? new Date(req.body.holdExpiresAt) : new Date(Date.now() + 30 * 60 * 1000))
+          : (req.body.holdExpiresAt ? new Date(req.body.holdExpiresAt) : null);
+
+        const created = await storage.createBooking({
+          ...req.body, 
+          customerId, 
+          bookingCode, 
+          joinCode, 
+          leaderUserId, 
+          affiliateId,
+          departureCity: req.body.departureCity || (req.body.isLandOnly ? "Land Only (Self Arrival)" : null),
+          departureAirportId: req.body.departureAirportId || null,
+          roomType: roomType ?? null,
+          accommodationCost: accommodationCost ?? null,
+          currency: bookingCurrency ?? req.body.currency ?? "USD",
+          totalPrice,
+          status: initialStatus, 
+          holdExpiresAt,
+          fulfillmentStatus: req.body.fulfillmentStatus || ("pending" as const),
+        }, tx);
+
+        return created;
       });
 
       if (req.body.bookingType === "leader_group") {
@@ -258,7 +331,25 @@ export function registerBookingsRoutes(app: Express): void {
       }
 
       res.json(booking);
-    } catch (e: any) { routeError(res, e); }
+    } catch (e: any) {
+      if (
+        e.statusCode === 409 ||
+        e.code === "CAPACITY_EXCEEDED" ||
+        (typeof e.message === "string" && e.message.includes("tour_departures_capacity_check"))
+      ) {
+        return res.status(409).json({
+          message: e.message || "Not enough capacity remaining on this departure",
+          code: "CAPACITY_EXCEEDED",
+          capacityTotal: e.capacityTotal,
+          capacityBooked: e.capacityBooked,
+          capacityRemaining: e.capacityRemaining,
+        });
+      }
+      if (e.statusCode === 400) {
+        return res.status(400).json({ message: e.message });
+      }
+      routeError(res, e);
+    }
   });
 
   app.patch("/api/bookings/:id", isAuthenticated, async (req, res) => {

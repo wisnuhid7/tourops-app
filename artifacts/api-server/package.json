@@ -8,8 +8,8 @@
     "build": "node ./build.mjs",
     "start": "node --env-file=.env --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "test": "node --env-file=.env ./node_modules/vitest/vitest.mjs run",
+    "test:watch": "node --env-file=.env ./node_modules/vitest/vitest.mjs"
   },
   "dependencies": {
     "@types/connect-pg-simple": "^7.0.3",

@@ -152,7 +152,7 @@ export interface IStorage {
   getDeparturesByTour(tourId: string): Promise<TourDeparture[]>;
   getDeparture(id: string): Promise<TourDeparture | undefined>;
   createDeparture(data: InsertTourDeparture): Promise<TourDeparture>;
-  updateDeparture(id: string, data: Partial<TourDeparture>): Promise<TourDeparture>;
+  updateDeparture(id: string, data: Partial<TourDeparture>, tx?: any): Promise<TourDeparture>;
   deleteDeparture(id: string): Promise<void>;
   getBookingsByDeparture(departureId: string): Promise<Booking[]>;
 
@@ -160,7 +160,7 @@ export interface IStorage {
   getBooking(id: string): Promise<Booking | undefined>;
   getBookingsByCustomer(customerId: string): Promise<Booking[]>;
   getBookingByJoinCode(code: string): Promise<Booking | undefined>;
-  createBooking(data: InsertBooking): Promise<Booking>;
+  createBooking(data: InsertBooking, tx?: any): Promise<Booking>;
   updateBooking(id: string, data: Partial<Booking>): Promise<Booking>;
   deleteBooking(id: string): Promise<void>;
 
@@ -679,8 +679,9 @@ export class DatabaseStorage implements IStorage {
     return dep;
   }
 
-  async updateDeparture(id: string, data: Partial<TourDeparture>): Promise<TourDeparture> {
-    const [dep] = await db.update(tourDepartures).set(data).where(eq(tourDepartures.id, id)).returning();
+  async updateDeparture(id: string, data: Partial<TourDeparture>, tx?: any): Promise<TourDeparture> {
+    const client = tx || db;
+    const [dep] = await client.update(tourDepartures).set(data).where(eq(tourDepartures.id, id)).returning();
     return dep;
   }
 
@@ -710,8 +711,9 @@ export class DatabaseStorage implements IStorage {
     return booking;
   }
 
-  async createBooking(data: InsertBooking): Promise<Booking> {
-    const [booking] = await db.insert(bookings).values(data).returning();
+  async createBooking(data: InsertBooking, tx?: any): Promise<Booking> {
+    const client = tx || db;
+    const [booking] = await client.insert(bookings).values(data).returning();
     return booking;
   }
 

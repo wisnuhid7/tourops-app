@@ -13,16 +13,16 @@
 **Description:** Expand the PostgreSQL schema via Drizzle ORM in `@workspace/db` to support PRD 1.1 booking hold invariants, request idempotency, structured room allocations, and expanded booking statuses.
 
 **Acceptance criteria:**
-- [ ] Add `hold_expires_at` (timestamp) and `idempotency_key` (varchar unique) to `bookings` table.
-- [ ] Add `room_allocations` (jsonb array of `{ roomType: string, count: number }`), `single_supplement_cost` (numeric), `departure_surcharge` (numeric), `discount_amount` (numeric), `tax_amount` (numeric), and `service_fee_amount` (numeric) to `bookings`.
-- [ ] Expand `bookingStatusEnum` to include `pending_payment`, `expired`, `cancelled_unpaid`, `cancelled_by_customer`, and `cancelled_by_operator`.
-- [ ] Add database check constraint or strict validation guaranteeing `tour_departures.capacityBooked <= tour_departures.capacityTotal`.
-- [ ] Export updated Zod insert/select schemas in `@workspace/api-zod`.
+- [x] Add `hold_expires_at` (timestamp) and `idempotency_key` (varchar unique) to `bookings` table.
+- [x] Add `room_allocations` (jsonb array of `{ roomType: string, count: number }`), `single_supplement_cost` (numeric), `departure_surcharge` (numeric), `discount_amount` (numeric), `tax_amount` (numeric), and `service_fee_amount` (numeric) to `bookings`.
+- [x] Expand `bookingStatusEnum` to include `pending_payment`, `expired`, `cancelled_unpaid`, `cancelled_by_customer`, and `cancelled_by_operator`.
+- [x] Add database check constraint or strict validation guaranteeing `tour_departures.capacityBooked <= tour_departures.capacityTotal`.
+- [x] Export updated Zod insert/select schemas in `@workspace/api-zod`.
 
 **Verification:**
-- [ ] Tests pass: `pnpm --filter @workspace/api-server run test`
-- [ ] Build succeeds: `pnpm run typecheck`
-- [ ] Manual check: Run `pnpm run build` and inspect database migration or schema exports.
+- [x] Tests pass: `pnpm --filter @workspace/api-server run test`
+- [x] Build succeeds: `pnpm run typecheck`
+- [x] Manual check: Run `pnpm run build` and inspect database migration or schema exports.
 
 **Dependencies:** None  
 **Files likely touched:**
@@ -36,15 +36,15 @@
 **Description:** Implement atomic 30-minute seat reservations on `POST /api/bookings`. When a booking is submitted, atomically increment `capacityBooked` on `tour_departures` inside a PostgreSQL transaction using `SELECT ... FOR UPDATE` and set `hold_expires_at = NOW() + INTERVAL '30 minutes'` with initial status `pending_payment`.
 
 **Acceptance criteria:**
-- [ ] `POST /api/bookings` locks the target `tour_departures` row using `SELECT ... FOR UPDATE`.
-- [ ] Rejects the booking with HTTP 409 if `capacityBooked + partySize > capacityTotal`.
-- [ ] Atomically increments `capacityBooked` by `partySize` and inserts booking with status `pending_payment` and `hold_expires_at` 30 minutes in the future.
-- [ ] Concurrency test validates that concurrent bookings competing for the last seat result in exactly one successful hold.
+- [x] `POST /api/bookings` locks the target `tour_departures` row using `SELECT ... FOR UPDATE`.
+- [x] Rejects the booking with HTTP 409 if `capacityBooked + partySize > capacityTotal`.
+- [x] Atomically increments `capacityBooked` by `partySize` and inserts booking with status `pending_payment` and `hold_expires_at` 30 minutes in the future.
+- [x] Concurrency test validates that concurrent bookings competing for the last seat result in exactly one successful hold.
 
 **Verification:**
-- [ ] Tests pass: `pnpm --filter @workspace/api-server run test -- -t "capacity hold"`
-- [ ] Build succeeds: `pnpm run typecheck`
-- [ ] Manual check: Attempt simultaneous bookings exceeding departure capacity via test script.
+- [x] Tests pass: `pnpm --filter @workspace/api-server run test -- -t "capacity hold"`
+- [x] Build succeeds: `pnpm run typecheck`
+- [x] Manual check: Attempt simultaneous bookings exceeding departure capacity via test script.
 
 **Dependencies:** Task 1  
 **Files likely touched:**

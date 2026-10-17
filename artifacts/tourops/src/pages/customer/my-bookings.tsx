@@ -14,6 +14,7 @@ import { useLocation } from "wouter";
 import { BookOpen, Calendar, Users, ArrowRight, Link2, MapPin } from "lucide-react";
 import type { Booking, Tour } from "@workspace/db";
 import { useLanguage } from "@/hooks/use-language";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 import React from "react";
 
@@ -99,7 +100,8 @@ export default function MyBookings() {
           <h1 className="text-2xl font-bold font-serif" data-testid="text-my-bookings-title">{t("my_bookings")}</h1>
           <p className="text-muted-foreground text-sm">{t("view_manage_bookings_subtitle")}</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <LanguageSwitcher />
           <Dialog open={showJoin} onOpenChange={setShowJoin}>
             <DialogTrigger asChild>
               <Button variant="outline" data-testid="button-join-group"><Link2 className="h-4 w-4 mr-2" />{t("join_group")}</Button>

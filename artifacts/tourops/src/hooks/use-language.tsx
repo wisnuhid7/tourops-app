@@ -85,3 +85,68 @@ export function useLanguage() {
   }
   return context;
 }
+
+/**
+ * Localizes payment schedule labels (e.g. "Uang Muka (DP 30%)", "Pelunasan Akhir (70%)")
+ * dynamically according to the active language (en, es, id).
+ */
+export function localizeScheduleLabel(
+  label: string | null | undefined,
+  installmentNumber: number,
+  percentage: string | number | null | undefined,
+  lang: Language
+): string {
+  const raw = (label || "").trim();
+  const lower = raw.toLowerCase();
+
+  // Extract percentage if available or parse from label text (e.g. "30%")
+  const pctMatch = raw.match(/(\d+)%/);
+  const parsedPct = pctMatch ? parseInt(pctMatch[1], 10) : null;
+  const pct = percentage != null && !isNaN(Number(percentage))
+    ? Math.round(Number(percentage))
+    : parsedPct;
+
+  // 1. Down Payment / Deposit / Uang Muka
+  if (
+    lower.includes("uang muka") ||
+    lower.includes("dp") ||
+    lower.includes("down payment") ||
+    lower.includes("deposit") ||
+    lower.includes("anticipo") ||
+    installmentNumber === 1
+  ) {
+    if (lang === "en") return `Down Payment (Deposit ${pct ?? 30}%)`;
+    if (lang === "es") return `Anticipo (Depósito ${pct ?? 30}%)`;
+    return `Uang Muka (DP ${pct ?? 30}%)`;
+  }
+
+  // 2. Final Payment / Balance / Pelunasan
+  if (
+    lower.includes("pelunasan") ||
+    lower.includes("final") ||
+    lower.includes("pago final") ||
+    lower.includes("balance")
+  ) {
+    if (lang === "en") return `Final Payment (${pct ?? 70}%)`;
+    if (lang === "es") return `Pago Final (${pct ?? 70}%)`;
+    return `Pelunasan Akhir (${pct ?? 70}%)`;
+  }
+
+  // 3. Intermediate installment
+  if (
+    lower.includes("angsuran") ||
+    lower.includes("installment") ||
+    lower.includes("cuota") ||
+    lower.includes("termin")
+  ) {
+    if (lang === "en") return `Installment #${installmentNumber} (${pct ?? 35}%)`;
+    if (lang === "es") return `Cuota #${installmentNumber} (${pct ?? 35}%)`;
+    return `Angsuran Ke-${installmentNumber} (${pct ?? 35}%)`;
+  }
+
+  // Fallback to original label or localized generic fallback
+  if (raw) return raw;
+  if (lang === "en") return `Installment #${installmentNumber}`;
+  if (lang === "es") return `Cuota #${installmentNumber}`;
+  return `Angsuran #${installmentNumber}`;
+}

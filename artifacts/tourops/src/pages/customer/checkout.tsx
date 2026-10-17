@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, localizeScheduleLabel } from "@/hooks/use-language";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { ArrowLeft, CreditCard, CheckCircle2, XCircle, Loader2, Clock } from "lu
 import { Elements } from "@stripe/react-stripe-js";
 import { loadStripe, Stripe } from "@stripe/stripe-js";
 import { StripeCheckoutForm } from "@/components/StripeCheckoutForm";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 interface PaymentScheduleItem {
   id: string;
@@ -55,7 +56,7 @@ function getStripePromise(key: string) {
 
 export default function Checkout() {
   const { bookingId } = useParams<{ bookingId: string }>();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const qc = useQueryClient();
 
   const [card, setCard] = useState("4242 4242 4242 4242");
@@ -214,14 +215,17 @@ export default function Checkout() {
 
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <Link href={`/my-bookings/${booking.id}`}>
-          <Button variant="ghost" size="icon" data-testid="button-back"><ArrowLeft className="h-5 w-5" /></Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold">{t("secure_checkout")}</h1>
-          <p className="text-sm text-muted-foreground">{t("tour_booking_prefix")} {booking.bookingCode}</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link href={`/my-bookings/${booking.id}`}>
+            <Button variant="ghost" size="icon" data-testid="button-back"><ArrowLeft className="h-5 w-5" /></Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold">{t("secure_checkout")}</h1>
+            <p className="text-sm text-muted-foreground">{t("tour_booking_prefix")} {booking.bookingCode}</p>
+          </div>
         </div>
+        <LanguageSwitcher />
       </div>
 
       {/* Detail Order Summary yang sesuai dengan apa yang dibayar */}
@@ -231,7 +235,7 @@ export default function Checkout() {
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">{t("order_summary")}</CardTitle>
               <Badge variant="secondary" className="text-xs font-semibold">
-                Cicilan #{selectedSched.installmentNumber}
+                {t("schedule_installment")} #{selectedSched.installmentNumber}
               </Badge>
             </div>
           </CardHeader>
@@ -239,24 +243,24 @@ export default function Checkout() {
             <div className="p-3.5 bg-primary/5 rounded-lg border border-primary/15 space-y-1">
               <div className="flex justify-between items-center">
                 <span className="font-semibold text-sm text-primary">
-                  {selectedSched.label}
+                  {localizeScheduleLabel(selectedSched.label, selectedSched.installmentNumber, selectedSched.percentage, language)}
                 </span>
                 <span className="text-xs font-semibold bg-primary/10 text-primary px-2 py-0.5 rounded">
                   {selectedSched.percentage}%
                 </span>
               </div>
               <p className="text-xs text-muted-foreground">
-                Jatuh Tempo: {new Date(selectedSched.dueDate).toLocaleDateString()}
+                {t("schedule_due_date")}: {new Date(selectedSched.dueDate).toLocaleDateString()}
               </p>
             </div>
 
             <div className="space-y-2 pt-1 text-xs">
               <div className="flex justify-between text-muted-foreground">
-                <span>Total Nilai Paket Tur</span>
+                <span>{t("checkout_total_tour_package")}</span>
                 <span>{fmt(summary.total, summary.currency)}</span>
               </div>
               <div className="flex justify-between text-muted-foreground">
-                <span>Total Terbayar Sebelumnya</span>
+                <span>{t("checkout_already_paid_previously")}</span>
                 <span className="text-emerald-600 font-medium">
                   {fmt(data.alreadyPaid, summary.currency)}
                 </span>
@@ -264,7 +268,7 @@ export default function Checkout() {
             </div>
 
             <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-3 font-bold text-base">
-              <span>Jumlah yang Dibayar Sekarang</span>
+              <span>{t("checkout_amount_paying_now")}</span>
               <span className="text-primary text-lg" data-testid="text-total">
                 {fmt(currentPayableAmount, summary.currency)}
               </span>
@@ -290,8 +294,8 @@ export default function Checkout() {
       {data.schedules && data.schedules.length > 1 && !data.fullyPaid && phase !== "success" && (
         <Card className="border-slate-200 dark:border-slate-800">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Pilihan Cicilan</CardTitle>
-            <p className="text-xs text-muted-foreground">Pilih cicilan yang ingin Anda bayar saat ini</p>
+            <CardTitle className="text-base">{t("checkout_installment_options")}</CardTitle>
+            <p className="text-xs text-muted-foreground">{t("checkout_installment_select_hint")}</p>
           </CardHeader>
           <CardContent className="space-y-2.5">
             {data.schedules.map((sched) => {
@@ -316,15 +320,15 @@ export default function Checkout() {
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2">
                         <p className="font-semibold text-sm">
-                          Angsuran #{sched.installmentNumber}: {sched.label}
+                          {t("schedule_installment")} #{sched.installmentNumber}: {localizeScheduleLabel(sched.label, sched.installmentNumber, sched.percentage, language)}
                         </p>
                         {isPaid ? (
                           <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">
-                            Lunas
+                            {t("schedule_status_paid")}
                           </Badge>
                         ) : isSelected ? (
                           <Badge className="bg-primary text-xs">
-                            Dipilih
+                            {t("checkout_selected_badge")}
                           </Badge>
                         ) : (
                           <Badge variant="secondary" className="text-xs">
@@ -333,7 +337,7 @@ export default function Checkout() {
                         )}
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Jatuh tempo: {new Date(sched.dueDate).toLocaleDateString()}
+                        {t("schedule_due_date")}: {new Date(sched.dueDate).toLocaleDateString()}
                       </p>
                     </div>
                     <span className="font-bold text-sm shrink-0">
@@ -353,15 +357,15 @@ export default function Checkout() {
             <CheckCircle2 className="h-14 w-14 text-emerald-600 mx-auto" />
             <h2 className="text-xl font-bold" data-testid="text-payment-success">{t("payment_successful_title")}</h2>
             <p className="text-sm text-muted-foreground">
-              Pembayaran Anda sebesar <strong className="text-foreground">{fmt(currentPayableAmount, summary.currency)}</strong> telah berhasil diproses.
+              {t("checkout_payment_processed_prefix")} <strong className="text-foreground">{fmt(currentPayableAmount, summary.currency)}</strong> {t("checkout_payment_processed_suffix")}
             </p>
             <div className="p-3 bg-white/70 dark:bg-slate-900/60 rounded-lg border border-emerald-200 dark:border-emerald-900 text-xs text-muted-foreground max-w-md mx-auto">
-              Invoice dan tanda terima resmi pembayaran dapat langsung diunduh pada tab <strong>Riwayat Pembayaran</strong> di halaman detail booking Anda.
+              {t("checkout_receipt_download_hint_prefix")} <strong>{t("checkout_receipt_download_hint_strong")}</strong> {t("checkout_receipt_download_hint_suffix")}
             </div>
             <div>
               <Link href={`/my-bookings/${booking.id}`}>
                 <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold" data-testid="button-view-booking">
-                  Lihat Detail Booking & Riwayat Pembayaran
+                  {t("checkout_view_booking_and_payments")}
                 </Button>
               </Link>
             </div>
@@ -393,7 +397,7 @@ export default function Checkout() {
             {isInitializingIntent || !stripeClientSecret ? (
               <div className="py-8 flex flex-col items-center justify-center space-y-3">
                 <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-                <p className="text-sm text-muted-foreground">Preparing secure checkout...</p>
+                <p className="text-sm text-muted-foreground">{t("checkout_preparing_intent")}</p>
               </div>
             ) : (
               <Elements

@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, localizeScheduleLabel } from "@/hooks/use-language";
 import {
   Users, FileText, Workflow, MessageSquare, CreditCard,
   ClipboardList, ArrowLeft, CheckCircle, Clock, AlertTriangle,
@@ -63,7 +63,7 @@ const PAYMENT_STATUSES: Record<string, string> = {
 export default function AdminBookingDetail() {
   const [, params] = useRoute("/admin/bookings/:id");
   const { toast } = useToast();
-  const { t, lt } = useLanguage();
+  const { t, lt, language } = useLanguage();
   const bookingId = params?.id;
 
   const [internalNotes, setInternalNotes] = useState<string | null>(null);
@@ -1303,8 +1303,7 @@ export default function AdminBookingDetail() {
                           )}
                           <div>
                             <p className="font-medium text-sm">
-                              {t("schedule_installment")} {inst.installmentNumber}: {inst.label}
-                              <span className="ml-2 text-xs text-muted-foreground">({inst.percentage}%)</span>
+                              {t("schedule_installment")} #{inst.installmentNumber}: {localizeScheduleLabel(inst.label, inst.installmentNumber, inst.percentage, language)}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {t("schedule_due_date")}: {due.toLocaleDateString()}

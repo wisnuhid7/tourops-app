@@ -22,7 +22,8 @@ import { useState } from "react";
 import { Progress } from "@/components/ui/progress";
 import { DocumentPreview } from "@/components/DocumentPreview";
 import type { Booking, Traveler, BookingWorkflow, Message, Document, Payment, BookingPaymentSchedule, Tour, TourDeparture } from "@workspace/db";
-import { useLanguage } from "@/hooks/use-language";
+import { useLanguage, localizeScheduleLabel } from "@/hooks/use-language";
+import { LanguageSwitcher } from "@/components/language-switcher";
 
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -37,7 +38,7 @@ const DOC_STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive"
 };
 
 export default function CustomerBookingDetail() {
-  const { t, lt } = useLanguage();
+  const { t, lt, language } = useLanguage();
   const [, params] = useRoute("/my-bookings/:id");
   const { toast } = useToast();
   const bookingId = params?.id;
@@ -107,7 +108,7 @@ export default function CustomerBookingDetail() {
 
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: `${label} berhasil disalin` });
+    toast({ title: `${label} - ${t("copied_button")}` });
   };
 
   const handleManualReceiptUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -126,9 +127,9 @@ export default function CustomerBookingDetail() {
       if (!res.ok) throw new Error("Upload failed");
       const data = await res.json();
       setManualReceiptUrl(data.url);
-      toast({ title: "Bukti transfer berhasil diunggah" });
+      toast({ title: t("toast_receipt_upload_success") });
     } catch {
-      toast({ title: "Gagal mengunggah gambar", variant: "destructive" });
+      toast({ title: t("toast_image_upload_failed"), variant: "destructive" });
     } finally {
       setIsUploadingManualReceipt(false);
     }
@@ -321,7 +322,7 @@ export default function CustomerBookingDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/my-bookings", bookingId, "payments"] });
       queryClient.invalidateQueries({ queryKey: ["/api/checkout", bookingId] });
       setShowPlanDialog(false);
-      toast({ title: "Skema pembayaran berhasil diperbarui" });
+      toast({ title: t("toast_plan_update_success") });
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -339,7 +340,7 @@ export default function CustomerBookingDetail() {
       setManualAmount("");
       setManualReceiptUrl("");
       setManualNotes("");
-      toast({ title: "Bukti transfer berhasil dikirim. Menunggu verifikasi tim finance." });
+      toast({ title: t("toast_manual_payment_sent") });
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
@@ -487,21 +488,31 @@ export default function CustomerBookingDetail() {
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(13);
     doc.setFont("helvetica", "bold");
-    doc.text("Rincian Pembayaran (Payment Details)", 15, 55);
+    doc.text(t("pdf_payment_details"), 15, 55);
+
+    const pdfTableHead = language === "en" ? ["Item", "Details"] : language === "es" ? ["Ítem", "Detalles"] : ["Informasi", "Keterangan"];
+    const pdfBookingCodeLabel = language === "en" ? "Booking Code" : language === "es" ? "Código de Reserva" : "Kode Booking";
+    const pdfTourLabel = language === "en" ? "Tour Package" : language === "es" ? "Paquete Turístico" : "Paket Tur";
+    const pdfCustomerLabel = language === "en" ? "Customer / Group" : language === "es" ? "Cliente / Grupo" : "Nama Pemesan";
+    const pdfMethodLabel = language === "en" ? "Payment Method" : language === "es" ? "Método de Pago" : "Metode Pembayaran";
+    const pdfDateLabel = language === "en" ? "Transaction Date" : language === "es" ? "Fecha de Transacción" : "Waktu Transaksi";
+    const pdfStatusLabel = language === "en" ? "Payment Status" : language === "es" ? "Estado del Pago" : "Status Pembayaran";
+    const pdfAmountLabel = language === "en" ? "Payment Amount" : language === "es" ? "Monto Pagado" : "Nominal Pembayaran";
+    const pdfNotesLabel = language === "en" ? "Notes / Reference" : language === "es" ? "Notas / Referencia" : "Catatan / Keterangan";
 
     autoTable(doc, {
       startY: 60,
-      head: [["Informasi", "Keterangan"]],
+      head: [pdfTableHead],
       body: [
-        ["Nomor Kuitansi / Receipt #", `REC-${pmt.id.slice(0, 8).toUpperCase()}`],
-        ["Kode Booking", booking.bookingCode || "N/A"],
-        ["Paket Tur", tourTitle || "Tour Package"],
-        ["Nama Pemesan", booking.groupName || "Customer"],
-        ["Metode Pembayaran", (pmt.method || "online").replace(/_/g, " ").toUpperCase()],
-        ["Waktu Transaksi", pmt.createdAt ? new Date(pmt.createdAt).toLocaleString() : "-"],
-        ["Status Pembayaran", (pmt.status || "PAID").toUpperCase()],
-        ["Nominal Pembayaran", `$${Number(pmt.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} ${pmt.currency || "USD"}`],
-        ["Catatan / Keterangan", pmt.notes || (pmt.paymentIntentId ? `Ref: ${pmt.paymentIntentId}` : "-")],
+        [t("pdf_receipt_no"), `REC-${pmt.id.slice(0, 8).toUpperCase()}`],
+        [pdfBookingCodeLabel, booking.bookingCode || "N/A"],
+        [pdfTourLabel, tourTitle || "Tour Package"],
+        [pdfCustomerLabel, booking.groupName || "Customer"],
+        [pdfMethodLabel, (pmt.method || "online").replace(/_/g, " ").toUpperCase()],
+        [pdfDateLabel, pmt.createdAt ? new Date(pmt.createdAt).toLocaleString() : "-"],
+        [pdfStatusLabel, (pmt.status || "PAID").toUpperCase()],
+        [pdfAmountLabel, `$${Number(pmt.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })} ${pmt.currency || "USD"}`],
+        [pdfNotesLabel, pmt.notes || (pmt.paymentIntentId ? `Ref: ${pmt.paymentIntentId}` : "-")],
       ],
       theme: "striped",
       headStyles: { fillColor: [240, 240, 240], textColor: [80, 80, 80], fontSize: 10 },
@@ -511,11 +522,11 @@ export default function CustomerBookingDetail() {
     // Booking Totals Context
     doc.setFontSize(13);
     doc.setFont("helvetica", "bold");
-    doc.text("Ringkasan Akun Booking (Booking Account Summary)", 15, (doc as any).lastAutoTable.finalY + 15);
+    doc.text(t("pdf_booking_account_summary"), 15, (doc as any).lastAutoTable.finalY + 15);
 
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 20,
-      head: [["Total Biaya Tur", "Total Telah Terbayar", "Sisa Tagihan"]],
+      head: [[t("pdf_total_tour_cost"), t("pdf_total_paid"), t("pdf_remaining_balance")]],
       body: [
         [
           `$${totalPrice.toLocaleString()} ${booking.currency || "USD"}`,
@@ -531,7 +542,7 @@ export default function CustomerBookingDetail() {
     doc.setFontSize(10);
     doc.setTextColor(16, 185, 129); // Emerald
     doc.setFont("helvetica", "bold");
-    doc.text("[TERVERIFIKASI & LUNAS - DOKUMEN RESMI TOUROPS]", 15, finalY);
+    doc.text(t("pdf_verified_stamp"), 15, finalY);
 
     const pageCount = (doc as any).internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
@@ -539,11 +550,11 @@ export default function CustomerBookingDetail() {
       doc.setFontSize(8);
       doc.setTextColor(150, 150, 150);
       doc.setFont("helvetica", "normal");
-      doc.text("Terima kasih atas pembayaran Anda. PT TourOps Indonesia - Dokumen resmi yang dihasilkan oleh sistem.", 105, 285, { align: "center" });
+      doc.text(t("pdf_thank_you_footer"), 105, 285, { align: "center" });
     }
 
     doc.save(`Invoice_Receipt_${booking.bookingCode}_${pmt.id.slice(0, 8)}.pdf`);
-    toast({ title: "Invoice / Kuitansi berhasil diunduh", description: `Receipt #${pmt.id.slice(0, 8).toUpperCase()}` });
+    toast({ title: t("toast_receipt_downloaded"), description: `Receipt #${pmt.id.slice(0, 8).toUpperCase()}` });
   };
 
   if (isLoading) return <div className="p-6"><Skeleton className="h-64" /></div>;
@@ -622,10 +633,13 @@ export default function CustomerBookingDetail() {
             <ArrowLeft className="h-4 w-4 mr-1" />{t("back")}
           </Button>
         </Link>
-        <Button variant="outline" size="sm" onClick={downloadInvoice} className="h-8">
-          <Printer className="h-4 w-4 mr-2" />
-          {t("print_save_pdf")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher />
+          <Button variant="outline" size="sm" onClick={downloadInvoice} className="h-8">
+            <Printer className="h-4 w-4 mr-2" />
+            {t("print_save_pdf")}
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1492,13 +1506,13 @@ export default function CustomerBookingDetail() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="font-semibold text-base">{t("payment_status")}</h3>
-                    <p className="text-xs text-muted-foreground">Ringkasan status tagihan dan pembayaran booking Anda</p>
+                    <p className="text-xs text-muted-foreground">{t("billing_status_summary")}</p>
                   </div>
                   <div>
                     {isFullyPaid ? (
                       <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white font-medium flex items-center gap-1">
                         <CheckCircle className="h-3.5 w-3.5" />
-                        Tagihan Lunas (Fully Paid)
+                        {t("bill_fully_paid_badge")}
                       </Badge>
                     ) : totalPaid > 0 ? (
                       <Badge className="bg-amber-500 hover:bg-amber-500 text-white font-medium">
@@ -1518,11 +1532,11 @@ export default function CustomerBookingDetail() {
                     <p className="text-xl sm:text-2xl font-bold">${totalPrice.toLocaleString()}</p>
                   </div>
                   <div className="p-3.5 rounded-lg bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/40">
-                    <p className="text-xs text-emerald-800 dark:text-emerald-300 font-medium mb-1">Sudah Terbayar</p>
+                    <p className="text-xs text-emerald-800 dark:text-emerald-300 font-medium mb-1">{t("paid_amount_label")}</p>
                     <p className="text-xl sm:text-2xl font-bold text-emerald-600 dark:text-emerald-400">${totalPaid.toLocaleString()}</p>
                   </div>
                   <div className="p-3.5 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                    <p className="text-xs text-muted-foreground font-medium mb-1">Sisa Tagihan</p>
+                    <p className="text-xs text-muted-foreground font-medium mb-1">{t("remaining_balance_label")}</p>
                     <p className={`text-xl sm:text-2xl font-bold ${remainingBalance > 0 ? "text-primary" : "text-muted-foreground"}`}>
                       ${remainingBalance.toLocaleString()}
                     </p>
@@ -1531,7 +1545,7 @@ export default function CustomerBookingDetail() {
 
                 <div className="space-y-1.5 pt-1">
                   <div className="flex justify-between text-xs text-muted-foreground font-medium">
-                    <span>Progress Pembayaran</span>
+                    <span>{t("payment_progress_label")}</span>
                     <span>{progressPercent}%</span>
                   </div>
                   <Progress value={progressPercent} className="h-2.5" />
@@ -1548,9 +1562,9 @@ export default function CustomerBookingDetail() {
                   <CheckCircle className="h-8 w-8" />
                 </div>
                 <div className="flex-1 space-y-1">
-                  <h4 className="font-bold text-lg text-emerald-950 dark:text-emerald-100">Tagihan Telah Lunas</h4>
+                  <h4 className="font-bold text-lg text-emerald-950 dark:text-emerald-100">{t("bill_fully_paid_title")}</h4>
                   <p className="text-xs sm:text-sm text-emerald-800 dark:text-emerald-300">
-                    Terima kasih! Seluruh pembayaran untuk booking ini telah selesai diproses. Anda siap menikmati perjalanan wisata Anda.
+                    {t("bill_fully_paid_desc")}
                   </p>
                 </div>
                 <div className="shrink-0 w-full sm:w-auto">
@@ -1560,7 +1574,7 @@ export default function CustomerBookingDetail() {
                     onClick={downloadInvoice}
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    Unduh E-Invoice
+                    {t("download_e_invoice_btn")}
                   </Button>
                 </div>
               </CardContent>
@@ -1571,10 +1585,10 @@ export default function CustomerBookingDetail() {
                 <div className="space-y-1 text-center md:text-left">
                   <div className="flex items-center justify-center md:justify-start gap-2 text-primary font-bold">
                     <CreditCard className="h-5 w-5" />
-                    <span>Pembayaran Online Instan</span>
+                    <span>{t("instant_online_payment_title")}</span>
                   </div>
                   <p className="text-xs text-muted-foreground max-w-xl">
-                    Bayar aman menggunakan Kartu Kredit, Debit Online, atau E-Wallet. Tagihan akan otomatis terverifikasi secara instan.
+                    {t("checkout_online_desc")}
                   </p>
                 </div>
                 <div className="w-full md:w-auto shrink-0">
@@ -1586,8 +1600,8 @@ export default function CustomerBookingDetail() {
                     >
                       <CreditCard className="h-4 w-4 mr-2" />
                       {nextUnpaidSchedule
-                        ? `Bayar Cicilan #${nextUnpaidSchedule.installmentNumber} ($${Math.max(0, parseFloat(nextUnpaidSchedule.amount) - parseFloat(nextUnpaidSchedule.paidAmount || "0")).toLocaleString()})`
-                        : `Bayar Sekarang ($${remainingBalance.toLocaleString()})`}
+                        ? `${t("pay_installment")} #${nextUnpaidSchedule.installmentNumber} ($${Math.max(0, parseFloat(nextUnpaidSchedule.amount) - parseFloat(nextUnpaidSchedule.paidAmount || "0")).toLocaleString()})`
+                        : `${t("pay_online_now")} ($${remainingBalance.toLocaleString()})`}
                     </Button>
                   </Link>
                 </div>
@@ -1602,28 +1616,28 @@ export default function CustomerBookingDetail() {
                 <div className="space-y-0.5">
                   <p className="text-sm font-semibold flex items-center gap-1.5">
                     <Clock className="h-4 w-4 text-primary" />
-                    Skema Pembayaran / Cicilan
+                    {t("payment_scheme_title")}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {Array.isArray(schedule) && schedule.length > 1
-                      ? `Saat ini menggunakan skema ${schedule.length} tahap angsuran.`
-                      : "Saat ini menggunakan pembayaran penuh sekaligus (100%). Anda dapat memilih untuk mencicil."}
+                      ? `${t("payment_scheme_current_installments_prefix")} ${schedule.length} ${t("payment_scheme_current_installments_suffix")}`
+                      : t("payment_scheme_current_full")}
                   </p>
                 </div>
                 <div>
                   <Dialog open={showPlanDialog} onOpenChange={setShowPlanDialog}>
                     <DialogTrigger asChild>
                       <Button variant="outline" size="sm">
-                        Pilih / Ubah Skema
+                        {t("choose_change_scheme_btn")}
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-md">
                       <DialogHeader>
-                        <DialogTitle>Pilih Skema Pembayaran</DialogTitle>
+                        <DialogTitle>{t("choose_payment_scheme_modal_title")}</DialogTitle>
                       </DialogHeader>
                       <div className="space-y-3 py-2">
                         <p className="text-xs text-muted-foreground">
-                          Pilih skema yang paling sesuai dengan rencana keuangan Anda. Jadwal jatuh tempo dihitung secara otomatis.
+                          {t("choose_payment_scheme_modal_desc")}
                         </p>
 
                         <div className="space-y-2">
@@ -1634,11 +1648,11 @@ export default function CustomerBookingDetail() {
                             className="w-full text-left p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-primary hover:bg-primary/5 transition-colors space-y-1"
                           >
                             <div className="flex justify-between items-center">
-                              <span className="font-semibold text-sm">Bayar Penuh Sekaligus (100%)</span>
-                              <Badge variant="outline" className="text-xs">1x Bayar</Badge>
+                              <span className="font-semibold text-sm">{t("plan_full_title")}</span>
+                              <Badge variant="outline" className="text-xs">{t("plan_full_badge")}</Badge>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                              Bayar lunas 100% langsung saat checkout. Tidak ada kewajiban cicilan berikutnya.
+                              {t("plan_full_desc")}
                             </p>
                           </button>
 
@@ -1649,11 +1663,11 @@ export default function CustomerBookingDetail() {
                             className="w-full text-left p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-primary hover:bg-primary/5 transition-colors space-y-1"
                           >
                             <div className="flex justify-between items-center">
-                              <span className="font-semibold text-sm">Paket 2 Tahap (DP + Pelunasan)</span>
-                              <Badge variant="secondary" className="text-xs">2x Angsuran</Badge>
+                              <span className="font-semibold text-sm">{t("plan_2_stage_title")}</span>
+                              <Badge variant="secondary" className="text-xs">{t("plan_2_stage_badge")}</Badge>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                              DP 30% dibayar sekarang + Pelunasan 70% selambat-lambatnya 14 hari sebelum keberangkatan tour.
+                              {t("plan_2_stage_desc")}
                             </p>
                           </button>
 
@@ -1664,17 +1678,17 @@ export default function CustomerBookingDetail() {
                             className="w-full text-left p-3.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-primary hover:bg-primary/5 transition-colors space-y-1"
                           >
                             <div className="flex justify-between items-center">
-                              <span className="font-semibold text-sm">Paket 3 Tahap (DP + Termin + Pelunasan)</span>
-                              <Badge variant="secondary" className="text-xs">3x Angsuran</Badge>
+                              <span className="font-semibold text-sm">{t("plan_3_stage_title")}</span>
+                              <Badge variant="secondary" className="text-xs">{t("plan_3_stage_badge")}</Badge>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                              DP 30% sekarang + Termin kedua 35% di pertengahan periode + Pelunasan 35% pada H-14 keberangkatan.
+                              {t("plan_3_stage_desc")}
                             </p>
                           </button>
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button variant="ghost" onClick={() => setShowPlanDialog(false)}>Tutup</Button>
+                        <Button variant="ghost" onClick={() => setShowPlanDialog(false)}>{t("close_dialog")}</Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
@@ -1691,8 +1705,8 @@ export default function CustomerBookingDetail() {
                   <div className="flex items-center gap-2">
                     <Building2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                     <div>
-                      <h4 className="font-semibold text-sm">Transfer Bank Manual</h4>
-                      <p className="text-xs text-muted-foreground">Transfer langsung ke rekening resmi perusahaan</p>
+                      <h4 className="font-semibold text-sm">{t("manual_bank_transfer_title")}</h4>
+                      <p className="text-xs text-muted-foreground">{t("manual_bank_transfer_desc")}</p>
                     </div>
                   </div>
                   <Button
@@ -1704,7 +1718,7 @@ export default function CustomerBookingDetail() {
                     }}
                   >
                     <Upload className="h-3.5 w-3.5 mr-1.5" />
-                    + Konfirmasi Transfer Manual
+                    + {t("confirm_manual_transfer_btn")}
                   </Button>
                 </div>
 
@@ -1718,7 +1732,7 @@ export default function CustomerBookingDetail() {
                         className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
                         onClick={() => copyToClipboard("8830192888", "Nomor Rekening BCA")}
                       >
-                        <Copy className="h-3 w-3 mr-1" /> Salin
+                        <Copy className="h-3 w-3 mr-1" /> {t("copy_button")}
                       </Button>
                     </div>
                     <p className="font-mono font-bold text-sm">8830-192-888</p>
@@ -1734,7 +1748,7 @@ export default function CustomerBookingDetail() {
                         className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
                         onClick={() => copyToClipboard("1370019882999", "Nomor Rekening Mandiri")}
                       >
-                        <Copy className="h-3 w-3 mr-1" /> Salin
+                        <Copy className="h-3 w-3 mr-1" /> {t("copy_button")}
                       </Button>
                     </div>
                     <p className="font-mono font-bold text-sm">137-00-1988-2999</p>
@@ -1743,18 +1757,18 @@ export default function CustomerBookingDetail() {
 
                   <div className="p-3 bg-white dark:bg-slate-900 rounded-lg border border-blue-100 dark:border-slate-800 space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">Catatan Transfer</span>
+                      <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">{t("transfer_notes_title")}</span>
                       <Button
                         size="sm"
                         variant="ghost"
                         className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
                         onClick={() => copyToClipboard(booking.bookingCode, "Kode Booking")}
                       >
-                        <Copy className="h-3 w-3 mr-1" /> Salin
+                        <Copy className="h-3 w-3 mr-1" /> {t("copy_button")}
                       </Button>
                     </div>
                     <p className="font-mono font-bold text-sm">{booking.bookingCode}</p>
-                    <p className="text-[11px] text-muted-foreground">Wajib dicantumkan di berita transfer</p>
+                    <p className="text-[11px] text-muted-foreground">{t("transfer_notes_required_msg")}</p>
                   </div>
                 </div>
               </CardContent>
@@ -1765,25 +1779,25 @@ export default function CustomerBookingDetail() {
           <Dialog open={showManualTransferDialog} onOpenChange={setShowManualTransferDialog}>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Konfirmasi Transfer Bank Manual</DialogTitle>
+                <DialogTitle>{t("manual_transfer_dialog_title")}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="space-y-1.5">
-                  <Label>Nominal yang Ditransfer (USD) *</Label>
+                  <Label>{t("transfer_amount_usd")}</Label>
                   <Input
                     type="number"
                     step="0.01"
-                    placeholder="Contoh: 500"
+                    placeholder="500"
                     value={manualAmount}
                     onChange={(e) => setManualAmount(e.target.value)}
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    Sisa tagihan saat ini: ${remainingBalance.toLocaleString()}
+                    {t("current_remaining_balance")} ${remainingBalance.toLocaleString()}
                   </p>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label>Unggah Bukti Struk / Screenshot Transfer *</Label>
+                  <Label>{t("upload_receipt_screenshot")}</Label>
                   <div className="flex gap-2 items-center">
                     <Input
                       type="file"
@@ -1796,16 +1810,16 @@ export default function CustomerBookingDetail() {
                   </div>
                   {manualReceiptUrl && (
                     <div className="mt-2 p-2 bg-muted/30 border rounded-md">
-                      <p className="text-[10px] text-muted-foreground mb-1 text-center font-medium">Pratinjau Bukti Transfer</p>
-                      <img src={manualReceiptUrl} alt="Bukti Transfer" className="mx-auto rounded max-h-36 object-contain" />
+                      <p className="text-[10px] text-muted-foreground mb-1 text-center font-medium">{t("receipt_preview_label")}</p>
+                      <img src={manualReceiptUrl} alt="Receipt Preview" className="mx-auto rounded max-h-36 object-contain" />
                     </div>
                   )}
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label>Catatan / Nomor Referensi (Opsional)</Label>
+                  <Label>{t("notes_ref_optional")}</Label>
                   <Textarea
-                    placeholder="Contoh: Transfer via m-BCA a/n Budi Santoso"
+                    placeholder={t("notes_ref_placeholder")}
                     value={manualNotes}
                     onChange={(e) => setManualNotes(e.target.value)}
                     rows={2}
@@ -1818,11 +1832,11 @@ export default function CustomerBookingDetail() {
                   onClick={() => {
                     const amt = parseFloat(manualAmount);
                     if (!amt || amt <= 0) {
-                      toast({ title: "Masukkan nominal transfer yang valid", variant: "destructive" });
+                      toast({ title: t("enter_valid_transfer_amount"), variant: "destructive" });
                       return;
                     }
                     if (!manualReceiptUrl) {
-                      toast({ title: "Harap unggah bukti transfer", variant: "destructive" });
+                      toast({ title: t("please_upload_receipt"), variant: "destructive" });
                       return;
                     }
                     createManualPayment.mutate({
@@ -1834,7 +1848,7 @@ export default function CustomerBookingDetail() {
                   disabled={createManualPayment.isPending || isUploadingManualReceipt || !manualReceiptUrl}
                   className="bg-blue-600 hover:bg-blue-700 text-white font-semibold"
                 >
-                  {createManualPayment.isPending ? "Mengirim..." : "Kirim Konfirmasi"}
+                  {createManualPayment.isPending ? t("sending_confirmation") : t("send_confirmation")}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -1867,7 +1881,9 @@ export default function CustomerBookingDetail() {
                           <CreditCard className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                         )}
                         <div>
-                          <p className="font-medium text-sm">{t("schedule_installment")} {inst.installmentNumber}: {inst.label}</p>
+                          <p className="font-medium text-sm">
+                            {t("schedule_installment")} #{inst.installmentNumber}: {localizeScheduleLabel(inst.label, inst.installmentNumber, inst.percentage, language)}
+                          </p>
                           <p className="text-xs text-muted-foreground">
                             {t("schedule_due_date")}: {due.toLocaleDateString()}
                             {isOverdue && daysUntil < 0 && <span className="ml-2 text-destructive font-semibold">({Math.abs(daysUntil)} {t("schedule_days_overdue")})</span>}
@@ -1885,7 +1901,7 @@ export default function CustomerBookingDetail() {
                         {inst.status !== "paid" && inst.status !== "cancelled" && remaining > 0 && (
                           <Link href={`/checkout/${booking.id}?installmentId=${inst.id}`}>
                             <Button size="sm" className="h-7 text-xs font-semibold bg-primary hover:bg-primary/90">
-                              Bayar Cicilan (${remaining.toFixed(2)})
+                              {t("pay_installment")} (${remaining.toFixed(2)})
                             </Button>
                           </Link>
                         )}
@@ -1912,7 +1928,7 @@ export default function CustomerBookingDetail() {
 
           {/* 6. Riwayat Pembayaran (Payment Records) */}
           <div className="space-y-2 pt-2">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Riwayat Pembayaran</h3>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("payment_records")}</h3>
             {pmts && pmts.length > 0 ? (
               <div className="space-y-2">
                 {pmts.map((pmt) => (
@@ -1936,10 +1952,10 @@ export default function CustomerBookingDetail() {
                             variant="outline"
                             className="h-8 text-xs font-medium border-primary/30 text-primary hover:bg-primary/5"
                             onClick={() => downloadPaymentReceipt(pmt)}
-                            title="Unduh Invoice / Kuitansi Pembayaran Resmi"
+                            title={t("download_receipt_title")}
                           >
                             <Download className="h-3.5 w-3.5 mr-1" />
-                            Unduh Invoice
+                            {t("download_invoice")}
                           </Button>
                         )}
                         {pmt.receiptUrl ? (

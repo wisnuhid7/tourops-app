@@ -271,6 +271,12 @@
       "skillPath": "skills/release-readiness/SKILL.md",
       "computedHash": "a8bc37722bff7360707855b7d4282199ef997a968361427b3b0d5e00b1715d16"
     },
+    "research": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/research/SKILL.md",
+      "computedHash": "c8c1cba327a6f824b554cd978079a3dadd7406d73174f8fb9bfef58824691970"
+    },
     "risk-based-testing": {
       "source": "petrkindlmann/qa-skills",
       "sourceType": "github",

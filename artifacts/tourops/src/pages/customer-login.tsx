@@ -5,7 +5,7 @@ import { LoginForm } from "@/components/login-form";
 import { RegisterForm } from "@/components/register-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Globe, ArrowLeft, Shield, Compass, Sparkles, CheckCircle2 } from "lucide-react";
+import { Globe, ArrowLeft, Shield, Compass, Sparkles, CheckCircle2, Users } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useLanguage } from "@/hooks/use-language";
 
@@ -23,6 +23,8 @@ export default function CustomerLoginPage() {
     }
     return false;
   });
+
+  const joinCode = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("joinCode") : null;
 
   useEffect(() => {
     if (location === "/register") {
@@ -106,6 +108,21 @@ export default function CustomerLoginPage() {
                 {t("sign_up")}
               </button>
             </div>
+
+            {/* Contextual Join Group Banner */}
+            {joinCode && (
+              <div className="flex items-start gap-3 p-3.5 rounded-2xl bg-primary/10 border border-primary/20 text-left mt-3" data-testid="banner-join-group-context">
+                <Users className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-semibold text-xs text-primary">
+                    {t("joining_group_title")} ({t("join_code")}: <span className="font-mono tracking-wider">{joinCode.toUpperCase()}</span>)
+                  </p>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    {t("login_to_join_group_desc")}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Form Container */}

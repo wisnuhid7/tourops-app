@@ -17,12 +17,13 @@ import { PublicHeader } from "@/components/public-header";
 import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer, Plane, PlaneTakeoff, Flag, Bed, Bus, Utensils, User, CircleDollarSign, Languages, Star, Mail, Phone, Cake, Receipt } from "lucide-react";
 import { getFullImageUrl, getGoogleMapsEmbedUrl } from "@/lib/utils";
 import { Link } from "wouter";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import type { Tour, TourDeparture, TourDay } from "@workspace/db";
 import { BookingDrawer } from "@/components/booking-drawer";
 
 function PublicGroupsList({ departureId }: { departureId: string }) {
   const { t } = useLanguage();
+  const { isAuthenticated } = useAuth();
   const { data: groups, isLoading } = useQuery<any[]>({
     queryKey: ["/api/departures", departureId, "public-groups"],
   });
@@ -33,18 +34,24 @@ function PublicGroupsList({ departureId }: { departureId: string }) {
   return (
     <div className="mt-3 space-y-2 border-t pt-3">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t("join_existing_group")}</p>
-      {groups.map((group) => (
-        <div key={group.id} className="flex items-center justify-between p-2 bg-primary/5 rounded-md border border-primary/10">
-          <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">{group.groupName}</span>
-            <Badge variant="outline" className="text-[10px] h-4">{group.partySizeExpected} pax</Badge>
+      {groups.map((group) => {
+        const joinHref = isAuthenticated
+          ? `${window.location.pathname}?joinCode=${group.joinCode}`
+          : `/login?redirect=${encodeURIComponent(`${window.location.pathname}?joinCode=${group.joinCode}`)}&joinCode=${group.joinCode}`;
+
+        return (
+          <div key={group.id} className="flex items-center justify-between p-2 bg-primary/5 rounded-md border border-primary/10">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">{group.groupName}</span>
+              <Badge variant="outline" className="text-[10px] h-4">{group.partySizeExpected} pax</Badge>
+            </div>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" asChild>
+              <Link href={joinHref}>{t("join_group")}</Link>
+            </Button>
           </div>
-          <Button variant="ghost" size="sm" className="h-7 text-xs" asChild>
-            <Link href={`${window.location.pathname}?joinCode=${group.joinCode}`}>{t("join_group")}</Link>
-          </Button>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -246,7 +253,7 @@ export default function TourDetail() {
   const [matchAdmin, paramsAdmin] = useRoute("/admin/tours/:id");
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const tourId = (matchTours ? paramsTours?.id : matchAdmin ? paramsAdmin?.id : undefined);
 
   const { language, t } = useLanguage();
@@ -306,6 +313,16 @@ export default function TourDetail() {
     enabled: !!urlJoinCode,
   });
 
+  useEffect(() => {
+    if (urlJoinCode && matchTours && !authLoading && !isAuthenticated) {
+      toast({
+        title: t("login_required"),
+        description: t("login_to_join_group_desc"),
+      });
+      navigate(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}&joinCode=${urlJoinCode}`);
+    }
+  }, [urlJoinCode, matchTours, authLoading, isAuthenticated, navigate, t, toast]);
+
   const [bookingConfirmed, setBookingConfirmed] = useState(false);
 
   // Guard against rapid double-clicks: isPending updates async, so a fast
@@ -352,6 +369,14 @@ export default function TourDetail() {
     },
   });
   const submitJoin = (data: { joinCode: string; partySizeExpected: number }) => {
+    if (!isAuthenticated) {
+      toast({
+        title: t("login_required"),
+        description: t("login_to_join_group_desc"),
+      });
+      navigate(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}&joinCode=${data.joinCode}`);
+      return;
+    }
     if (submittingRef.current) return;
     submittingRef.current = true;
     joinGroupMutation.mutate(data);
@@ -432,6 +457,14 @@ export default function TourDetail() {
                   toast({ title: t("invalid_group_link"), variant: "destructive" });
                   return;
                 }
+                if (!isAuthenticated) {
+                  toast({
+                    title: t("login_required"),
+                    description: t("login_to_join_group_desc"),
+                  });
+                  navigate(`/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}&joinCode=${urlJoinCode}`);
+                  return;
+                }
                 // Join goes through the dedicated join endpoint: the server
                 // resolves group/leader/price from the code and enforces
                 // membership rules (active group, no self-join, no duplicates).
@@ -439,7 +472,7 @@ export default function TourDetail() {
               }}
               disabled={joinGroupMutation.isPending}
             >
-              {joinGroupMutation.isPending ? t("loading") : t("confirm_and_join")}
+              {!isAuthenticated ? t("sign_in_to_join") : joinGroupMutation.isPending ? t("loading") : t("confirm_and_join")}
             </Button>
           </div>
         </DialogContent>

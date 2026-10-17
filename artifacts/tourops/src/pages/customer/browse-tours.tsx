@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { getFullImageUrl } from "@/lib/utils";
 import { useLanguage } from "@/hooks/use-language";
+import { useAuth } from "@/hooks/use-auth";
 import { useState, useMemo } from "react";
 import { PublicHeader } from "@/components/public-header";
 import type { Tour } from "@workspace/db";
@@ -145,6 +146,7 @@ export default function BrowseTours() {
 
   const [joinCode, setJoinCode] = useState("");
   const [, setLocation] = useLocation();
+  const { isAuthenticated } = useAuth();
 
   const handleJoinCode = async () => {
     if (joinCode.length !== 6) {
@@ -159,7 +161,16 @@ export default function BrowseTours() {
     try {
       const res = await apiRequest("GET", `/api/bookings/by-code/${joinCode.toUpperCase()}`);
       const booking = await res.json();
-      setLocation(`/tours/${booking.tourId}?joinCode=${joinCode.toUpperCase()}`);
+      const targetPath = `/tours/${booking.tourId}?joinCode=${joinCode.toUpperCase()}`;
+      if (!isAuthenticated) {
+        toast({
+          title: t("login_required"),
+          description: t("login_to_join_group_desc"),
+        });
+        setLocation(`/login?redirect=${encodeURIComponent(targetPath)}&joinCode=${joinCode.toUpperCase()}`);
+        return;
+      }
+      setLocation(targetPath);
     } catch (e: any) {
       toast({
         title: t("error_title"),

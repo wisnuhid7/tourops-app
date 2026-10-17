@@ -1431,6 +1431,10 @@ export const translations = {
     admin_portal: "Admin Portal",
     sign_in_to_book: "Sign In to Book",
     login_to_browse: "Log in to browse tours, manage bookings, and track your trips.",
+    login_required: "Login Required",
+    login_to_join_group_desc: "Please sign in or create an account to join this tour group.",
+    joining_group_title: "Joining Group",
+    sign_in_to_join: "Sign In to Join Group",
 
     // Landing Page
     hero_title_1: "Book Unforgettable",
@@ -3677,6 +3681,10 @@ export const translations = {
     admin_portal: "Portal de Admin",
     sign_in_to_book: "Inicia Sesión para Reservar",
     login_to_browse: "Inicia sesión para explorar tours, gestionar reservas y seguir tus viajes.",
+    login_required: "Inicio de sesión requerido",
+    login_to_join_group_desc: "Inicia sesión o crea una cuenta para unirte a este grupo de tour.",
+    joining_group_title: "Unirse al Grupo",
+    sign_in_to_join: "Iniciar sesión para unirse al grupo",
 
     // Landing Page
     hero_title_1: "Reserva Experiencias",
@@ -5924,6 +5932,10 @@ export const translations = {
     admin_portal: "Portal Admin",
     sign_in_to_book: "Masuk untuk Memesan",
     login_to_browse: "Masuk untuk menjelajahi tur, mengelola pesanan, dan melacak perjalanan Anda.",
+    login_required: "Masuk Diperlukan",
+    login_to_join_group_desc: "Silakan masuk atau buat akun baru untuk bergabung ke grup tour ini.",
+    joining_group_title: "Bergabung dengan Grup",
+    sign_in_to_join: "Masuk untuk Bergabung ke Grup",
 
     // Landing Page
     hero_title_1: "Pesan Pengalaman",

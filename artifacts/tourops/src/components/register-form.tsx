@@ -48,6 +48,12 @@ export function RegisterForm({ onShowLogin }: RegisterFormProps) {
         return;
       }
       await refetch();
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirectParam = searchParams.get("redirect");
+      if (redirectParam && redirectParam.startsWith("/")) {
+        window.location.href = redirectParam;
+        return;
+      }
       window.location.href = "/";
     } catch {
       setError(t("network_error_try_again"));

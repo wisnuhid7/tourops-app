@@ -31,11 +31,11 @@ export function PublicHeader() {
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
             <ThemeToggle />
-            <Link href="/#login">
-              <Button variant="outline" size="sm">{t("sign_in")}</Button>
+            <Link href="/login">
+              <Button variant="outline" size="sm" className="transition-transform active:scale-[0.96]">{t("sign_in")}</Button>
             </Link>
-            <Link href="/#register">
-              <Button size="sm">{t("sign_up")}</Button>
+            <Link href="/login?mode=register">
+              <Button size="sm" className="transition-transform active:scale-[0.96] shadow-sm">{t("sign_up")}</Button>
             </Link>
           </div>
         </div>

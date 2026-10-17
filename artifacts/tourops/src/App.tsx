@@ -13,6 +13,7 @@ import { ErrorBoundary } from "@/components/error-boundary";
 import type { UserProfile } from "@workspace/db";
 import NotFound from "@/pages/not-found";
 import LandingPage from "@/pages/landing";
+import CustomerLoginPage from "@/pages/customer-login";
 import StaffLoginPage from "@/pages/staff-login";
 import AdminLoginPage from "@/pages/admin-login";
 import AdminDashboard from "@/pages/admin/dashboard";
@@ -227,6 +228,12 @@ function AuthenticatedLayout() {
             <Route path="/admin/login">
               {() => <Redirect to="/admin" />}
             </Route>
+            <Route path="/login">
+              {() => <Redirect to="/tours" />}
+            </Route>
+            <Route path="/register">
+              {() => <Redirect to="/tours" />}
+            </Route>
             <Route path="/staff/login">
               {() => {
                 const supplierRoles = ["airline_supplier", "hotel_manager", "guide_manager", "sights_manager", "supplier"];
@@ -272,6 +279,8 @@ function AppRouter() {
     return (
       <ErrorBoundary>
         <Switch>
+          <Route path="/login" component={CustomerLoginPage} />
+          <Route path="/register" component={CustomerLoginPage} />
           <Route path="/staff/login" component={StaffLoginPage} />
           <Route path="/admin/login" component={AdminLoginPage} />
           <Route path="/forgot-password" component={ForgotPasswordPage} />

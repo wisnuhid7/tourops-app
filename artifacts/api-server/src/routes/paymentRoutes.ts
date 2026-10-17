@@ -8,7 +8,7 @@ import { logger } from "../lib/logger";
 import { routeError } from "../lib/routeError";
 import { isAuthenticated } from "../replit_integrations/auth";
 import { getPaymentProvider, processPaymentEvent, applyRefundTotals } from "../lib/payments";
-import { canAccessBooking, autoConfirmBookingIfEligible, recordSchedulePayment } from "./shared";
+import { canAccessBooking, autoConfirmBookingIfEligible, recordSchedulePayment, syncBookingPaymentSchedules } from "./shared";
 import { FINANCE_ROLES, getUserId, requireRole } from "../middleware/auth";
 
 // Checkout endpoints are authenticated but still rate-limited: they trigger
@@ -82,6 +82,7 @@ export function registerPaymentRoutes(app: Express): void {
       if (!userId) return res.status(401).json({ message: "Unauthorized" });
       const booking = await canAccessBooking(userId, req.params.bookingId as string);
       if (!booking) return res.status(403).json({ message: "Forbidden" });
+      await syncBookingPaymentSchedules(booking.id);
       const summary = await computeCheckoutSummary(booking);
       const rows = await db.select().from(payments).where(eq(payments.bookingId, booking.id)).orderBy(desc(payments.createdAt));
       const covered = paidCoverage(rows);
@@ -117,6 +118,7 @@ export function registerPaymentRoutes(app: Express): void {
       if (["cancelled", "completed"].includes(booking.status || "")) {
         return res.status(409).json({ message: "This booking can no longer be paid online" });
       }
+      await syncBookingPaymentSchedules(booking.id);
       const summary = await computeCheckoutSummary(booking);
       if (summary.total <= 0) return res.status(400).json({ message: "Nothing to pay for this booking" });
 
@@ -249,6 +251,8 @@ export function registerPaymentRoutes(app: Express): void {
         const instId = (payment.metadata as any)?.installmentId;
         if (instId) {
           await recordSchedulePayment(instId, payment.amount);
+        } else {
+          await syncBookingPaymentSchedules(booking.id);
         }
       }
 

@@ -7,7 +7,7 @@ import { sendPaymentStatusNotification } from "../email";
 import { offlineProvider } from "./offlineProvider";
 import { stripeProvider } from "./stripeProvider";
 import type { PaymentProvider, PaymentWebhookEvent } from "./provider";
-import { autoConfirmBookingIfEligible, recordSchedulePayment } from "../../routes/shared";
+import { autoConfirmBookingIfEligible, recordSchedulePayment, syncBookingPaymentSchedules } from "../../routes/shared";
 
 /** Provider registry. PAYMENT_PROVIDER env selects the active gateway;
  *  Stripe and offline providers are registered here. */
@@ -112,6 +112,8 @@ export async function processPaymentEvent(providerName: string, event: PaymentWe
         const instId = (payment.metadata as any)?.installmentId;
         if (instId) {
           await recordSchedulePayment(instId, payment.amount);
+        } else {
+          await syncBookingPaymentSchedules(payment.bookingId);
         }
       }
       break;
@@ -179,4 +181,5 @@ export async function applyRefundTotals(paymentId: string): Promise<void> {
   const refundStatus = succeeded >= payment.amount ? "full" : succeeded > 0 ? "partial" : anyPending ? "pending" : rows.some((r) => r.status === "failed") ? "failed" : "none";
   const status = succeeded >= payment.amount ? "refunded" : succeeded > 0 ? "partially_refunded" : payment.status;
   await db.update(payments).set({ refundedAmount: succeeded, refundStatus: refundStatus as any, status: status as any, updatedAt: new Date() }).where(eq(payments.id, paymentId));
+  await syncBookingPaymentSchedules(payment.bookingId);
 }

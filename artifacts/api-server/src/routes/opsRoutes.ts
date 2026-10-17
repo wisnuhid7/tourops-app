@@ -33,7 +33,7 @@ import {
   getUserId,
   requireRole,
 } from "../middleware/auth";
-import { getUserName, autoConfirmBookingIfEligible } from "./shared";
+import { getUserName, autoConfirmBookingIfEligible, syncBookingPaymentSchedules } from "./shared";
 
 // Bookings-adjacent operations: travelers, assignments, workflows, documents,
 // messages, and payments. Includes the local canReadWorkflow helper. Extracted
@@ -623,13 +623,17 @@ export function registerOpsRoutes(app: Express): void {
       if (!parsed.success) return res.status(400).json({ message: "Invalid payment: provider/refund fields are managed by the payment pipeline" });
       const targetBooking = await storage.getBooking(req.params.id as string);
       if (!targetBooking) return res.status(404).json({ message: "Booking not found" });
-      res.json(await storage.createPayment({
+      const created = await storage.createPayment({
         ...parsed.data,
         bookingId: targetBooking.id,
         customerId: targetBooking.customerId,
         provider: "manual",
         createdBy: userId,
-      }));
+      });
+      if (created.status === "paid") {
+        await syncBookingPaymentSchedules(targetBooking.id);
+      }
+      res.json(created);
     } catch (e: any) { routeError(res, e); }
   });
 
@@ -651,6 +655,9 @@ export function registerOpsRoutes(app: Express): void {
         return res.status(400).json({ message: "Only status, method, receiptUrl, notes and invoiceId can be updated" });
       }
       const updated = await storage.updatePayment(req.params.id as string, parsedPatch.data);
+      if (req.body.status) {
+        await syncBookingPaymentSchedules(updated.bookingId);
+      }
       
       // Notify customer if payment is confirmed as paid (non-blocking) and auto-confirm booking
       if (req.body.status === "paid") {

@@ -22,7 +22,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { storage } from "../storage";
 import { routeError } from "../lib/routeError";
 import { isAuthenticated } from "../replit_integrations/auth";
-import { canAccessBooking } from "./shared";
+import { canAccessBooking, syncBookingPaymentSchedules } from "./shared";
 import { getUserId, requireRole } from "../middleware/auth";
 import { runTestSeed, resetTestData, runValidationOnly, latestSeedRun, testSeedBlockedReason, isTestEnvironment } from "../test-seed";
 import { runPaymentReminderJob } from "../lib/paymentReminderJob";
@@ -185,6 +185,7 @@ export function registerServiceOpsRoutes(app: Express): void {
         const own = await canAccessBooking(userId, bookingId);
         if (!own) return res.status(404).json({ message: "Booking not found" });
       }
+      await syncBookingPaymentSchedules(bookingId);
       const rows = await db.select().from(bookingPaymentSchedules)
         .where(eq(bookingPaymentSchedules.bookingId, bookingId))
         .orderBy(bookingPaymentSchedules.installmentNumber);

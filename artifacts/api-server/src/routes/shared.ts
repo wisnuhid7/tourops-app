@@ -13,7 +13,7 @@ import { storage } from "../storage";
 import { authStorage } from "../replit_integrations/auth/storage";
 import { getUserId, isStaffViewer } from "../middleware/auth";
 import { and, eq, sql } from "drizzle-orm";
-import { cities, countries, db, tourDepartures, bookings, bookingPaymentSchedules, bookingStatusHistory } from "@workspace/db";
+import { cities, countries, db, tourDepartures, bookings, bookingPaymentSchedules, bookingStatusHistory, payments } from "@workspace/db";
 import { pricingService } from "../lib/pricing";
 import { BOOKING_ROOM_TYPES, accommodationForTour } from "../services/rate-resolver";
 import { ROOM_TYPE_OCCUPANCY } from "../services/booking-pricing";
@@ -207,6 +207,59 @@ export async function confirmBookingSideEffects(bookingId: string, updatedBookin
   }
 }
 
+export async function syncBookingPaymentSchedules(bookingId: string) {
+  try {
+    const schedules = await db.select().from(bookingPaymentSchedules)
+      .where(eq(bookingPaymentSchedules.bookingId, bookingId))
+      .orderBy(bookingPaymentSchedules.installmentNumber);
+
+    if (!schedules || schedules.length === 0) return;
+
+    const allPaidPayments = await db.select().from(payments)
+      .where(and(
+        eq(payments.bookingId, bookingId),
+        eq(payments.status, "paid")
+      ));
+
+    let unallocatedFunds = allPaidPayments.reduce((sum, p) => sum + (Number(p.amount) - Number(p.refundedAmount || 0)), 0);
+    const now = new Date();
+
+    for (const sched of schedules) {
+      if (sched.status === "cancelled") continue;
+      const targetAmount = parseFloat(sched.amount?.toString() || "0");
+      const allocated = Math.min(targetAmount, Math.max(0, unallocatedFunds));
+      unallocatedFunds -= allocated;
+
+      const isPaid = allocated >= targetAmount;
+      const isPartiallyPaid = allocated > 0 && !isPaid;
+      const dueDate = new Date(sched.dueDate);
+      const isOverdue = dueDate < now;
+
+      let newStatus: "pending" | "paid" | "partially_paid" | "late" | "cancelled" = "pending";
+      if (isPaid) {
+        newStatus = "paid";
+      } else if (isPartiallyPaid) {
+        newStatus = "partially_paid";
+      } else if (isOverdue) {
+        newStatus = "late";
+      } else {
+        newStatus = "pending";
+      }
+
+      const formattedPaid = allocated.toFixed(2);
+      if (sched.paidAmount !== formattedPaid || sched.status !== newStatus) {
+        await db.update(bookingPaymentSchedules).set({
+          paidAmount: formattedPaid,
+          status: newStatus,
+          updatedAt: new Date(),
+        }).where(eq(bookingPaymentSchedules.id, sched.id));
+      }
+    }
+  } catch (err) {
+    console.error("Failed to sync booking payment schedules:", err);
+  }
+}
+
 export async function recordSchedulePayment(scheduleId: string, amount: number) {
   try {
     const [sched] = await db.select().from(bookingPaymentSchedules).where(eq(bookingPaymentSchedules.id, scheduleId));
@@ -220,6 +273,7 @@ export async function recordSchedulePayment(scheduleId: string, amount: number) 
       status: isPaid ? "paid" : "partially_paid",
       updatedAt: new Date(),
     }).where(eq(bookingPaymentSchedules.id, sched.id));
+    await syncBookingPaymentSchedules(sched.bookingId);
   } catch (err) {
     console.error("Failed to record schedule payment:", err);
   }

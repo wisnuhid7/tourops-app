@@ -71,6 +71,7 @@ export default function Checkout() {
   const [selectedInstallmentId, setSelectedInstallmentId] = useState<string | null>(urlInstallmentId);
   const [phase, setPhase] = useState<"form" | "processing" | "success" | "failed">("form");
   const [failureReason, setFailureReason] = useState<string | null>(null);
+  const [lastPaidAmount, setLastPaidAmount] = useState<number | null>(null);
 
   const { data: config } = useQuery<CheckoutConfig>({
     queryKey: ["/api/checkout/config"],
@@ -110,6 +111,11 @@ export default function Checkout() {
     return data.schedules.find((s) => s.id === selectedInstallmentId) || null;
   }, [data?.schedules, selectedInstallmentId]);
 
+  const isSchedPaid = useMemo(() => {
+    if (!selectedSched) return false;
+    return selectedSched.status === "paid" || (selectedSched.amount - selectedSched.paidAmount) <= 0;
+  }, [selectedSched]);
+
   const currentPayableAmount = useMemo(() => {
     if (!data) return 0;
     if (selectedSched) {
@@ -118,6 +124,14 @@ export default function Checkout() {
     return Math.max(0, data.summary.total - data.alreadyPaid);
   }, [data, selectedSched]);
 
+  const installmentTargetAmount = useMemo(() => {
+    if (!selectedSched) return 0;
+    if (isSchedPaid) {
+      return Math.round(Number(selectedSched.paidAmount || selectedSched.amount));
+    }
+    return currentPayableAmount;
+  }, [selectedSched, isSchedPaid, currentPayableAmount]);
+
   const isStripe = config?.provider === "stripe" && !!config.publishableKey;
   const stripePromise = useMemo(() => {
     return isStripe && config?.publishableKey ? getStripePromise(config.publishableKey) : null;
@@ -125,7 +139,7 @@ export default function Checkout() {
 
   // For Stripe: automatically prepare PaymentIntent on mount or when installment selection changes
   useEffect(() => {
-    if (!isStripe || !data || data.fullyPaid || !bookingId) return;
+    if (!isStripe || !data || data.fullyPaid || !bookingId || isSchedPaid || phase === "success") return;
 
     setIsInitializingIntent(true);
     setStripeClientSecret(null);
@@ -143,7 +157,7 @@ export default function Checkout() {
       .finally(() => {
         setIsInitializingIntent(false);
       });
-  }, [isStripe, data, bookingId, selectedInstallmentId]);
+  }, [isStripe, data, bookingId, selectedInstallmentId, isSchedPaid, phase]);
 
   // Session recovery: if an online payment is already processing, resume it.
   useEffect(() => {
@@ -162,15 +176,20 @@ export default function Checkout() {
   });
   useEffect(() => {
     if (!polled) return;
-    if (polled.status === "paid") setPhase("success");
-    else if (["failed", "canceled"].includes(polled.status)) {
+    if (polled.status === "paid") {
+      if (lastPaidAmount == null && currentPayableAmount > 0) {
+        setLastPaidAmount(currentPayableAmount);
+      }
+      setPhase("success");
+    } else if (["failed", "canceled"].includes(polled.status)) {
       setFailureReason(polled.failureReason);
       setPhase("failed");
     }
-  }, [polled]);
+  }, [polled, lastPaidAmount, currentPayableAmount]);
 
   const payMutation = useMutation({
     mutationFn: async () => {
+      setLastPaidAmount(currentPayableAmount);
       const intentRes = await apiRequest("POST", `/api/checkout/${bookingId}/intent`, {
         installmentId: selectedInstallmentId || undefined,
       });
@@ -283,10 +302,11 @@ export default function Checkout() {
 
             {/* Rincian Porsi Cicilan Ini */}
             {(() => {
-              const instRatio = summary.total > 0 ? (currentPayableAmount / summary.total) : (Number(selectedSched.percentage) / 100);
+              const displayAmt = isSchedPaid ? installmentTargetAmount : currentPayableAmount;
+              const instRatio = summary.total > 0 ? (displayAmt / summary.total) : (Number(selectedSched.percentage) / 100);
               const instTaxes = Math.round(summary.taxes * instRatio);
               const instFees = Math.round(summary.fees * instRatio);
-              const instSubtotal = Math.max(0, currentPayableAmount - instTaxes - instFees);
+              const instSubtotal = Math.max(0, displayAmt - instTaxes - instFees);
               return (
                 <div className="space-y-1.5 text-xs text-muted-foreground bg-slate-50 dark:bg-slate-900/60 p-3 rounded-md border border-slate-100 dark:border-slate-800">
                   <div className="text-[11px] font-semibold text-foreground mb-1 flex items-center justify-between">
@@ -321,9 +341,9 @@ export default function Checkout() {
             )}
 
             <div className="flex justify-between border-t border-slate-100 dark:border-slate-800 pt-3 font-bold text-base">
-              <span>{t("checkout_amount_paying_now")}</span>
-              <span className="text-primary text-lg" data-testid="text-total">
-                {fmt(currentPayableAmount, summary.currency)}
+              <span>{isSchedPaid ? t("schedule_amount_paid") : t("checkout_amount_paying_now")}</span>
+              <span className={isSchedPaid ? "text-emerald-600 text-lg" : "text-primary text-lg"} data-testid="text-total">
+                {fmt(isSchedPaid ? installmentTargetAmount : currentPayableAmount, summary.currency)}
               </span>
             </div>
           </CardContent>
@@ -404,23 +424,65 @@ export default function Checkout() {
         </Card>
       )}
 
-      {phase === "success" || data.fullyPaid ? (
+      {phase === "success" || data.fullyPaid || (selectedSched && isSchedPaid) ? (
         <Card className="border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30">
           <CardContent className="p-8 text-center space-y-4">
             <CheckCircle2 className="h-14 w-14 text-emerald-600 mx-auto" />
-            <h2 className="text-xl font-bold" data-testid="text-payment-success">{t("payment_successful_title")}</h2>
+            <h2 className="text-xl font-bold" data-testid="text-payment-success">
+              {phase === "success"
+                ? t("payment_successful_title")
+                : data.fullyPaid
+                ? t("payment_fully_paid_title")
+                : t("installment_paid_title")}
+            </h2>
             <p className="text-sm text-muted-foreground">
-              {t("checkout_payment_processed_prefix")} <strong className="text-foreground">{fmt(currentPayableAmount, summary.currency)}</strong> {t("checkout_payment_processed_suffix")}
+              {phase === "success" ? (
+                <>
+                  {t("checkout_payment_processed_prefix")}{" "}
+                  <strong className="text-foreground">
+                    {fmt(
+                      lastPaidAmount ||
+                        (selectedSched && isSchedPaid
+                          ? installmentTargetAmount
+                          : data.alreadyPaid || summary.total),
+                      summary.currency
+                    )}
+                  </strong>{" "}
+                  {t("checkout_payment_processed_suffix")}
+                </>
+              ) : data.fullyPaid ? (
+                <span>{t("checkout_fully_paid_desc")}</span>
+              ) : (
+                <>
+                  {t("checkout_installment_already_paid_desc")}{" "}
+                  <strong className="text-foreground">{fmt(installmentTargetAmount, summary.currency)}</strong>.
+                </>
+              )}
             </p>
             <div className="p-3 bg-white/70 dark:bg-slate-900/60 rounded-lg border border-emerald-200 dark:border-emerald-900 text-xs text-muted-foreground max-w-md mx-auto">
               {t("checkout_receipt_download_hint_prefix")} <strong>{t("checkout_receipt_download_hint_strong")}</strong> {t("checkout_receipt_download_hint_suffix")}
             </div>
-            <div>
+            <div className="flex flex-wrap justify-center gap-3 pt-2">
               <Link href={`/my-bookings/${booking.id}`}>
                 <Button className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold" data-testid="button-view-booking">
                   {t("checkout_view_booking_and_payments")}
                 </Button>
               </Link>
+              {data.schedules && data.schedules.some((s) => s.status !== "paid" && (s.amount - s.paidAmount) > 0) && (
+                <Button
+                  variant="outline"
+                  className="border-emerald-600 text-emerald-700 hover:bg-emerald-100"
+                  onClick={() => {
+                    const nextUnpaid = data.schedules.find((s) => s.status !== "paid" && (s.amount - s.paidAmount) > 0);
+                    if (nextUnpaid) {
+                      setSelectedInstallmentId(nextUnpaid.id);
+                      setPhase("form");
+                    }
+                  }}
+                >
+                  {t("pay_installment")} #{data.schedules.find((s) => s.status !== "paid" && (s.amount - s.paidAmount) > 0)?.installmentNumber}
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -468,6 +530,9 @@ export default function Checkout() {
                   totalCents={currentPayableAmount}
                   currency={summary.currency}
                   onSuccess={() => {
+                    if (currentPayableAmount > 0) {
+                      setLastPaidAmount(currentPayableAmount);
+                    }
                     qc.invalidateQueries({ queryKey: ["/api/checkout", bookingId] });
                     qc.invalidateQueries({ queryKey: ["/api/my-bookings", bookingId, "payments"] });
                     setPhase("success");

@@ -25,6 +25,8 @@ import {
   Clock,
   Award,
   Eye,
+  Play,
+  Pause,
 } from "lucide-react";
 
 export default function LandingPage() {
@@ -210,8 +212,10 @@ export default function LandingPage() {
 
   // Horizontal Tour Showcase State
   const [activeTourIndex, setActiveTourIndex] = useState(0);
+  const [isAutoDrawDisabled, setIsAutoDrawDisabled] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const autoDrawTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const activeTour = showcaseTours[activeTourIndex] || showcaseTours[0];
 
@@ -230,12 +234,61 @@ export default function LandingPage() {
     }
   };
 
+  // Explicitly disable auto draw on any user manual interaction
+  const disableAutoDraw = () => {
+    setIsAutoDrawDisabled(true);
+    if (autoDrawTimerRef.current) {
+      clearInterval(autoDrawTimerRef.current);
+      autoDrawTimerRef.current = null;
+    }
+  };
+
+  // Auto-advance / draw tour every 1s until disabled by user interaction
+  useEffect(() => {
+    if (isAutoDrawDisabled) {
+      if (autoDrawTimerRef.current) {
+        clearInterval(autoDrawTimerRef.current);
+        autoDrawTimerRef.current = null;
+      }
+      return;
+    }
+
+    if (showcaseTours.length > 1) {
+      autoDrawTimerRef.current = setInterval(() => {
+        setActiveTourIndex((prevIndex) => {
+          const nextIndex = (prevIndex + 1) % showcaseTours.length;
+          const cardEl = cardRefs.current[nextIndex];
+          const containerEl = scrollContainerRef.current;
+          if (cardEl && containerEl) {
+            const cardLeft = cardEl.offsetLeft;
+            containerEl.scrollTo({
+              left: Math.max(0, cardLeft - 24),
+              behavior: "smooth",
+            });
+          }
+          return nextIndex;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (autoDrawTimerRef.current) {
+        clearInterval(autoDrawTimerRef.current);
+        autoDrawTimerRef.current = null;
+      }
+    };
+  }, [showcaseTours.length, isAutoDrawDisabled]);
+
   const handlePrevTour = () => {
-    selectTour(Math.max(0, activeTourIndex - 1));
+    disableAutoDraw();
+    const prevIndex = (activeTourIndex - 1 + showcaseTours.length) % showcaseTours.length;
+    selectTour(prevIndex);
   };
 
   const handleNextTour = () => {
-    selectTour(Math.min(showcaseTours.length - 1, activeTourIndex + 1));
+    disableAutoDraw();
+    const nextIndex = (activeTourIndex + 1) % showcaseTours.length;
+    selectTour(nextIndex);
   };
 
   // Detect card in view as user scrolls horizontally with touch / trackpad / wheel
@@ -257,6 +310,7 @@ export default function LandingPage() {
 
     if (closestIndex !== activeTourIndex && closestIndex >= 0 && closestIndex < showcaseTours.length) {
       setActiveTourIndex(closestIndex);
+      disableAutoDraw();
     }
   };
 
@@ -291,11 +345,16 @@ export default function LandingPage() {
               >
                 {t("nav_features")}
               </a>
+              <Link href="/tours">
+                <span className="text-sm font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-full hover:bg-muted/60 transition-colors cursor-pointer inline-block">
+                  {t("tours")}
+                </span>
+              </Link>
               <a
                 href="#tours-showcase"
                 className="text-sm font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-full hover:bg-muted/60 transition-colors"
               >
-                {t("tours")}
+                {t("nav_showcase")}
               </a>
               <a
                 href="#destinations"
@@ -660,7 +719,7 @@ export default function LandingPage() {
             return (
               <div
                 key={t.id || idx}
-                className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                className={`absolute inset-0 transition-opacity duration-500 ease-in-out ${
                   isActive ? "opacity-100 scale-100" : "opacity-0 scale-105"
                 }`}
                 style={{ willChange: "opacity, transform" }}
@@ -699,7 +758,7 @@ export default function LandingPage() {
 
             {/* Navigation Buttons and Index Indicator */}
             <div className="flex items-center gap-3">
-              <span className="text-sm font-mono text-white/70 mr-2 tabular-nums">
+              <span className="text-sm font-mono text-white/70 mr-1 tabular-nums">
                 <span className="font-bold text-white text-base">
                   {String(activeTourIndex + 1).padStart(2, "0")}
                 </span>{" "}
@@ -709,8 +768,23 @@ export default function LandingPage() {
               <Button
                 variant="outline"
                 size="icon"
+                onClick={() => setIsAutoDrawDisabled((prev) => !prev)}
+                className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 border-white/20 text-white backdrop-blur-md transition-transform active:scale-90"
+                title={isAutoDrawDisabled ? "Play Auto-Slide" : "Pause Auto-Slide"}
+                aria-label={isAutoDrawDisabled ? "Play Auto-Slide" : "Pause Auto-Slide"}
+              >
+                {isAutoDrawDisabled ? (
+                  <Play className="h-4 w-4 fill-white text-white ml-0.5" />
+                ) : (
+                  <Pause className="h-4 w-4 fill-white text-white" />
+                )}
+              </Button>
+
+              <Button
+                variant="outline"
+                size="icon"
                 onClick={handlePrevTour}
-                disabled={activeTourIndex === 0}
+                disabled={showcaseTours.length <= 1}
                 className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 border-white/20 text-white backdrop-blur-md transition-transform active:scale-90 disabled:opacity-30 disabled:pointer-events-none"
                 aria-label="Previous tour"
               >
@@ -721,7 +795,7 @@ export default function LandingPage() {
                 variant="outline"
                 size="icon"
                 onClick={handleNextTour}
-                disabled={activeTourIndex === showcaseTours.length - 1}
+                disabled={showcaseTours.length <= 1}
                 className="h-11 w-11 rounded-full bg-white/10 hover:bg-white/20 border-white/20 text-white backdrop-blur-md transition-transform active:scale-90 disabled:opacity-30 disabled:pointer-events-none"
                 aria-label="Next tour"
               >
@@ -830,7 +904,10 @@ export default function LandingPage() {
                 {showcaseTours.map((_, i) => (
                   <button
                     key={i}
-                    onClick={() => selectTour(i)}
+                    onClick={() => {
+                      disableAutoDraw();
+                      selectTour(i);
+                    }}
                     className={`h-2 rounded-full transition-all duration-300 ${
                       i === activeTourIndex
                         ? "w-8 bg-primary"
@@ -858,11 +935,13 @@ export default function LandingPage() {
                       ref={(el) => {
                         cardRefs.current[index] = el;
                       }}
-                      onClick={() => selectTour(index)}
-                      onMouseEnter={() => selectTour(index, false)}
+                      onClick={() => {
+                        disableAutoDraw();
+                        selectTour(index);
+                      }}
                       className={`w-[270px] sm:w-[310px] shrink-0 snap-start select-none cursor-pointer group transition-all duration-300 rounded-3xl p-2.5 ${
                         isActive
-                          ? "bg-slate-900/90 border-2 border-primary shadow-2xl ring-2 ring-primary/40 scale-[1.02]"
+                          ? "bg-slate-900/90 border-2 border-primary/90 shadow-2xl scale-[1.02]"
                           : "bg-slate-950/60 border border-white/10 hover:border-white/30 hover:bg-slate-900/70 opacity-80 hover:opacity-100"
                       }`}
                     >
@@ -887,16 +966,6 @@ export default function LandingPage() {
                             <span className="tabular-nums">{tour.rating || "4.9"}</span>
                           </span>
                         </div>
-
-                        {/* Active Indicator on Image */}
-                        {isActive && (
-                          <div className="absolute top-12 left-3">
-                            <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white bg-primary/90 backdrop-blur-md px-2.5 py-1 rounded-full shadow-md">
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 animate-pulse" />
-                              Active Selection
-                            </span>
-                          </div>
-                        )}
 
                         {/* Bottom Gradient Overlay on Image */}
                         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
@@ -928,7 +997,7 @@ export default function LandingPage() {
                               : "bg-white/10 text-white group-hover:bg-white/20"
                           }`}
                         >
-                          <span>{isActive ? "Viewing" : "Select"}</span>
+                          <span>{isActive ? "Viewing" : "Explore"}</span>
                           <ChevronRight className="h-3.5 w-3.5" />
                         </div>
                       </div>

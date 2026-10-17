@@ -373,12 +373,7 @@ export default function LandingPage() {
           <div className="grid lg:grid-cols-12 gap-12 items-center">
             {/* Left Column: Headline & Action */}
             <div className="lg:col-span-7 pt-4">
-              {/* Pill Badge */}
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 text-white text-xs font-medium mb-6 shadow-sm">
-                <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <Sparkles className="h-3.5 w-3.5 text-amber-300" />
-                <span>{t("professional_tour_operations_badge")}</span>
-              </div>
+
 
               {/* Main Headline */}
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white font-serif tracking-tight leading-[1.12] mb-6 text-balance">
@@ -693,10 +688,7 @@ export default function LandingPage() {
           {/* Section Header */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-xs font-medium mb-3 shadow-sm">
-                <Compass className="h-3.5 w-3.5 text-amber-300" />
-                <span>Curated Tour Collection</span>
-              </div>
+
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold font-serif tracking-tight text-white mb-3 text-balance">
                 Explore Signature Tours
               </h2>

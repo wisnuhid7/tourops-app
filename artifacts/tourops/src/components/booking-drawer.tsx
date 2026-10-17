@@ -28,7 +28,8 @@ import {
   CheckCircle2,
   Building,
   ShieldCheck,
-  Receipt
+  Receipt,
+  Loader2
 } from "lucide-react";
 import type { Tour, TourDeparture } from "@workspace/db";
 
@@ -89,6 +90,14 @@ export function BookingDrawer({
   const [bookingType, setBookingType] = useState("join_public_group");
   const [groupName, setGroupName] = useState("");
   const [notes, setNotes] = useState("");
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(() => crypto.randomUUID());
+
+  // Generate a fresh idempotency key when drawer opens
+  useEffect(() => {
+    if (isOpen) {
+      setIdempotencyKey(crypto.randomUUID());
+    }
+  }, [isOpen]);
 
   // Sync initialDepartureId when opened
   useEffect(() => {
@@ -193,8 +202,10 @@ export function BookingDrawer({
 
   // Booking Mutation
   const bookMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", "/api/bookings", data),
+    mutationFn: (data: any) =>
+      apiRequest("POST", "/api/bookings", data, { "Idempotency-Key": idempotencyKey }),
     onSuccess: () => {
+      setIdempotencyKey(crypto.randomUUID());
       localStorage.removeItem("tourops_pending_booking");
       queryClient.invalidateQueries({ queryKey: ["/api/my-bookings"] });
       toast({
@@ -887,7 +898,10 @@ export function BookingDrawer({
               className="gap-2 px-6 shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
             >
               {bookMutation.isPending ? (
-                "Memproses..."
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Memproses...
+                </>
               ) : isAuthenticated ? (
                 <>
                   <Check className="h-4 w-4" /> Konfirmasi Booking

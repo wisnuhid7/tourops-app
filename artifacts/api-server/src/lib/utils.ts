@@ -1,9 +1,30 @@
-import { randomBytes } from "crypto";
+import { createHash, randomBytes } from "crypto";
 import dns from "dns/promises";
 import net from "net";
 
 export function generateCode(len: number = 6): string {
   return randomBytes(Math.ceil(len / 2)).toString("hex").toUpperCase().slice(0, len);
+}
+
+/**
+ * Computes a deterministic SHA-256 hash of a request payload
+ * by recursively sorting object keys.
+ */
+export function computePayloadHash(payload: unknown): string {
+  const sortObject = (obj: any): any => {
+    if (obj === null || typeof obj !== "object") return obj;
+    if (Array.isArray(obj)) return obj.map(sortObject);
+    return Object.keys(obj)
+      .sort()
+      .reduce((acc: any, key: string) => {
+        acc[key] = sortObject(obj[key]);
+        return acc;
+      }, {});
+  };
+
+  return createHash("sha256")
+    .update(JSON.stringify(sortObject(payload ?? {})))
+    .digest("hex");
 }
 
 /**

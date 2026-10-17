@@ -64,7 +64,6 @@ import AdminTestData from "@/pages/admin/test-data";
 import AcceptInvitePage from "@/pages/passenger/accept-invite";
 import PassengerPortal from "@/pages/passenger/portal";
 import BookingOperations from "@/pages/ops/booking-operations";
-import { TestEnvironmentBanner } from "@/components/test-environment-banner";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { getRoleHome, SUPPLIER_ROLES } from "@/lib/roles";
@@ -298,7 +297,6 @@ function App() {
       <LanguageProvider>
         <ThemeProvider>
           <TooltipProvider>
-            <TestEnvironmentBanner />
             <AppRouter />
             <Toaster />
           </TooltipProvider>

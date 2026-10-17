@@ -59,15 +59,15 @@
 **Description:** Add idempotent execution to `POST /api/bookings` by requiring and validating the `Idempotency-Key` header (UUID) to prevent accidental duplicate bookings and duplicate charges.
 
 **Acceptance criteria:**
-- [ ] `POST /api/bookings` validates presence and UUID format of `Idempotency-Key` header.
-- [ ] If an identical key with identical payload is received within 24 hours, returns the previously created booking with HTTP 200 and an `Idempotent-Replay: true` header.
-- [ ] If the same key is reused with a differing payload, returns HTTP 422 Unprocessable Entity.
-- [ ] Frontend booking submit button enters a disabled, loading state while request is in flight.
+- [x] `POST /api/bookings` validates presence and UUID format of `Idempotency-Key` header.
+- [x] If an identical key with identical payload is received within 24 hours, returns the previously created booking with HTTP 200 and an `Idempotent-Replay: true` header.
+- [x] If the same key is reused with a differing payload, returns HTTP 422 Unprocessable Entity.
+- [x] Frontend booking submit button enters a disabled, loading state while request is in flight.
 
 **Verification:**
-- [ ] Tests pass: `pnpm --filter @workspace/api-server run test -- -t "idempotency"`
-- [ ] Build succeeds: `pnpm run typecheck`
-- [ ] Manual check: Replay identical `POST /api/bookings` request and verify no new database row is inserted.
+- [x] Tests pass: `pnpm --filter @workspace/api-server run test -- -t "idempotency"`
+- [x] Build succeeds: `pnpm run typecheck`
+- [x] Manual check: Replay identical `POST /api/bookings` request and verify no new database row is inserted.
 
 **Dependencies:** Task 2  
 **Files likely touched:**
@@ -78,10 +78,10 @@
 ---
 
 ## Checkpoint 1: Seat Holds & Idempotency
-- [ ] Database schema migrations applied cleanly.
-- [ ] Booking creation atomically locks departure capacity.
-- [ ] Duplicate submit requests are safely rejected/replayed without data corruption.
-- [ ] `pnpm run typecheck` passes without errors.
+- [x] Database schema migrations applied cleanly.
+- [x] Booking creation atomically locks departure capacity.
+- [x] Duplicate submit requests are safely rejected/replayed without data corruption.
+- [x] `pnpm run typecheck` passes without errors.
 
 ---
 

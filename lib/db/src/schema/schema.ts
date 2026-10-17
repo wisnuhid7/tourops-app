@@ -277,6 +277,7 @@ export const bookings = pgTable("bookings", {
   departureAirportId: varchar("departure_airport_id"),
   holdExpiresAt: timestamp("hold_expires_at"),
   idempotencyKey: varchar("idempotency_key"),
+  requestHash: text("request_hash"),
   roomAllocations: jsonb("room_allocations").$type<Array<RoomAllocation>>(),
   singleSupplementCost: numeric("single_supplement_cost"),
   departureSurcharge: numeric("departure_surcharge"),

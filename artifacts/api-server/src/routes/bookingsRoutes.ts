@@ -4,7 +4,7 @@ import { and, eq, or, sql } from "drizzle-orm";
 import { z } from "zod/v4";
 import { routeError } from "../lib/routeError";
 import { storage } from "../storage";
-import { generateCode, generateCode as genCode } from "../lib/utils";
+import { generateCode, generateCode as genCode, computePayloadHash } from "../lib/utils";
 import { pdfService } from "../lib/pdf";
 import { sendNewBookingNotification } from "../lib/email";
 import { isAuthenticated } from "../replit_integrations/auth";
@@ -118,6 +118,40 @@ export function registerBookingsRoutes(app: Express): void {
       // would bypass all of those guards.
       if (req.body.bookingType === "join_leader_group") {
         return res.status(400).json({ message: "Use the join code flow (POST /api/bookings/join) to join a group" });
+      }
+
+      // Validate Idempotency-Key header (US-03)
+      const idempotencyKey = req.header("idempotency-key");
+      const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!idempotencyKey || !UUID_REGEX.test(idempotencyKey)) {
+        return res.status(400).json({
+          message: "Idempotency-Key header is required and must be a valid UUID",
+          code: "INVALID_IDEMPOTENCY_KEY",
+        });
+      }
+
+      // Compute deterministic payload hash for replay/conflict detection
+      const requestHash = computePayloadHash(req.body);
+
+      // Check existing booking with this idempotency key (valid within 24h)
+      if (typeof storage.getBookingByIdempotencyKey === "function") {
+        const existingBooking = await storage.getBookingByIdempotencyKey(idempotencyKey);
+        if (existingBooking) {
+          const ageMs = existingBooking.createdAt
+            ? Date.now() - new Date(existingBooking.createdAt).getTime()
+            : 0;
+          if (ageMs <= 24 * 60 * 60 * 1000) {
+            if (existingBooking.requestHash === requestHash) {
+              res.setHeader("Idempotent-Replay", "true");
+              return res.status(200).json(existingBooking);
+            } else {
+              return res.status(422).json({
+                message: "Idempotency key already used with differing payload",
+                code: "IDEMPOTENCY_CONFLICT",
+              });
+            }
+          }
+        }
       }
 
       const bookingCode = `BK-${generateCode(8)}`;
@@ -300,6 +334,8 @@ export function registerBookingsRoutes(app: Express): void {
           totalPrice,
           status: initialStatus, 
           holdExpiresAt,
+          idempotencyKey,
+          requestHash,
           fulfillmentStatus: req.body.fulfillmentStatus || ("pending" as const),
         }, tx);
 
@@ -332,6 +368,28 @@ export function registerBookingsRoutes(app: Express): void {
 
       res.json(booking);
     } catch (e: any) {
+      const idempotencyKey = req.header("idempotency-key");
+      // Handle concurrent duplicate key race condition
+      if (
+        (e.code === "23505" || e.message?.includes("duplicate key") || e.message?.includes("bookings_idempotency_key_idx")) &&
+        idempotencyKey &&
+        typeof storage.getBookingByIdempotencyKey === "function"
+      ) {
+        const winner = await storage.getBookingByIdempotencyKey(idempotencyKey);
+        if (winner) {
+          const reqHash = computePayloadHash(req.body);
+          if (winner.requestHash === reqHash) {
+            res.setHeader("Idempotent-Replay", "true");
+            return res.status(200).json(winner);
+          } else {
+            return res.status(422).json({
+              message: "Idempotency key already used with differing payload",
+              code: "IDEMPOTENCY_CONFLICT",
+            });
+          }
+        }
+      }
+
       if (
         e.statusCode === 409 ||
         e.code === "CAPACITY_EXCEEDED" ||

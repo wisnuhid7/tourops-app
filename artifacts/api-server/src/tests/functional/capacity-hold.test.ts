@@ -196,6 +196,7 @@ vi.mock("../../storage", () => ({
     getPublishedTours: async () => state.tours,
     getTour: async (id: string) => state.tours.find((t) => t.id === id),
     getAffiliateByCode: async () => undefined,
+    getBookingByIdempotencyKey: async (key: string) => state.bookings.find((b) => b.idempotencyKey === key),
     createBooking: async (data: any) => {
       const b = { id: `bk-${state.bookings.length + 1}`, ...data };
       state.bookings.push(b);
@@ -234,6 +235,9 @@ function buildApp(): Express {
   app.use(express.json());
   app.use((req: any, _res: any, next: any) => {
     req.session = state.session.current;
+    if (!req.headers["idempotency-key"]) {
+      req.headers["idempotency-key"] = crypto.randomUUID();
+    }
     next();
   });
   registerBookingsRoutes(app);

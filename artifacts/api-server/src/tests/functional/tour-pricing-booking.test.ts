@@ -225,6 +225,12 @@ describe("server-authoritative tour pricing", () => {
     resetState();
     app = express();
     app.use(express.json());
+    app.use((req, _res, next) => {
+      if (!req.headers["idempotency-key"]) {
+        req.headers["idempotency-key"] = crypto.randomUUID();
+      }
+      next();
+    });
     const server = createServer(app);
     await registerRoutes(server, app);
   });

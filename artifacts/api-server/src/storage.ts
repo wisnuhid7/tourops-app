@@ -160,6 +160,7 @@ export interface IStorage {
   getBooking(id: string): Promise<Booking | undefined>;
   getBookingsByCustomer(customerId: string): Promise<Booking[]>;
   getBookingByJoinCode(code: string): Promise<Booking | undefined>;
+  getBookingByIdempotencyKey(key: string): Promise<Booking | undefined>;
   createBooking(data: InsertBooking, tx?: any): Promise<Booking>;
   updateBooking(id: string, data: Partial<Booking>): Promise<Booking>;
   deleteBooking(id: string): Promise<void>;
@@ -708,6 +709,11 @@ export class DatabaseStorage implements IStorage {
 
   async getBookingByJoinCode(code: string): Promise<Booking | undefined> {
     const [booking] = await db.select().from(bookings).where(eq(bookings.joinCode, code));
+    return booking;
+  }
+
+  async getBookingByIdempotencyKey(key: string): Promise<Booking | undefined> {
+    const [booking] = await db.select().from(bookings).where(eq(bookings.idempotencyKey, key));
     return booking;
   }
 

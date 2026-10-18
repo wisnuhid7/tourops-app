@@ -18,9 +18,11 @@ import {
   ClipboardList, ArrowLeft, CheckCircle, Clock, AlertTriangle,
   Send, Plane, Hotel, Bus, UserCheck, Ticket, Plus, Pencil,
   Trash2, Eye, ShieldCheck, ShieldX, Info, DollarSign,
-  ExternalLink, Download, Printer, Globe, XCircle
+  ExternalLink, Download, Printer, Globe, XCircle,
+  Bed, MapPin, Phone, Mail, Building
 } from "lucide-react";
 import { Link } from "wouter";
+import { format } from "date-fns";
 import { BOOKING_TYPES, BOOKING_STATUSES, SERVICE_TYPES, WORKFLOW_STATUSES, SERVICE_WORKFLOW_STEPS } from "@/lib/constants";
 import type { Booking, Traveler, BookingWorkflow, WorkflowStep, Document, Message, Payment, UserProfile, BookingServiceRequest, BookingPaymentSchedule, Tour, TourDeparture } from "@workspace/db";
 import { useState } from "react";
@@ -114,6 +116,14 @@ export default function AdminBookingDetail() {
     queryKey: ["/api/tours", booking?.tourId, "departures"],
     enabled: !!booking?.tourId,
   });
+  const { data: tourHotels } = useQuery<any[]>({
+    queryKey: ["/api/tours", booking?.tourId, "hotels"],
+    enabled: !!booking?.tourId,
+  });
+  const selectedDeparture = departures?.find((d) => d.id === booking?.departureId);
+  const roomsNeeded = booking?.roomAllocations && Array.isArray(booking.roomAllocations) && booking.roomAllocations.length > 0
+    ? (booking.roomAllocations as any[]).reduce((sum, a) => sum + (Number(a.count) || 1), 0)
+    : (booking?.roomType === "triple" ? Math.max(1, Math.ceil((booking?.partySizeExpected || 1) / 3)) : Math.max(1, Math.ceil((booking?.partySizeExpected || 1) / 2)));
   const { data: schedule } = useQuery<BookingPaymentSchedule[]>({
     queryKey: ["/api/bookings", bookingId, "payment-schedule"],
     enabled: !!bookingId,
@@ -702,12 +712,18 @@ export default function AdminBookingDetail() {
                     <p className="font-medium" data-testid="summary-status">{BOOKING_STATUSES[booking.status || "submitted"]}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">{t("tour_id")}</p>
-                    <p className="font-medium font-mono text-xs" data-testid="summary-tour-id">{booking.tourId || t("not_available")}</p>
+                    <p className="text-xs text-muted-foreground">{t("tour_label")}</p>
+                    <p className="font-medium text-xs truncate" title={tour?.title || booking.tourId || ""} data-testid="summary-tour-id">
+                      {tour?.title || booking.tourId || t("not_available")}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">{t("departure_id")}</p>
-                    <p className="font-medium font-mono text-xs" data-testid="summary-departure-id">{booking.departureId || t("not_available")}</p>
+                    <p className="text-xs text-muted-foreground">{t("departure_date")}</p>
+                    <p className="font-medium text-xs" data-testid="summary-departure-id">
+                      {selectedDeparture?.startDate 
+                        ? `${format(new Date(selectedDeparture.startDate), "dd MMM yyyy")} - ${selectedDeparture.endDate ? format(new Date(selectedDeparture.endDate), "dd MMM yyyy") : ""}`
+                        : (booking.departureId || t("not_available"))}
+                    </p>
                   </div>
                   {booking.departureCity && (
                     <div>
@@ -755,6 +771,60 @@ export default function AdminBookingDetail() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Accommodation & Hotel Details Card */}
+            {((tourHotels && tourHotels.length > 0) || booking.roomType) && (
+              <Card className="md:col-span-2 border-primary/20 bg-muted/10" data-testid="card-admin-accommodation-info">
+                <CardHeader className="pb-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <CardTitle className="text-base flex items-center gap-1.5">
+                      <Hotel className="h-4 w-4 text-primary" />
+                      {t("accommodation_details")}
+                    </CardTitle>
+                    <div className="flex items-center gap-2 text-xs">
+                      <Badge variant="secondary" className="gap-1">
+                        <Bed className="h-3 w-3" />
+                        {roomsNeeded} {t("rooms_summary")} ({booking.roomType ? t((booking.roomType === "matrimonial" ? "room_matrimonial" : booking.roomType === "doble" ? "room_double" : "room_triple") as any) : "Standard"})
+                      </Badge>
+                      {selectedDeparture?.startDate && (
+                        <span className="text-muted-foreground">
+                          {format(new Date(selectedDeparture.startDate), "dd MMM")} - {selectedDeparture.endDate ? format(new Date(selectedDeparture.endDate), "dd MMM yyyy") : ""}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {tourHotels && tourHotels.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {tourHotels.map((h: any) => (
+                        <div key={h.id} className="p-3 rounded-lg border bg-background/80 text-xs space-y-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-semibold text-sm text-foreground">{h.name}</span>
+                            {h.starRating && (
+                              <span className="text-amber-500 font-medium">{"★".repeat(h.starRating)}</span>
+                            )}
+                          </div>
+                          {h.address && (
+                            <p className="text-muted-foreground flex items-center gap-1">
+                              <MapPin className="h-3 w-3 shrink-0" /> {h.address}
+                            </p>
+                          )}
+                          {(h.contactPhone || h.contactEmail) && (
+                            <div className="flex flex-wrap items-center gap-3 pt-1 text-muted-foreground border-t">
+                              {h.contactPhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {h.contactPhone}</span>}
+                              {h.contactEmail && <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {h.contactEmail}</span>}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">{t("no_hotels_assigned_tour")}</p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {(missingDocsCount > 0 || blockedWorkflowsCount > 0) && (
@@ -996,6 +1066,26 @@ export default function AdminBookingDetail() {
                       </div>
                       {wf.countryCode && (
                         <p className="text-xs text-muted-foreground" data-testid={`text-workflow-country-${wf.id}`}>{t("country_prefix")} {wf.countryCode}</p>
+                      )}
+                      {wf.serviceType === "hotel" && (
+                        <div className="p-2.5 rounded bg-muted/40 border text-xs space-y-1" data-testid={`admin-hotel-summary-${wf.id}`}>
+                          <div className="flex items-center gap-1.5 font-medium text-foreground">
+                            <Hotel className="h-3.5 w-3.5 text-primary" />
+                            <span>{tourHotels && tourHotels.length > 0 ? tourHotels.map((h: any) => h.name).join(", ") : t("hotel_information")}</span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3 text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Bed className="h-3 w-3" />
+                              {roomsNeeded} {t("rooms_summary")} ({booking.roomType ? t((booking.roomType === "matrimonial" ? "room_matrimonial" : booking.roomType === "doble" ? "room_double" : "room_triple") as any) : "Standard"})
+                            </span>
+                            {selectedDeparture?.startDate && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {format(new Date(selectedDeparture.startDate), "dd MMM")} - {selectedDeparture.endDate ? format(new Date(selectedDeparture.endDate), "dd MMM yyyy") : ""}
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       )}
                       {steps.length > 0 && (
                         <div className="space-y-1.5">

@@ -178,7 +178,13 @@ export interface IStorage {
 
   getAllWorkflows(): Promise<BookingWorkflow[]>;
   getWorkflows(bookingId: string): Promise<BookingWorkflow[]>;
-  getWorkflowsByUser(userId: string): Promise<(BookingWorkflow & { booking?: Booking })[]>;
+  getWorkflowsByUser(userId: string): Promise<(BookingWorkflow & { 
+    booking?: Booking;
+    tour?: { id: string; title: string; duration?: number };
+    departure?: { id: string; startDate: string; endDate: string };
+    hotels?: Array<{ id: string; name: string; starRating: number | null; cityId: string; address: string | null; contactPhone: string | null; contactEmail: string | null }>;
+    roomsNeeded?: number;
+  })[]>;
   getWorkflow(id: string): Promise<BookingWorkflow | undefined>;
   createWorkflow(data: InsertBookingWorkflow): Promise<BookingWorkflow>;
   updateWorkflow(id: string, data: Partial<BookingWorkflow>): Promise<BookingWorkflow>;
@@ -806,13 +812,94 @@ export class DatabaseStorage implements IStorage {
     return db.select().from(bookingWorkflows).where(eq(bookingWorkflows.bookingId, bookingId));
   }
 
-  async getWorkflowsByUser(userId: string): Promise<(BookingWorkflow & { booking?: Booking })[]> {
+  async getWorkflowsByUser(userId: string): Promise<(BookingWorkflow & { 
+    booking?: Booking;
+    tour?: { id: string; title: string; duration?: number };
+    departure?: { id: string; startDate: string; endDate: string };
+    hotels?: Array<{ id: string; name: string; starRating: number | null; cityId: string; address: string | null; contactPhone: string | null; contactEmail: string | null }>;
+    roomsNeeded?: number;
+  })[]> {
     const rows = await db
-      .select({ workflow: bookingWorkflows, booking: bookings })
+      .select({ 
+        workflow: bookingWorkflows, 
+        booking: bookings,
+        tour: tours,
+        departure: tourDepartures,
+      })
       .from(bookingWorkflows)
       .leftJoin(bookings, eq(bookingWorkflows.bookingId, bookings.id))
+      .leftJoin(tours, eq(bookings.tourId, tours.id))
+      .leftJoin(tourDepartures, eq(bookings.departureId, tourDepartures.id))
       .where(eq(bookingWorkflows.assignedUserId, userId));
-    return rows.map(r => ({ ...r.workflow, booking: r.booking ?? undefined }));
+
+    const tourIds = [...new Set(rows.map(r => r.tour?.id).filter((id): id is string => !!id))];
+    const hotelsByTour = new Map<string, Array<{ id: string; name: string; starRating: number | null; cityId: string; address: string | null; contactPhone: string | null; contactEmail: string | null }>>();
+
+    if (tourIds.length > 0) {
+      const allDays = await db.select().from(tourDays).where(inArray(tourDays.tourId, tourIds));
+      const dayIds = allDays.map(d => d.id);
+      if (dayIds.length > 0) {
+        const items = await db.select().from(tourDayItems).where(inArray(tourDayItems.tourDayId, dayIds));
+        const dayToTour = new Map(allDays.map(d => [d.id, d.tourId]));
+        const hotelIds = [...new Set(items.filter(i => i.itemType === "hotel" && i.hotelId).map(i => i.hotelId as string))];
+        if (hotelIds.length > 0) {
+          const hotelRows = await db.select().from(hotels).where(inArray(hotels.id, hotelIds));
+          const hotelMap = new Map(hotelRows.map(h => [h.id, h]));
+          for (const item of items) {
+            if (item.itemType === "hotel" && item.hotelId) {
+              const tourId = dayToTour.get(item.tourDayId);
+              const h = hotelMap.get(item.hotelId);
+              if (tourId && h) {
+                if (!hotelsByTour.has(tourId)) hotelsByTour.set(tourId, []);
+                const list = hotelsByTour.get(tourId)!;
+                if (!list.some(existing => existing.id === h.id)) {
+                  list.push({
+                    id: h.id,
+                    name: h.name,
+                    starRating: h.starRating,
+                    cityId: h.cityId,
+                    address: h.address,
+                    contactPhone: h.contactPhone,
+                    contactEmail: h.contactEmail,
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return rows.map(r => {
+      const b = r.booking;
+      let roomsNeeded = 1;
+      if (b) {
+        const allocs = b.roomAllocations as Array<{ roomType: string; count: number }> | null;
+        if (allocs && Array.isArray(allocs) && allocs.length > 0) {
+          roomsNeeded = allocs.reduce((acc, a) => acc + (Number(a.count) || 0), 0);
+        } else if (b.roomType === "triple") {
+          roomsNeeded = Math.max(1, Math.ceil((b.partySizeExpected || 1) / 3));
+        } else {
+          roomsNeeded = Math.max(1, Math.ceil((b.partySizeExpected || 1) / 2));
+        }
+      }
+      return {
+        ...r.workflow,
+        booking: b ?? undefined,
+        tour: r.tour ? {
+          id: r.tour.id,
+          title: r.tour.title,
+          duration: r.tour.duration,
+        } : undefined,
+        departure: r.departure ? {
+          id: r.departure.id,
+          startDate: r.departure.startDate,
+          endDate: r.departure.endDate,
+        } : undefined,
+        hotels: r.tour ? (hotelsByTour.get(r.tour.id) || []) : [],
+        roomsNeeded,
+      };
+    });
   }
 
   async getWorkflow(id: string): Promise<BookingWorkflow | undefined> {

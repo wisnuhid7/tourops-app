@@ -11,9 +11,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/hooks/use-language";
-import { ArrowLeft, CheckCircle, Clock, AlertTriangle, CircleDot, SkipForward, Plane, Hotel, Bus, UserCheck, Ticket, Workflow, Globe, User, ListChecks, StickyNote } from "lucide-react";
+import { 
+  ArrowLeft, CheckCircle, Clock, AlertTriangle, CircleDot, SkipForward, 
+  Plane, Hotel, Bus, UserCheck, Ticket, Workflow, Globe, User, ListChecks, 
+  StickyNote, Bed, MapPin, Phone, Mail, Building 
+} from "lucide-react";
+import { format } from "date-fns";
 import { SERVICE_TYPES, WORKFLOW_STATUSES, STEP_STATUSES } from "@/lib/constants";
-import type { BookingWorkflow, WorkflowStep, Booking, UserProfile } from "@workspace/db";
+import type { BookingWorkflow, WorkflowStep, Booking, UserProfile, Tour, TourDeparture } from "@workspace/db";
 import { useState } from "react";
 
 const serviceIcons: Record<string, any> = {
@@ -56,6 +61,22 @@ export default function AdminWorkflowDetail() {
     queryKey: ["/api/bookings", workflow?.bookingId],
     enabled: !!workflow?.bookingId,
   });
+  const { data: tour } = useQuery<Tour>({
+    queryKey: ["/api/tours", booking?.tourId],
+    enabled: !!booking?.tourId,
+  });
+  const { data: departures } = useQuery<TourDeparture[]>({
+    queryKey: ["/api/tours", booking?.tourId, "departures"],
+    enabled: !!booking?.tourId,
+  });
+  const { data: tourHotels } = useQuery<any[]>({
+    queryKey: ["/api/tours", booking?.tourId, "hotels"],
+    enabled: !!booking?.tourId,
+  });
+  const selectedDeparture = departures?.find((d) => d.id === booking?.departureId);
+  const roomsNeeded = booking?.roomAllocations && Array.isArray(booking.roomAllocations) && booking.roomAllocations.length > 0
+    ? (booking.roomAllocations as any[]).reduce((sum, a) => sum + (Number(a.count) || 1), 0)
+    : (booking?.roomType === "triple" ? Math.max(1, Math.ceil((booking?.partySizeExpected || 1) / 3)) : Math.max(1, Math.ceil((booking?.partySizeExpected || 1) / 2)));
   const { data: allUsers } = useQuery<UserProfile[]>({ queryKey: ["/api/user-profiles"] });
   const { data: currentUserProfile } = useQuery<UserProfile>({ queryKey: ["/api/user-profile"] });
   const isOps = currentUserProfile?.role === "admin" || currentUserProfile?.role === "super_admin" || currentUserProfile?.role === "operations_manager";
@@ -243,6 +264,76 @@ export default function AdminWorkflowDetail() {
               <p className="text-xs">{t("notes")}</p>
             </div>
             <p className="text-sm whitespace-pre-wrap">{workflow.notes}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Hotel & Accommodation Details for Hotel Workflow */}
+      {workflow.serviceType === "hotel" && (
+        <Card className="border-primary/20 bg-muted/10" data-testid="card-workflow-hotel-details">
+          <CardContent className="p-4 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+              <h3 className="font-semibold text-sm flex items-center gap-1.5">
+                <Hotel className="h-4 w-4 text-primary" />
+                {t("accommodation_details")}
+              </h3>
+              <div className="flex items-center gap-2 text-xs">
+                <Badge variant="secondary" className="gap-1">
+                  <Bed className="h-3 w-3" />
+                  {roomsNeeded} {t("rooms_summary")} ({booking?.roomType ? t((booking.roomType === "matrimonial" ? "room_matrimonial" : booking.roomType === "doble" ? "room_double" : "room_triple") as any) : "Standard"})
+                </Badge>
+                {selectedDeparture?.startDate && (
+                  <span className="text-muted-foreground">
+                    {format(new Date(selectedDeparture.startDate), "dd MMM")} - {selectedDeparture.endDate ? format(new Date(selectedDeparture.endDate), "dd MMM yyyy") : ""}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Quick Overview */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs bg-background/60 p-3 rounded-lg border">
+              <div>
+                <p className="text-muted-foreground">{t("tour_label")}</p>
+                <p className="font-semibold text-foreground">{tour?.title || "-"}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">{t("party_size")}</p>
+                <p className="font-semibold text-foreground">{booking?.partySizeExpected || 1} {t("pax_suffix")}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">{t("room_type_and_count") || t("rooms_reserved")}</p>
+                <p className="font-semibold text-primary">{roomsNeeded} {t("rooms_summary")} ({booking?.roomType ? t((booking.roomType === "matrimonial" ? "room_matrimonial" : booking.roomType === "doble" ? "room_double" : "room_triple") as any) : "Standard"})</p>
+              </div>
+            </div>
+
+            {/* Hotel Cards */}
+            {tourHotels && tourHotels.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {tourHotels.map((h: any) => (
+                  <div key={h.id} className="p-3 rounded-lg border bg-background/80 text-xs space-y-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-semibold text-sm text-foreground">{h.name}</span>
+                      {h.starRating && (
+                        <span className="text-amber-500 font-medium">{"★".repeat(h.starRating)}</span>
+                      )}
+                    </div>
+                    {h.address && (
+                      <p className="text-muted-foreground flex items-center gap-1">
+                        <MapPin className="h-3 w-3 shrink-0" /> {h.address}
+                      </p>
+                    )}
+                    {(h.contactPhone || h.contactEmail) && (
+                      <div className="flex flex-wrap items-center gap-3 pt-1 text-muted-foreground border-t">
+                        {h.contactPhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {h.contactPhone}</span>}
+                        {h.contactEmail && <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {h.contactEmail}</span>}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground italic">{t("no_hotels_assigned_tour")}</p>
+            )}
           </CardContent>
         </Card>
       )}

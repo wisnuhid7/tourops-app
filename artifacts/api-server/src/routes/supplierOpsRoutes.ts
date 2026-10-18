@@ -1,9 +1,9 @@
 import type { Express } from "express";
-import { or } from "drizzle-orm";
 import { routeError } from "../lib/routeError";
 import { storage } from "../storage";
 import { isAuthenticated } from "../replit_integrations/auth";
-import { bookings, documents, messages, travelers } from "@workspace/db";
+import { db, bookings, documents, messages, travelers, bookingRooms } from "@workspace/db";
+import { asc, eq, or } from "drizzle-orm";
 import { ALL_STAFF_ROLES, getUserId } from "../middleware/auth";
 import { getUserName } from "./shared";
 
@@ -50,8 +50,91 @@ export function registerSupplierOpsRoutes(app: Express): void {
       const documents = (profile.role === "admin" || profile.role === "super_admin")
         ? allDocuments 
         : allDocuments.filter(d => d.uploadedBy === userId);
-      
-      res.json({ ...booking, travelers, documents });
+
+      let tour = null;
+      let departure = null;
+      let hotels: any[] = [];
+      if (booking.tourId) {
+        tour = await storage.getTour(booking.tourId);
+        const dayItems = await storage.getTourDayItemsByTourId(booking.tourId);
+        const hotelIds = [...new Set(dayItems.filter(i => i.itemType === "hotel" && i.hotelId).map(i => i.hotelId as string))];
+        if (hotelIds.length > 0) {
+          const hotelRows = await Promise.all(hotelIds.map(hid => storage.getHotel(hid)));
+          hotels = hotelRows.filter((h): h is NonNullable<typeof h> => !!h);
+        }
+      }
+      if (booking.departureId) {
+        departure = await storage.getDeparture(booking.departureId);
+      }
+
+      // Rooming list if configured
+      const rooms = await db.select().from(bookingRooms).where(eq(bookingRooms.bookingId, booking.id)).orderBy(asc(bookingRooms.label));
+      const roomsWithOccupants = rooms.map(r => ({
+        ...r,
+        occupants: travelers.filter(t => t.roomId === r.id).map(t => ({ id: t.id, firstName: t.firstName, lastName: t.lastName }))
+      }));
+
+      // Calculate rooms needed
+      let roomsNeeded = 1;
+      const allocs = booking.roomAllocations as Array<{ roomType: string; count: number }> | null;
+      if (allocs && Array.isArray(allocs) && allocs.length > 0) {
+        roomsNeeded = allocs.reduce((acc, a) => acc + (Number(a.count) || 0), 0);
+      } else if (booking.roomType === "triple") {
+        roomsNeeded = Math.max(1, Math.ceil((booking.partySizeExpected || 1) / 3));
+      } else {
+        roomsNeeded = Math.max(1, Math.ceil((booking.partySizeExpected || 1) / 2));
+      }
+
+      // Special requests / preferences aggregated from travelers
+      const specialRequests = travelers
+        .map(t => ({
+          travelerName: `${t.firstName} ${t.lastName}`,
+          roomingPreference: t.roomingPreference,
+          dietaryNotes: t.dietaryNotes,
+          mobilityNotes: t.mobilityNotes,
+          specialNeeds: t.specialNeeds,
+        }))
+        .filter(t => t.roomingPreference || t.dietaryNotes || t.mobilityNotes || t.specialNeeds);
+
+      res.json({
+        ...booking,
+        travelers,
+        documents,
+        tour: tour ? {
+          id: tour.id,
+          title: tour.title,
+          duration: tour.duration,
+          translations: tour.translations,
+        } : null,
+        departure: departure ? {
+          id: departure.id,
+          startDate: departure.startDate,
+          endDate: departure.endDate,
+        } : null,
+        hotels: hotels.map(h => ({
+          id: h.id,
+          name: h.name,
+          starRating: h.starRating,
+          address: h.address,
+          cityId: h.cityId,
+          checkinTime: h.checkinTime,
+          checkoutTime: h.checkoutTime,
+          contactPhone: h.contactPhone,
+          contactEmail: h.contactEmail,
+          imageUrl: h.imageUrl,
+          description: h.description,
+        })),
+        accommodationDetails: {
+          roomType: booking.roomType,
+          roomsNeeded,
+          roomAllocations: booking.roomAllocations,
+          checkInDate: departure?.startDate ?? null,
+          checkOutDate: departure?.endDate ?? null,
+          nights: tour?.duration ? Math.max(0, tour.duration - 1) : 0,
+          assignedRooms: roomsWithOccupants,
+          specialRequests,
+        },
+      });
     } catch (e: any) { routeError(res, e); }
   });
 

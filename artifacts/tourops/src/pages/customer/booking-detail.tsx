@@ -16,7 +16,7 @@ import {
   ArrowLeft, Users, FileText, Workflow, MessageSquare, Plus, Send,
   CheckCircle, Clock, Link2, CreditCard, Upload, Copy, AlertTriangle,
   Plane, Hotel, Bus, UserCheck, Ticket, Eye, XCircle, ExternalLink, Download,
-  Printer, Globe, X, Loader2, Building2
+  Printer, Globe, X, Loader2, Building2, Bed, MapPin, Phone, Mail, Building
 } from "lucide-react";
 import { useState } from "react";
 import { Progress } from "@/components/ui/progress";
@@ -24,6 +24,7 @@ import { DocumentPreview } from "@/components/DocumentPreview";
 import type { Booking, Traveler, BookingWorkflow, Message, Document, Payment, BookingPaymentSchedule, Tour, TourDeparture } from "@workspace/db";
 import { useLanguage, localizeScheduleLabel } from "@/hooks/use-language";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { format } from "date-fns";
 
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
@@ -50,6 +51,10 @@ export default function CustomerBookingDetail() {
   });
   const { data: departures } = useQuery<TourDeparture[]>({
     queryKey: ["/api/tours", booking?.tourId, "departures"],
+    enabled: !!booking?.tourId,
+  });
+  const { data: tourHotels } = useQuery<any[]>({
+    queryKey: ["/api/tours", booking?.tourId, "hotels"],
     enabled: !!booking?.tourId,
   });
   const { data: travelers } = useQuery<Traveler[]>({ queryKey: ["/api/my-bookings", bookingId, "travelers"] });
@@ -367,6 +372,9 @@ export default function CustomerBookingDetail() {
   const departure = departures?.find((item) => item.id === booking.departureId);
   const tourTitle = tour ? (lt(tour, "title") || tour.title) : undefined;
   const destination = tour?.countries?.filter(Boolean).join(", ");
+  const roomsNeeded = booking.roomAllocations && Array.isArray(booking.roomAllocations) && booking.roomAllocations.length > 0
+    ? (booking.roomAllocations as any[]).reduce((sum, a) => sum + (Number(a.count) || 1), 0)
+    : (booking.roomType === "triple" ? Math.max(1, Math.ceil((booking.partySizeExpected || 1) / 3)) : Math.max(1, Math.ceil((booking.partySizeExpected || 1) / 2)));
   const hasMissingTravelers = Array.isArray(travelers) && travelers.length < (booking.partySizeExpected || 1);
   const hasMissingPassportDetails = Array.isArray(travelers) && travelers.some((traveler) => !traveler.passportNumber);
   const hasPendingPayment = Array.isArray(pmts) && pmts.some((payment) => payment.status === "pending");
@@ -966,6 +974,58 @@ export default function CustomerBookingDetail() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Accommodation & Hotel Details */}
+            {((tourHotels && tourHotels.length > 0) || booking.roomType) && (
+              <Card className="md:col-span-2 border-primary/20 bg-muted/10" data-testid="card-booking-accommodation-info">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+                    <h3 className="font-semibold text-sm flex items-center gap-1.5">
+                      <Hotel className="h-4 w-4 text-primary" />
+                      {t("accommodation_details")}
+                    </h3>
+                    <div className="flex items-center gap-2 text-xs">
+                      <Badge variant="secondary" className="gap-1">
+                        <Bed className="h-3 w-3" />
+                        {roomsNeeded} {t("rooms_summary")} ({booking.roomType ? t((booking.roomType === "matrimonial" ? "room_matrimonial" : booking.roomType === "doble" ? "room_double" : "room_triple") as any) : "Standard"})
+                      </Badge>
+                      {departure?.startDate && (
+                        <span className="text-muted-foreground">
+                          {format(new Date(departure.startDate), "dd MMM")} - {departure.endDate ? format(new Date(departure.endDate), "dd MMM yyyy") : ""}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {tourHotels && tourHotels.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      {tourHotels.map((h: any) => (
+                        <div key={h.id} className="p-3 rounded-lg border bg-background/80 text-xs space-y-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-semibold text-sm text-foreground">{h.name}</span>
+                            {h.starRating && (
+                              <span className="text-amber-500 font-medium">{"★".repeat(h.starRating)}</span>
+                            )}
+                          </div>
+                          {h.address && (
+                            <p className="text-muted-foreground flex items-center gap-1">
+                              <MapPin className="h-3 w-3 shrink-0" /> {h.address}
+                            </p>
+                          )}
+                          {(h.contactPhone || h.contactEmail) && (
+                            <div className="flex flex-wrap items-center gap-3 pt-1 text-muted-foreground border-t">
+                              {h.contactPhone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {h.contactPhone}</span>}
+                              {h.contactEmail && <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {h.contactEmail}</span>}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground italic">{t("no_hotels_assigned_tour")}</p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {workflows && workflows.length > 0 && (() => {
@@ -1026,6 +1086,26 @@ export default function CustomerBookingDetail() {
                                 <p className="mt-2 text-xs font-medium text-foreground/80">
                                   <span className="text-primary">{t("service_status_next_prefix")}</span>{" "}{nextStep}
                                 </p>
+                              )}
+                              {wf.serviceType === "hotel" && (
+                                <div className="mt-3 p-3 bg-muted/40 rounded-md border text-xs space-y-1.5" data-testid="hotel-workflow-service-info">
+                                  <div className="flex items-center gap-2 font-medium text-foreground">
+                                    <Hotel className="h-3.5 w-3.5 text-primary" />
+                                    <span>{tourHotels && tourHotels.length > 0 ? tourHotels.map((h: any) => h.name).join(", ") : t("hotel_information")}</span>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                      <Bed className="h-3 w-3" />
+                                      {roomsNeeded} {t("rooms_summary")} ({booking.roomType ? t((booking.roomType === "matrimonial" ? "room_matrimonial" : booking.roomType === "doble" ? "room_double" : "room_triple") as any) : "Standard"})
+                                    </span>
+                                    {departure?.startDate && (
+                                      <span className="flex items-center gap-1">
+                                        <Clock className="h-3 w-3" />
+                                        {format(new Date(departure.startDate), "dd MMM")} - {departure.endDate ? format(new Date(departure.endDate), "dd MMM yyyy") : ""}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               )}
                               {wf.updatedAt && (
                                 <p className="mt-3 flex items-center gap-1 text-[11px] text-muted-foreground">

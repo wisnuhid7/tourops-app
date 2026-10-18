@@ -183,7 +183,7 @@ export default function BrowseTours() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
-        <PublicHeader />
+        {!isAuthenticated && <PublicHeader />}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
           <div className="space-y-4">
             <Skeleton className="h-44 w-full rounded-3xl" />
@@ -205,7 +205,7 @@ export default function BrowseTours() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <PublicHeader />
+      {!isAuthenticated && <PublicHeader />}
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Modern Hero & Quick-Access Banner */}

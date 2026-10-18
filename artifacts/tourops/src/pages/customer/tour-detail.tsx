@@ -423,7 +423,7 @@ export default function TourDetail() {
 
   return (
     <div className="p-6 pb-28 space-y-6 max-w-4xl mx-auto">
-      <PublicHeader />
+      {!isAuthenticated && <PublicHeader />}
       {/* Join Group Dialog (Automatic) */}
       <Dialog open={!!urlJoinCode && !!joinedGroupData && !bookingConfirmed} onOpenChange={(v) => !v && navigate(`/tours/${tourId}`)}>
         <DialogContent className="sm:max-w-md">

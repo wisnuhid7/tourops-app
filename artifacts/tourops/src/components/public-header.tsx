@@ -27,6 +27,10 @@ export function PublicHeader({ className = "", fixed = false }: PublicHeaderProp
 
   const isToursActive = location === "/tours" || location.startsWith("/tours/");
 
+  if (isAuthenticated) {
+    return null;
+  }
+
   return (
     <header
       className={`${

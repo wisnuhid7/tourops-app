@@ -14,6 +14,8 @@ import { useLanguage } from "@/hooks/use-language";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { format, addDays, parseISO, isBefore, startOfToday } from "date-fns";
 import {
   PlaneTakeoff,
   Calendar as CalendarIcon,
@@ -28,7 +30,8 @@ import {
   CheckCircle2,
   Building,
   ShieldCheck,
-  Receipt
+  Receipt,
+  Sparkles,
 } from "lucide-react";
 import type { Tour, TourDeparture } from "@workspace/db";
 
@@ -57,6 +60,7 @@ export interface BookingDrawerProps {
   departures: TourDeparture[];
   tourHotels?: any[];
   initialDepartureId?: string;
+  initialDateMode?: "open_departure" | "custom_date";
   onBookingSuccess?: () => void;
 }
 
@@ -67,6 +71,7 @@ export function BookingDrawer({
   departures,
   tourHotels = [],
   initialDepartureId,
+  initialDateMode,
   onBookingSuccess,
 }: BookingDrawerProps) {
   const { t, language } = useLanguage();
@@ -83,12 +88,48 @@ export function BookingDrawer({
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [isLandOnly, setIsLandOnly] = useState(false);
 
+  // Dual-mode date state: Open Group Departures vs Custom Private Dates
+  const [dateMode, setDateMode] = useState<"open_departure" | "custom_date">(
+    initialDateMode || "open_departure"
+  );
   const [selectedDepartureId, setSelectedDepartureId] = useState<string>(initialDepartureId || "");
+  const [customStartDate, setCustomStartDate] = useState<string>("");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
+
   const [partySize, setPartySize] = useState(1);
   const [roomType, setRoomType] = useState<string>("");
   const [bookingType, setBookingType] = useState("join_public_group");
   const [groupName, setGroupName] = useState("");
   const [notes, setNotes] = useState("");
+
+  // Minimum lead time: 7 days
+  const minLeadDate = useMemo(() => addDays(startOfToday(), 7), []);
+  const minDateString = useMemo(() => format(minLeadDate, "yyyy-MM-dd"), [minLeadDate]);
+
+  // Automatically calculate custom end date from tour duration (duration in days: start + duration - 1)
+  const computedCustomEndDate = useMemo(() => {
+    if (!customStartDate) return "";
+    try {
+      const start = parseISO(customStartDate);
+      const duration = tour.duration || 1;
+      const end = addDays(start, Math.max(0, duration - 1));
+      return format(end, "yyyy-MM-dd");
+    } catch {
+      return "";
+    }
+  }, [customStartDate, tour.duration]);
+
+  useEffect(() => {
+    if (computedCustomEndDate) {
+      setCustomEndDate(computedCustomEndDate);
+    }
+  }, [computedCustomEndDate]);
+
+  useEffect(() => {
+    if (initialDateMode) {
+      setDateMode(initialDateMode);
+    }
+  }, [initialDateMode]);
 
   // Sync initialDepartureId when opened
   useEffect(() => {
@@ -107,7 +148,10 @@ export function BookingDrawer({
       if (rawDraft) {
         const draft = JSON.parse(rawDraft);
         if (draft.tourId === tour.id) {
+          if (draft.dateMode) setDateMode(draft.dateMode);
           if (draft.departureId) setSelectedDepartureId(draft.departureId);
+          if (draft.customStartDate) setCustomStartDate(draft.customStartDate);
+          if (draft.customEndDate) setCustomEndDate(draft.customEndDate);
           if (draft.departureCity) {
             if (draft.departureCity === "Land Only (Self Arrival)") {
               setIsLandOnly(true);
@@ -142,6 +186,9 @@ export function BookingDrawer({
     return openDepartures.find((d) => d.id === selectedDepartureId);
   }, [openDepartures, selectedDepartureId]);
 
+  // Determine if chosen date is valid
+  const isDateSelected = dateMode === "open_departure" ? !!selectedDepartureId : !!customStartDate;
+
   // Room type options based on hotel rates
   const roomTypeOptions = useMemo(() => {
     return [
@@ -172,7 +219,9 @@ export function BookingDrawer({
   // Live price-preview calculation
   const pricePreviewParams = new URLSearchParams({ partySize: String(partySize) });
   if (roomType) pricePreviewParams.set("roomType", roomType);
-  if (selectedDepartureId) pricePreviewParams.set("departureId", selectedDepartureId);
+  if (dateMode === "open_departure" && selectedDepartureId) {
+    pricePreviewParams.set("departureId", selectedDepartureId);
+  }
 
   const { data: pricePreview, isFetching: isCalculatingPrice } = useQuery<{
     perPersonPrice: number;
@@ -184,10 +233,19 @@ export function BookingDrawer({
     grandTotal: number;
     currency: string;
   }>({
-    queryKey: ["/api/tours", tour.id, "price-preview", partySize, roomType, selectedDepartureId],
+    queryKey: [
+      "/api/tours",
+      tour.id,
+      "price-preview",
+      partySize,
+      roomType,
+      selectedDepartureId,
+      customStartDate,
+      dateMode,
+    ],
     queryFn: () =>
       apiRequest("GET", `/api/tours/${tour.id}/price-preview?${pricePreviewParams}`).then((r) => r.json()),
-    enabled: !!tour.id && isOpen,
+    enabled: !!tour.id && isOpen && isDateSelected,
     staleTime: 30_000,
   });
 
@@ -226,7 +284,10 @@ export function BookingDrawer({
       // Save draft to localStorage so the user doesn't lose selections
       const draft = {
         tourId: tour.id,
-        departureId: selectedDepartureId,
+        dateMode,
+        departureId: dateMode === "open_departure" ? selectedDepartureId : undefined,
+        customStartDate: dateMode === "custom_date" ? customStartDate : undefined,
+        customEndDate: dateMode === "custom_date" ? customEndDate : undefined,
         departureCity: resolvedDepartureCity,
         departureAirportId: matchingHub?.code,
         partySize,
@@ -245,7 +306,7 @@ export function BookingDrawer({
       return;
     }
 
-    if (!selectedDepartureId) {
+    if (dateMode === "open_departure" && !selectedDepartureId) {
       toast({
         title: "Pilih tanggal keberangkatan",
         description: "Silakan pilih tanggal keberangkatan yang tersedia.",
@@ -255,18 +316,34 @@ export function BookingDrawer({
       return;
     }
 
+    if (dateMode === "custom_date" && !customStartDate) {
+      toast({
+        title: "Pilih tanggal keberangkatan",
+        description: "Silakan tentukan tanggal mulai perjalanan kustom Anda.",
+        variant: "destructive",
+      });
+      setCurrentStep(1);
+      return;
+    }
+
+    const resolvedBookingType = dateMode === "custom_date"
+      ? (bookingType === "leader_group" ? "custom_leader" : "private_family")
+      : bookingType;
+
     const payload = {
       tourId: tour.id,
-      departureId: selectedDepartureId,
+      departureId: dateMode === "open_departure" ? selectedDepartureId : undefined,
+      customStartDate: dateMode === "custom_date" ? customStartDate : undefined,
+      customEndDate: dateMode === "custom_date" ? customEndDate : undefined,
       departureCity: resolvedDepartureCity,
       departureAirportId: matchingHub?.code,
-      bookingType,
-      groupName: bookingType === "leader_group" ? groupName : undefined,
+      bookingType: resolvedBookingType,
+      groupName: (bookingType === "leader_group" || bookingType === "custom_leader") ? groupName : undefined,
       partySizeExpected: partySize,
       roomType: roomType || undefined,
       notes: notes
-        ? `[Departure: ${resolvedDepartureCity}] ${notes}`
-        : `[Departure: ${resolvedDepartureCity}]`,
+        ? `[Mode: ${dateMode === "custom_date" ? `Custom Private Dates (${customStartDate} to ${customEndDate})` : "Open Group"}] ${notes}`
+        : `[Mode: ${dateMode === "custom_date" ? `Custom Private Dates (${customStartDate} to ${customEndDate})` : "Open Group"}]`,
     };
 
     bookMutation.mutate(payload);
@@ -345,8 +422,8 @@ export function BookingDrawer({
             {/* Step 2 */}
             <button
               type="button"
-              onClick={() => selectedDepartureId && setCurrentStep(2)}
-              disabled={!selectedDepartureId}
+              onClick={() => isDateSelected && setCurrentStep(2)}
+              disabled={!isDateSelected}
               className={`flex items-center gap-2 transition-colors ${
                 currentStep === 2
                   ? "text-primary font-bold"
@@ -374,8 +451,8 @@ export function BookingDrawer({
             {/* Step 3 */}
             <button
               type="button"
-              onClick={() => selectedDepartureId && setCurrentStep(3)}
-              disabled={!selectedDepartureId}
+              onClick={() => isDateSelected && setCurrentStep(3)}
+              disabled={!isDateSelected}
               className={`flex items-center gap-2 transition-colors ${
                 currentStep === 3
                   ? "text-primary font-bold"
@@ -519,85 +596,162 @@ export function BookingDrawer({
                 )}
               </div>
 
-              {/* Departure Dates Selector */}
+              {/* Dual-Mode Departure Dates Selector */}
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold flex items-center gap-2">
                     <CalendarIcon className="h-4 w-4 text-primary" />
-                    Pilih Jadwal Keberangkatan (Available Departures)
+                    Pilih Tanggal Perjalanan
                   </Label>
-                  <span className="text-xs text-muted-foreground">
-                    {openDepartures.length} jadwal tersedia
-                  </span>
+                  <Badge variant="outline" className="text-[11px] font-normal gap-1 bg-primary/5 text-primary border-primary/20">
+                    <Clock className="h-3 w-3" />
+                    {tour.duration} Hari / {Math.max(1, tour.duration - 1)} Malam
+                  </Badge>
                 </div>
 
-                {openDepartures.length === 0 ? (
-                  <Card className="border-dashed bg-muted/20">
-                    <CardContent className="p-6 text-center text-xs text-muted-foreground">
-                      <CalendarIcon className="h-8 w-8 mx-auto text-muted-foreground/30 mb-2" />
-                      <p className="font-medium">Belum ada jadwal keberangkatan open.</p>
-                      <p className="text-[11px] mt-1">Silakan hubungi customer service kami untuk jadwal privat.</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="grid grid-cols-1 gap-2.5">
-                    {openDepartures.map((dep) => {
-                      const isSelected = selectedDepartureId === dep.id;
-                      const spotsLeft = Math.max(0, (dep.capacityTotal || 0) - (dep.capacityBooked || 0));
+                <Tabs value={dateMode} onValueChange={(v) => setDateMode(v as any)} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 p-1 bg-muted/80 rounded-xl">
+                    <TabsTrigger value="open_departure" className="text-xs font-semibold rounded-lg data-[state=active]:shadow-sm">
+                      Jadwal Grup Terbuka
+                    </TabsTrigger>
+                    <TabsTrigger value="custom_date" className="text-xs font-semibold rounded-lg data-[state=active]:shadow-sm gap-1">
+                      <Sparkles className="h-3 w-3 text-amber-500" />
+                      Kustom Tanggal Sendiri
+                    </TabsTrigger>
+                  </TabsList>
 
-                      return (
-                        <div
-                          key={dep.id}
-                          onClick={() => setSelectedDepartureId(dep.id)}
-                          className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all duration-200 relative ${
-                            isSelected
-                              ? "bg-primary/5 border-primary ring-2 ring-primary/20 shadow-md"
-                              : "bg-card hover:bg-accent/40 border-border/80 hover:border-primary/40 shadow-sm"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-semibold text-sm text-foreground">
-                                  {dep.startDate} — {dep.endDate}
-                                </span>
-                                {isSelected && (
-                                  <Badge className="bg-primary text-primary-foreground text-[10px] h-4 px-1.5 gap-1">
-                                    <Check className="h-2.5 w-2.5" /> Selected
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                                <span className="flex items-center gap-1">
-                                  <Users className="h-3 w-3 text-primary/70" />
-                                  {spotsLeft} seat tersisa
-                                </span>
-                                <span>•</span>
-                                <span className="flex items-center gap-1 font-medium text-foreground">
-                                  {dep.pricePerPerson ? (
-                                    <>USD {Number(dep.pricePerPerson).toLocaleString()} / pax</>
-                                  ) : (
-                                    <>Base Price: USD {Number(tour.basePrice).toLocaleString()} / pax</>
-                                  )}
-                                </span>
-                              </div>
-                            </div>
+                  {/* Mode 1: Open Group Departures */}
+                  <TabsContent value="open_departure" className="mt-3 space-y-2">
+                    {openDepartures.length === 0 ? (
+                      <Card className="border-dashed bg-muted/20">
+                        <CardContent className="p-6 text-center text-xs text-muted-foreground space-y-2">
+                          <CalendarIcon className="h-8 w-8 mx-auto text-muted-foreground/30" />
+                          <p className="font-medium text-foreground">Belum ada jadwal grup terbuka untuk tur ini.</p>
+                          <p className="text-[11px]">Anda dapat menentukan tanggal keberangkatan sendiri dengan menekan tombol di bawah:</p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => setDateMode("custom_date")}
+                            className="mt-2 text-primary font-semibold text-xs gap-1.5"
+                          >
+                            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+                            Pilih Tanggal Kustom Sekarang
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-2.5">
+                        {openDepartures.map((dep) => {
+                          const isSelected = selectedDepartureId === dep.id;
+                          const spotsLeft = Math.max(0, (dep.capacityTotal || 0) - (dep.capacityBooked || 0));
 
+                          return (
                             <div
-                              className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                              key={dep.id}
+                              onClick={() => setSelectedDepartureId(dep.id)}
+                              className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all duration-200 relative ${
                                 isSelected
-                                  ? "bg-primary border-primary text-primary-foreground"
-                                  : "border-muted-foreground/30"
+                                  ? "bg-primary/5 border-primary ring-2 ring-primary/20 shadow-md"
+                                  : "bg-card hover:bg-accent/40 border-border/80 hover:border-primary/40 shadow-sm"
                               }`}
                             >
-                              {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-semibold text-sm text-foreground">
+                                      {dep.startDate} — {dep.endDate}
+                                    </span>
+                                    {isSelected && (
+                                      <Badge className="bg-primary text-primary-foreground text-[10px] h-4 px-1.5 gap-1">
+                                        <Check className="h-2.5 w-2.5" /> Selected
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                      <Users className="h-3 w-3 text-primary/70" />
+                                      {spotsLeft} seat tersisa
+                                    </span>
+                                    <span>•</span>
+                                    <span className="flex items-center gap-1 font-medium text-foreground">
+                                      {dep.pricePerPerson ? (
+                                        <>USD {Number(dep.pricePerPerson).toLocaleString()} / pax</>
+                                      ) : (
+                                        <>Base Price: USD {Number(tour.basePrice).toLocaleString()} / pax</>
+                                      )}
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div
+                                  className={`h-5 w-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                                    isSelected
+                                      ? "bg-primary border-primary text-primary-foreground"
+                                      : "border-muted-foreground/30"
+                                  }`}
+                                >
+                                  {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  {/* Mode 2: Custom Private Dates */}
+                  <TabsContent value="custom_date" className="mt-3 space-y-3">
+                    <Card className="border-amber-200/60 bg-gradient-to-br from-amber-50/50 via-background to-background dark:border-amber-950/40 dark:from-amber-950/10 shadow-sm">
+                      <CardContent className="p-4 space-y-3.5 text-xs">
+                        <div className="flex items-center gap-2 text-amber-800 dark:text-amber-400 font-semibold">
+                          <Sparkles className="h-4 w-4 flex-shrink-0" />
+                          <span>Tur Privat Bebas Tentukan Tanggal</span>
+                        </div>
+                        <p className="text-muted-foreground leading-relaxed text-[11px]">
+                          Tentukan tanggal mulai perjalanan sesuai agenda Anda. Perjalanan ini diselenggarakan secara privat khusus rombongan Anda tanpa digabung traveler lain.
+                        </p>
+
+                        <div className="space-y-1.5 pt-1">
+                          <Label htmlFor="custom-start-date" className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                            <CalendarIcon className="h-3.5 w-3.5 text-primary" />
+                            Pilih Tanggal Mulai Keberangkatan:
+                          </Label>
+                          <Input
+                            id="custom-start-date"
+                            type="date"
+                            min={minDateString}
+                            value={customStartDate}
+                            onChange={(e) => setCustomStartDate(e.target.value)}
+                            className="h-10 text-sm bg-background border-border font-medium cursor-pointer"
+                          />
+                          <p className="text-[11px] text-muted-foreground">
+                            * Pemesanan minimal 7 hari sebelum keberangkatan untuk koordinasi logistik.
+                          </p>
+                        </div>
+
+                        {customStartDate && customEndDate && (
+                          <div className="p-3 rounded-lg bg-primary/5 border border-primary/15 space-y-1 mt-2">
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-muted-foreground font-medium">Jadwal Perjalanan Kustom:</span>
+                              <Badge variant="outline" className="font-semibold text-primary border-primary/30 text-[10px]">
+                                Tur Privat
+                              </Badge>
+                            </div>
+                            <p className="font-bold text-sm text-foreground">
+                              {customStartDate} s/d {customEndDate}
+                            </p>
+                            <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium pt-0.5">
+                              <ShieldCheck className="h-3.5 w-3.5" />
+                              <span>Durasi {tour.duration} hari terkunci otomatis</span>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        )}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </Tabs>
               </div>
             </div>
           )}
@@ -608,10 +762,10 @@ export function BookingDrawer({
           {currentStep === 2 && (
             <div className="space-y-6 animate-in fade-in duration-200">
               {/* Selected Departure Summary Banner */}
-              {activeDeparture && (
+              {dateMode === "open_departure" && activeDeparture ? (
                 <div className="p-3 bg-primary/5 border border-primary/15 rounded-lg flex items-center justify-between text-xs">
                   <div>
-                    <span className="text-muted-foreground">Jadwal Terpilih:</span>
+                    <span className="text-muted-foreground">Jadwal Terpilih (Grup):</span>
                     <p className="font-semibold text-foreground">
                       {activeDeparture.startDate} — {activeDeparture.endDate}
                     </p>
@@ -620,7 +774,21 @@ export function BookingDrawer({
                     {departureCity}
                   </Badge>
                 </div>
-              )}
+              ) : dateMode === "custom_date" && customStartDate ? (
+                <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center justify-between text-xs">
+                  <div>
+                    <span className="text-amber-800 dark:text-amber-400 font-medium flex items-center gap-1">
+                      <Sparkles className="h-3 w-3" /> Tanggal Kustom (Privat):
+                    </span>
+                    <p className="font-semibold text-foreground">
+                      {customStartDate} — {customEndDate}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="border-amber-500/30 text-amber-700 dark:text-amber-400">
+                    {departureCity}
+                  </Badge>
+                </div>
+              ) : null}
 
               {/* Number of Travelers */}
               <div className="space-y-3">
@@ -766,7 +934,11 @@ export function BookingDrawer({
                       <CalendarIcon className="h-3 w-3 text-primary" /> Tanggal Perjalanan:
                     </span>
                     <span className="font-medium text-foreground">
-                      {activeDeparture ? `${activeDeparture.startDate} — ${activeDeparture.endDate}` : "TBD"}
+                      {dateMode === "open_departure" && activeDeparture
+                        ? `${activeDeparture.startDate} — ${activeDeparture.endDate}`
+                        : dateMode === "custom_date" && customStartDate
+                        ? `${customStartDate} — ${computedCustomEndDate || customEndDate} (Tur Privat)`
+                        : "TBD"}
                     </span>
                   </div>
 
@@ -872,7 +1044,7 @@ export function BookingDrawer({
             <Button
               type="button"
               size="sm"
-              disabled={currentStep === 1 && !selectedDepartureId}
+              disabled={currentStep === 1 && !isDateSelected}
               onClick={() => setCurrentStep((prev) => (prev + 1) as any)}
               className="gap-1.5 px-6 shadow-md"
             >

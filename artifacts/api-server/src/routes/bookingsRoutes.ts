@@ -136,14 +136,45 @@ export function registerBookingsRoutes(app: Express): void {
       // (base + components + markup + fee), otherwise the tour base price.
       const partySize = Math.max(1, Number(req.body.partySizeExpected) || 1);
       let perPersonPrice: number | undefined;
+      let departureId = req.body.departureId || undefined;
+
+      // When customer chooses a custom date (customStartDate), auto-create a closed private departure
+      if (!departureId && req.body.customStartDate && req.body.tourId) {
+        const tourRow = await storage.getTour(req.body.tourId);
+        const duration = tourRow?.duration || 1;
+        const customStart = String(req.body.customStartDate);
+        let customEnd = req.body.customEndDate ? String(req.body.customEndDate) : "";
+        if (!customEnd) {
+          try {
+            const d = new Date(customStart);
+            d.setDate(d.getDate() + Math.max(0, duration - 1));
+            customEnd = d.toISOString().split("T")[0];
+          } catch {
+            customEnd = customStart;
+          }
+        }
+        const privateDep = await storage.createDeparture({
+          tourId: req.body.tourId,
+          startDate: customStart,
+          endDate: customEnd,
+          capacityTotal: partySize,
+          capacityBooked: partySize,
+          pricePerPerson: null,
+          departureAirportId: req.body.departureAirportId || undefined,
+          status: "closed",
+          publicJoinEnabled: false,
+          notes: `Private Departure created for Booking [${req.body.bookingType || "private_family"}]`,
+        });
+        departureId = privateDep.id;
+      }
+
       if (req.body.tourId) {
         let departurePrice: string | number | null = null;
-        if (req.body.departureId) {
-          const dep = await storage.getDeparture(req.body.departureId);
-          if (!dep || dep.tourId !== req.body.tourId) {
-            return res.status(400).json({ message: "Departure does not belong to this tour" });
+        if (departureId) {
+          const dep = await storage.getDeparture(departureId);
+          if (dep && dep.tourId === req.body.tourId) {
+            departurePrice = dep.pricePerPerson;
           }
-          departurePrice = dep.pricePerPerson;
         }
         let publicPerPersonBase: number | null = null;
         let tourBasePrice: string | number | null = null;
@@ -223,7 +254,8 @@ export function registerBookingsRoutes(app: Express): void {
       const computedTaxes = Math.round(((totalPrice ?? 0) * taxRate) / 100);
 
       const booking = await storage.createBooking({
-        ...req.body, 
+        ...req.body,
+        departureId: departureId || null, 
         customerId, 
         bookingCode, 
         joinCode, 

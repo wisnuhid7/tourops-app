@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import { PublicHeader } from "@/components/public-header";
-import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer, Plane, PlaneTakeoff, Flag, Bed, Bus, Utensils, User, CircleDollarSign, Languages, Star, Mail, Phone, Cake, Receipt } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, CheckCircle, Printer, Plane, PlaneTakeoff, Flag, Bed, Bus, Utensils, User, CircleDollarSign, Languages, Star, Mail, Phone, Cake, Receipt, Sparkles } from "lucide-react";
 import { getFullImageUrl, getGoogleMapsEmbedUrl } from "@/lib/utils";
 import { Link } from "wouter";
 import { useState, useRef, useEffect } from "react";
@@ -264,6 +264,7 @@ export default function TourDetail() {
 
   const [isBookingDrawerOpen, setIsBookingDrawerOpen] = useState(false);
   const [drawerDepartureId, setDrawerDepartureId] = useState("");
+  const [drawerDateMode, setDrawerDateMode] = useState<"open_departure" | "custom_date">("open_departure");
 
   const [showBooking, setShowBooking] = useState(false);
   const [bookingType, setBookingType] = useState("join_public_group");
@@ -517,8 +518,13 @@ export default function TourDetail() {
                 )}
                 <Button
                   onClick={() => {
-                    if (openDepartures.length > 0 && !drawerDepartureId) {
-                      setDrawerDepartureId(openDepartures[0].id);
+                    if (openDepartures.length > 0) {
+                      if (!drawerDepartureId) {
+                        setDrawerDepartureId(openDepartures[0].id);
+                      }
+                      setDrawerDateMode("open_departure");
+                    } else {
+                      setDrawerDateMode("custom_date");
                     }
                     setIsBookingDrawerOpen(true);
                   }}
@@ -703,9 +709,42 @@ export default function TourDetail() {
       {tourId && <TourHotelsSummary tourId={tourId} />}
 
       <div>
-        <h2 className="text-xl font-bold font-serif mb-4">{t("available_departures")}</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h2 className="text-xl font-bold font-serif">{t("available_departures")}</h2>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setDrawerDateMode("custom_date");
+              setIsBookingDrawerOpen(true);
+            }}
+            className="gap-1.5 text-xs text-primary border-primary/30 hover:bg-primary/5"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+            Pilih Tanggal Kustom Sendiri
+          </Button>
+        </div>
         {openDepartures.length === 0 ? (
-          <Card><CardContent className="flex flex-col items-center py-12"><Calendar className="h-10 w-10 text-muted-foreground/40 mb-3" /><p className="text-sm text-muted-foreground">{t("no_departures")}</p></CardContent></Card>
+          <Card>
+            <CardContent className="flex flex-col items-center py-10 text-center">
+              <Calendar className="h-10 w-10 text-muted-foreground/40 mb-3" />
+              <p className="text-sm font-semibold text-foreground mb-1">{t("no_departures") || "Belum ada jadwal keberangkatan"}</p>
+              <p className="text-xs text-muted-foreground max-w-sm mb-4">
+                Belum ada jadwal open-group aktif untuk tur ini. Anda tetap dapat memesan tur dengan menentukan tanggal keberangkatan kustom Anda sendiri (Private Tour).
+              </p>
+              <Button
+                onClick={() => {
+                  setDrawerDateMode("custom_date");
+                  setIsBookingDrawerOpen(true);
+                }}
+                className="gap-2 shadow-sm font-medium"
+                size="sm"
+              >
+                <Sparkles className="h-4 w-4 text-amber-300" />
+                Tentukan Tanggal Kustom Sendiri
+              </Button>
+            </CardContent>
+          </Card>
         ) : (
           <div className="space-y-2">
             {openDepartures.map((dep) => (
@@ -724,6 +763,7 @@ export default function TourDetail() {
                     <Button
                       onClick={() => {
                         setDrawerDepartureId(dep.id);
+                        setDrawerDateMode("open_departure");
                         setIsBookingDrawerOpen(true);
                       }}
                       data-testid={`button-book-${dep.id}`}
@@ -757,8 +797,13 @@ export default function TourDetail() {
           </div>
           <Button
             onClick={() => {
-              if (openDepartures.length > 0 && !drawerDepartureId) {
-                setDrawerDepartureId(openDepartures[0].id);
+              if (openDepartures.length > 0) {
+                if (!drawerDepartureId) {
+                  setDrawerDepartureId(openDepartures[0].id);
+                }
+                setDrawerDateMode("open_departure");
+              } else {
+                setDrawerDateMode("custom_date");
               }
               setIsBookingDrawerOpen(true);
             }}
@@ -778,6 +823,7 @@ export default function TourDetail() {
         departures={departures || []}
         tourHotels={tourHotels || []}
         initialDepartureId={drawerDepartureId}
+        initialDateMode={drawerDateMode}
       />
     </div>
   );

@@ -23,9 +23,9 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
-import { BOOKING_TYPES, BOOKING_STATUSES, SERVICE_TYPES, WORKFLOW_STATUSES, SERVICE_WORKFLOW_STEPS } from "@/lib/constants";
+import { BOOKING_TYPES, BOOKING_STATUSES, SERVICE_TYPES, WORKFLOW_STATUSES, SERVICE_WORKFLOW_STEPS, USER_ROLES } from "@/lib/constants";
 import type { Booking, Traveler, BookingWorkflow, WorkflowStep, Document, Message, Payment, UserProfile, BookingServiceRequest, BookingPaymentSchedule, Tour, TourDeparture } from "@workspace/db";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { DocumentPreview } from "@/components/DocumentPreview";
 
 const serviceIcons: Record<string, any> = {
@@ -106,6 +106,11 @@ export default function AdminBookingDetail() {
   const [recordingPaymentId, setRecordingPaymentId] = useState<string | null>(null);
   const [recordPaymentAmount, setRecordPaymentAmount] = useState("");
   const [activeTab, setActiveTab] = useState("summary");
+
+  const [managingWorkflow, setManagingWorkflow] = useState<BookingWorkflow | null>(null);
+  const [editWorkflowStatus, setEditWorkflowStatus] = useState<string>("not_assigned");
+  const [editWorkflowAssignee, setEditWorkflowAssignee] = useState<string>("none");
+  const [editWorkflowNotes, setEditWorkflowNotes] = useState<string>("");
 
   const { data: booking, isLoading } = useQuery<Booking>({ queryKey: ["/api/bookings", bookingId] });
   const { data: tour } = useQuery<Tour>({
@@ -359,6 +364,102 @@ export default function AdminBookingDetail() {
     return u?.companyName || u?.userId || userId;
   }
 
+  const getAdminServiceStatusPresentation = (status?: string | null) => {
+    switch (status) {
+      case "completed":
+        return {
+          label: t("service_status_ready") || "Selesai",
+          icon: CheckCircle,
+          badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300 font-medium",
+        };
+      case "in_progress":
+      case "blocked":
+        return {
+          label: t("service_status_in_progress") || "Diproses",
+          icon: Clock,
+          badgeClass: "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300 font-medium",
+        };
+      case "cancelled":
+        return {
+          label: t("service_status_cancelled") || "Dibatalkan",
+          icon: XCircle,
+          badgeClass: "border-border bg-muted text-muted-foreground",
+        };
+      case "assigned":
+      case "not_assigned":
+      default:
+        return {
+          label: t("service_status_pending") || "Menunggu",
+          icon: Clock,
+          badgeClass: "border-amber-200 bg-amber-50/70 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300 font-medium",
+        };
+    }
+  };
+
+  const getAssigneeRolePriority = (role?: string | null, serviceType?: string) => {
+    if (!role || !serviceType) return 99;
+    if (serviceType === "hotel" && (role === "hotel_manager" || role === "supplier")) return 1;
+    if ((serviceType === "airline" || serviceType === "flight") && (role === "airline_supplier" || role === "flight_agent" || role === "supplier")) return 1;
+    if (serviceType === "guide" && (role === "guide_manager" || role === "tour_leader" || role === "supplier")) return 1;
+    if (serviceType === "sights" && (role === "sights_manager" || role === "supplier")) return 1;
+    if (serviceType === "transport" && (role === "transport_manager" || role === "supplier")) return 1;
+    if (["supplier", "hotel_manager", "guide_manager", "sights_manager", "airline_supplier", "transport_manager"].includes(role)) return 2;
+    return 3;
+  };
+
+  const sortedAssignableUsers = useMemo(() => {
+    if (!allUsers) return [];
+    const serviceType = managingWorkflow?.serviceType;
+    return [...allUsers]
+      .filter((u) => u.role !== "customer")
+      .sort((a, b) => {
+        const prioA = getAssigneeRolePriority(a.role, serviceType);
+        const prioB = getAssigneeRolePriority(b.role, serviceType);
+        if (prioA !== prioB) return prioA - prioB;
+        const nameA = a.companyName || a.userId || "";
+        const nameB = b.companyName || b.userId || "";
+        return nameA.localeCompare(nameB);
+      });
+  }, [allUsers, managingWorkflow?.serviceType]);
+
+  const openManageWorkflow = (wf: BookingWorkflow) => {
+    setManagingWorkflow(wf);
+    let initialStatus = "not_assigned";
+    if (wf.status === "completed") {
+      initialStatus = "completed";
+    } else if (wf.status === "in_progress" || wf.status === "blocked") {
+      initialStatus = "in_progress";
+    } else if (wf.status === "cancelled") {
+      initialStatus = "cancelled";
+    } else {
+      initialStatus = "not_assigned";
+    }
+    setEditWorkflowStatus(initialStatus);
+    setEditWorkflowAssignee(wf.assignedUserId || "none");
+    setEditWorkflowNotes(wf.notes || "");
+  };
+
+  const handleSaveWorkflow = () => {
+    if (!managingWorkflow) return;
+    let finalStatus = editWorkflowStatus;
+    if (editWorkflowAssignee !== "none" && (editWorkflowStatus === "not_assigned" || !editWorkflowStatus)) {
+      finalStatus = "assigned";
+    } else if (editWorkflowAssignee === "none" && editWorkflowStatus === "assigned") {
+      finalStatus = "not_assigned";
+    }
+
+    updateWorkflow.mutate({
+      id: managingWorkflow.id,
+      status: finalStatus,
+      assignedUserId: editWorkflowAssignee === "none" ? null : editWorkflowAssignee,
+      notes: editWorkflowNotes,
+    }, {
+      onSuccess: () => {
+        setManagingWorkflow(null);
+      }
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="p-6 space-y-4">
@@ -383,8 +484,13 @@ export default function AdminBookingDetail() {
     return !travelerDocs || travelerDocs.length === 0;
   }).length || 0;
 
-  const blockedWorkflowsCount = workflows?.filter((wf) => wf.status === "blocked").length || 0;
-  const unassignedWorkflowCount = workflows?.filter((wf) => !wf.assignedUserId || wf.status === "not_assigned").length || 0;
+  const isLandOnly = Boolean(booking?.departureCity && booking.departureCity.toLowerCase().includes("land only"));
+  const displayedWorkflows = useMemo(() => {
+    return workflows?.filter((wf) => !(isLandOnly && wf.serviceType === "airline")) || [];
+  }, [workflows, isLandOnly]);
+
+  const blockedWorkflowsCount = displayedWorkflows.filter((wf) => wf.status === "blocked").length;
+  const unassignedWorkflowCount = displayedWorkflows.filter((wf) => !wf.assignedUserId || wf.status === "not_assigned").length;
   const pendingDocsCount = documents?.filter((doc) => doc.status === "uploaded").length || 0;
   const missingTravelerCount = Math.max(0, (booking.partySizeExpected || 1) - (travelers?.length || 0));
   const pendingPaymentCount = payments?.filter((payment) => payment.status === "pending").length || 0;
@@ -682,7 +788,7 @@ export default function AdminBookingDetail() {
         <TabsList className="w-full justify-start gap-1 rounded-xl border bg-card p-1.5 shadow-sm">
           <TabsTrigger value="summary" data-testid="tab-summary"><Info className="h-3.5 w-3.5 mr-1" />{t("summary")}</TabsTrigger>
           <TabsTrigger value="travelers" data-testid="tab-travelers"><Users className="h-3.5 w-3.5 mr-1" />{t("travelers")} <span className="ml-1 text-xs text-muted-foreground">{travelers?.length ?? "—"}</span></TabsTrigger>
-          <TabsTrigger value="fulfillment" data-testid="tab-fulfillment"><Workflow className="h-3.5 w-3.5 mr-1" />{t("service_status")} <span className="ml-1 text-xs text-muted-foreground">{workflows?.length ?? "—"}</span></TabsTrigger>
+          <TabsTrigger value="fulfillment" data-testid="tab-fulfillment"><Workflow className="h-3.5 w-3.5 mr-1" />{t("service_status")} <span className="ml-1 text-xs text-muted-foreground">{displayedWorkflows.length ?? "—"}</span></TabsTrigger>
           <TabsTrigger value="documents" data-testid="tab-documents"><FileText className="h-3.5 w-3.5 mr-1" />{t("documents")} <span className="ml-1 text-xs text-muted-foreground">{documents?.length ?? "—"}</span></TabsTrigger>
           {isAdmin && <TabsTrigger value="messages" data-testid="tab-messages"><MessageSquare className="h-3.5 w-3.5 mr-1" />{t("messages")}</TabsTrigger>}
           {isAdmin && <TabsTrigger value="payments" data-testid="tab-payments"><CreditCard className="h-3.5 w-3.5 mr-1" />{t("payments")}</TabsTrigger>}
@@ -1024,49 +1130,77 @@ export default function AdminBookingDetail() {
 
         {/* TAB D: Fulfillment */}
         <TabsContent value="fulfillment" className="mt-4">
-          {workflows && workflows.length > 0 ? (
+          {displayedWorkflows && displayedWorkflows.length > 0 ? (
             <div className="space-y-4">
-              <div className="flex flex-wrap items-end justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h2 className="text-lg font-semibold">{t("service_status")}</h2>
                   <p className="text-sm text-muted-foreground">{t("service_status_summary")}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">{workflows.filter((wf) => wf.status === "completed").length}/{workflows.length} {t("services_completed")}</p>
+                <div className="rounded-full border bg-background/90 px-3 py-1 text-xs font-medium text-muted-foreground shadow-xs">
+                  <span className="font-semibold text-foreground">{displayedWorkflows.filter((wf) => wf.status === "completed").length}/{displayedWorkflows.length}</span>{" "}
+                  <span>{t("services_completed")}</span>
+                </div>
               </div>
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              {workflows.map((wf) => {
+              {displayedWorkflows.map((wf) => {
                 const Icon = serviceIcons[wf.serviceType] || Workflow;
-                const steps = SERVICE_WORKFLOW_STEPS[wf.serviceType] || [];
-                const currentIdx = steps.findIndex((s) => s.code === wf.currentStep);
-                const progressIdx = wf.status === "completed" ? steps.length - 1 : currentIdx;
+                const presentation = getAdminServiceStatusPresentation(wf.status);
+                const StatusIcon = presentation.icon;
+                const assignedName = getUserName(wf.assignedUserId);
+
                 return (
-                  <Card key={wf.id} className="h-full border-border/80 flex flex-col justify-between" data-testid={`card-workflow-${wf.id}`}>
+                  <Card key={wf.id} className="h-full border-border/80 flex flex-col justify-between hover:bg-accent/5 transition-colors shadow-xs" data-testid={`card-workflow-${wf.id}`}>
                     <CardContent className="p-4 space-y-3">
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <div className="flex items-center gap-2.5">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                             <Icon className="h-4 w-4" />
                           </div>
-                          <span className="font-medium text-sm" data-testid={`text-workflow-type-${wf.id}`}>{SERVICE_TYPES[wf.serviceType]}</span>
+                          <div>
+                            <span className="font-semibold text-sm block" data-testid={`text-workflow-type-${wf.id}`}>
+                              {SERVICE_TYPES[wf.serviceType] || wf.serviceType}
+                            </span>
+                            {wf.countryCode && (
+                              <p className="text-[11px] text-muted-foreground" data-testid={`text-workflow-country-${wf.id}`}>
+                                {t("country_prefix")} {wf.countryCode}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge
-                            variant={wf.status === "completed" ? "default" : wf.status === "blocked" ? "destructive" : "outline"}
-                            data-testid={`badge-workflow-status-${wf.id}`}
-                          >
-                            {WORKFLOW_STATUSES[wf.status || "not_assigned"]}
-                          </Badge>
-                          <Link href={`/admin/workflows/${wf.id}`}>
-                            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 text-primary hover:text-primary" data-testid={`link-view-workflow-${wf.id}`}>
-                              <ExternalLink className="h-3 w-3" />
-                              <span>{t("view_workflow")}</span>
-                            </Button>
-                          </Link>
-                        </div>
+                        <Badge
+                          variant="outline"
+                          className={`gap-1.5 py-0.5 px-2.5 text-xs ${presentation.badgeClass}`}
+                          data-testid={`badge-workflow-status-${wf.id}`}
+                        >
+                          <StatusIcon className="h-3.5 w-3.5" />
+                          {presentation.label}
+                        </Badge>
                       </div>
-                      {wf.countryCode && (
-                        <p className="text-xs text-muted-foreground" data-testid={`text-workflow-country-${wf.id}`}>{t("country_prefix")} {wf.countryCode}</p>
+
+                      {wf.serviceType === "airline" && (
+                        <div className="p-2.5 rounded bg-sky-500/10 border border-sky-500/20 text-xs space-y-1.5" data-testid={`admin-airline-summary-${wf.id}`}>
+                          <div className="flex items-center gap-1.5 font-medium text-sky-800 dark:text-sky-300">
+                            <Plane className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                            <span>
+                              {booking.departureCity || "Jakarta (CGK)"} &rarr; {destination || tourTitle || "Destinasi Tour"}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-3 text-muted-foreground">
+                            {selectedDeparture?.startDate && (
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {format(new Date(selectedDeparture.startDate), "dd MMM")} - {selectedDeparture.endDate ? format(new Date(selectedDeparture.endDate), "dd MMM yyyy") : ""}
+                              </span>
+                            )}
+                            <span className="flex items-center gap-1">
+                              <Ticket className="h-3 w-3" />
+                              {booking.partySizeExpected || 1} Tiket (Pax)
+                            </span>
+                          </div>
+                        </div>
                       )}
+
                       {wf.serviceType === "hotel" && (
                         <div className="p-2.5 rounded bg-muted/40 border text-xs space-y-1" data-testid={`admin-hotel-summary-${wf.id}`}>
                           <div className="flex items-center gap-1.5 font-medium text-foreground">
@@ -1087,61 +1221,33 @@ export default function AdminBookingDetail() {
                           </div>
                         </div>
                       )}
-                      {steps.length > 0 && (
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                            <span>{t("workflow_steps")}</span>
-                            <span>{wf.status === "completed" ? t("done") : `${Math.max(0, progressIdx + 1)} / ${steps.length}`}</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                          {steps.map((step, i) => (
-                            <div
-                              key={step.code}
-                              className={`h-1.5 flex-1 rounded-full ${
-                                i <= progressIdx
-                                  ? wf.status === "blocked" ? "bg-destructive" : "bg-primary"
-                                  : "bg-muted"
-                              }`}
-                              title={step.name}
-                            />
-                          ))}
-                          </div>
-                        </div>
-                      )}
-                      <div className="space-y-2 border-t pt-2.5">
-                        {isOps ? (
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <span className="text-xs font-medium text-muted-foreground">{t("assigned_to")}:</span>
-                            <Select
-                              value={wf.assignedUserId || "none"}
-                              onValueChange={(val) => {
-                                updateWorkflow.mutate({
-                                  id: wf.id,
-                                  assignedUserId: val === "none" ? null : val,
-                                  status: val === "none" ? "not_assigned" : (wf.status === "not_assigned" ? "assigned" : wf.status),
-                                });
-                              }}
-                              disabled={updateWorkflow.isPending || booking.status === "cancelled"}
-                            >
-                              <SelectTrigger className="h-7 text-xs w-[170px]" data-testid={`select-workflow-assign-${wf.id}`}>
-                                <SelectValue placeholder={t("assign_to_placeholder")} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="none">{t("unassigned")}</SelectItem>
-                                {allUsers?.filter((u) => u.role !== "customer").map((u) => (
-                                  <SelectItem key={u.id} value={u.userId}>{u.companyName || u.userId}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        ) : (
-                          <p className="text-xs text-muted-foreground" data-testid={`text-workflow-assigned-${wf.id}`}>
-                            {t("assigned_label")} {getUserName(wf.assignedUserId) || t("unassigned")}
+
+                      <div className="border-t pt-2.5 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground truncate" data-testid={`text-workflow-assigned-${wf.id}`}>
+                            <span className="font-medium text-foreground">{t("assigned_to")}:</span>{" "}
+                            {wf.assignedUserId ? assignedName : <span className="italic">{t("unassigned")}</span>}
                           </p>
+                          {wf.notes && (
+                            <p className="text-[11px] text-muted-foreground/80 truncate mt-0.5">
+                              {wf.notes}
+                            </p>
+                          )}
+                        </div>
+
+                        {isOps && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs gap-1.5 shrink-0"
+                            onClick={() => openManageWorkflow(wf)}
+                            disabled={booking.status === "cancelled"}
+                            data-testid={`button-manage-workflow-${wf.id}`}
+                          >
+                            <Pencil className="h-3.5 w-3.5 text-primary" />
+                            <span>Kelola Layanan</span>
+                          </Button>
                         )}
-                        <p className="text-xs text-muted-foreground" data-testid={`text-workflow-step-${wf.id}`}>
-                          {t("step_label")} {steps.find((s) => s.code === wf.currentStep)?.name || wf.currentStep || t("service_status_pending")}
-                        </p>
                       </div>
                     </CardContent>
                   </Card>
@@ -2086,6 +2192,118 @@ export default function AdminBookingDetail() {
             >
               <XCircle className="h-4 w-4 mr-1.5" />
               {t("confirm_cancellation")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Kelola Layanan */}
+      <Dialog open={!!managingWorkflow} onOpenChange={(open) => !open && setManagingWorkflow(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-4 w-4 text-primary" />
+              Kelola Layanan: {managingWorkflow ? (SERVICE_TYPES[managingWorkflow.serviceType] || managingWorkflow.serviceType) : ""}
+            </DialogTitle>
+            <DialogDescription>
+              Atur status layanan dan staf yang ditugaskan secara langsung tanpa tahapan alur kerja rumit.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-xs font-semibold mb-1.5 block">Status Layanan</Label>
+              <Select value={editWorkflowStatus} onValueChange={setEditWorkflowStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih status layanan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="not_assigned">
+                    <span className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5 text-amber-500" />
+                      <span>Menunggu (Belum Ditugaskan / Menunggu Diterima Supplier)</span>
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="in_progress">
+                    <span className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5 text-sky-500" />
+                      <span>Diproses (Supplier Sedang Menyiapkan)</span>
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="completed">
+                    <span className="flex items-center gap-2">
+                      <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                      <span>Selesai (Siap & Terkonfirmasi)</span>
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="cancelled">
+                    <span className="flex items-center gap-2">
+                      <XCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span>Dibatalkan</span>
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <Label className="text-xs font-semibold block">{t("assigned_to")}</Label>
+                {managingWorkflow?.serviceType && (
+                  <span className="text-[11px] text-muted-foreground">
+                    Rekomendasi untuk <strong className="capitalize">{SERVICE_TYPES[managingWorkflow.serviceType] || managingWorkflow.serviceType}</strong>
+                  </span>
+                )}
+              </div>
+              <Select value={editWorkflowAssignee} onValueChange={setEditWorkflowAssignee}>
+                <SelectTrigger>
+                  <SelectValue placeholder={t("assign_to_placeholder")} />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  <SelectItem value="none">
+                    <span className="text-muted-foreground italic">-- {t("unassigned")} (Kosongkan) --</span>
+                  </SelectItem>
+                  {sortedAssignableUsers.map((u) => {
+                    const roleLabel = USER_ROLES[u.role || ""] || u.role;
+                    const isRecommended = getAssigneeRolePriority(u.role, managingWorkflow?.serviceType) === 1;
+                    return (
+                      <SelectItem key={u.id} value={u.userId}>
+                        <div className="flex items-center justify-between gap-3 w-full">
+                          <span className="font-medium">{u.companyName || u.userId}</span>
+                          <span className={`text-[11px] ${isRecommended ? "text-primary font-semibold" : "text-muted-foreground"}`}>
+                            {roleLabel} {isRecommended && "★"}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label className="text-xs font-semibold mb-1.5 block">Catatan Operasional (Opsional)</Label>
+              <Textarea
+                placeholder="Tambahkan catatan khusus layanan jika ada..."
+                value={editWorkflowNotes}
+                onChange={(e) => setEditWorkflowNotes(e.target.value)}
+                rows={3}
+                className="text-xs"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" size="sm" onClick={() => setManagingWorkflow(null)}>
+              {t("cancel") || "Batal"}
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSaveWorkflow}
+              disabled={updateWorkflow.isPending}
+              className="gap-1.5"
+            >
+              {updateWorkflow.isPending ? "Menyimpan..." : "Simpan Perubahan"}
             </Button>
           </DialogFooter>
         </DialogContent>

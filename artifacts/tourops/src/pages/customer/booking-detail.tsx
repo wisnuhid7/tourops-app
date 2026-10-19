@@ -588,40 +588,30 @@ export default function CustomerBookingDetail() {
     switch (status) {
       case "completed":
         return {
-          label: t("service_status_ready"),
-          description: t("service_status_ready_desc"),
+          label: t("service_status_ready") || "Selesai",
           icon: CheckCircle,
-          badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300",
-        };
-      case "blocked":
-        return {
-          label: t("service_status_attention"),
-          description: t("service_status_attention_desc"),
-          icon: AlertTriangle,
-          badgeClass: "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+          badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300 font-medium",
         };
       case "in_progress":
-      case "assigned":
+      case "blocked":
         return {
-          label: t("service_status_in_progress"),
-          description: t("service_status_in_progress_desc"),
+          label: t("service_status_in_progress") || "Diproses",
           icon: Clock,
-          badgeClass: "border-primary/30 bg-primary/5 text-primary",
+          badgeClass: "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300 font-medium",
         };
       case "cancelled":
         return {
-          label: t("service_status_cancelled"),
-          description: t("service_status_cancelled_desc"),
+          label: t("service_status_cancelled") || "Dibatalkan",
           icon: XCircle,
           badgeClass: "border-border bg-muted text-muted-foreground",
         };
+      case "assigned":
       case "not_assigned":
       default:
         return {
-          label: t("service_status_pending"),
-          description: t("service_status_pending_desc"),
+          label: t("service_status_pending") || "Menunggu",
           icon: Clock,
-          badgeClass: "border-border bg-background text-muted-foreground",
+          badgeClass: "border-amber-200 bg-amber-50/70 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300 font-medium",
         };
     }
   };
@@ -1029,93 +1019,100 @@ export default function CustomerBookingDetail() {
           </div>
 
           {workflows && workflows.length > 0 && (() => {
-            const completedServiceCount = workflows.filter((wf) => wf.status === "completed").length;
-            const servicesNeedingAttention = workflows.filter((wf) => wf.status === "blocked").length;
+            const isLandOnly = Boolean(booking?.departureCity && booking.departureCity.toLowerCase().includes("land only"));
+            const displayedWorkflows = workflows.filter((wf) => !(isLandOnly && wf.serviceType === "airline"));
+            if (displayedWorkflows.length === 0) return null;
+            const completedServiceCount = displayedWorkflows.filter((wf) => wf.status === "completed").length;
+            const destination = tour?.countries?.filter(Boolean).join(", ");
 
             return (
-              <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/[0.06] via-background to-background shadow-sm" data-testid="section-service-status">
+              <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/[0.04] via-background to-background shadow-sm" data-testid="section-service-status">
                 <CardContent className="p-4 sm:p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
                     <div>
-                      <h3 className="font-semibold">{t("service_status")}</h3>
-                      <p className="mt-1 max-w-xl text-sm text-muted-foreground">{t("service_status_summary")}</p>
+                      <h3 className="font-semibold text-base">{t("service_status")}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">{t("service_status_summary")}</p>
                     </div>
-                    <div className="flex flex-wrap gap-2 text-xs">
-                      <div className="rounded-md border bg-background/80 px-3 py-2">
-                        <span className="font-semibold text-foreground">{completedServiceCount}/{workflows.length}</span>{" "}
-                        <span className="text-muted-foreground">{t("services_completed")}</span>
-                      </div>
-                      <div className={`rounded-md border px-3 py-2 ${servicesNeedingAttention > 0 ? "border-amber-300 bg-amber-50/80 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300" : "bg-background/80"}`}>
-                        <span className="font-semibold">{servicesNeedingAttention}</span>{" "}
-                        <span>{t("services_need_attention")}</span>
-                      </div>
+                    <div className="rounded-full border bg-background/90 px-3 py-1 text-xs font-medium text-muted-foreground shadow-xs">
+                      <span className="font-semibold text-foreground">{completedServiceCount}/{displayedWorkflows.length}</span>{" "}
+                      <span>{t("services_completed")}</span>
                     </div>
                   </div>
 
-                  <div className="relative mt-5 space-y-3">
-                    {workflows.map((wf, index) => {
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {displayedWorkflows.map((wf) => {
                       const presentation = getServiceStatusPresentation(wf.status);
                       const ServiceIcon = SERVICE_ICONS[wf.serviceType] || Workflow;
                       const StatusIcon = presentation.icon;
-                      const status = wf.status || "not_assigned";
-                      const nextStep = status !== "completed" && status !== "cancelled"
-                        ? wf.currentStep || (status === "blocked" ? t("service_status_attention_next") : undefined)
-                        : undefined;
 
                       return (
-                        <div key={wf.id} className="relative flex gap-3" data-testid={`card-service-status-${wf.id}`}>
-                          {index < workflows.length - 1 && (
-                            <div className="absolute bottom-[-0.75rem] left-[1.1rem] top-10 w-px bg-border" aria-hidden="true" />
-                          )}
-                          <div className="relative z-10 mt-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border bg-background text-primary shadow-sm">
-                            <ServiceIcon className="h-4 w-4" />
-                          </div>
-                          <Card className="min-w-0 flex-1 border-border/80 bg-background/90">
-                            <CardContent className="p-4">
-                              <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div className="flex min-w-0 items-center gap-2">
-                                  <p className="truncate text-sm font-semibold">{t(`service_type_${wf.serviceType}` as any)}</p>
-                                  <Badge variant="outline" className={`shrink-0 gap-1 ${presentation.badgeClass}`}>
-                                    <StatusIcon className="h-3 w-3" />
-                                    {presentation.label}
-                                  </Badge>
+                        <Card key={wf.id} className="border-border/70 bg-card hover:bg-accent/5 transition-colors shadow-xs" data-testid={`card-service-status-${wf.id}`}>
+                          <CardContent className="p-3.5">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-3 min-w-0">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                  <ServiceIcon className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold text-foreground truncate">{t(`service_type_${wf.serviceType}` as any)}</p>
+                                  {wf.updatedAt && (
+                                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                                      {t("updated_label")} {new Date(wf.updatedAt).toLocaleDateString()}
+                                    </p>
+                                  )}
                                 </div>
                               </div>
-                              <p className="mt-2 text-sm text-muted-foreground">{presentation.description}</p>
-                              {nextStep && (
-                                <p className="mt-2 text-xs font-medium text-foreground/80">
-                                  <span className="text-primary">{t("service_status_next_prefix")}</span>{" "}{nextStep}
-                                </p>
-                              )}
-                              {wf.serviceType === "hotel" && (
-                                <div className="mt-3 p-3 bg-muted/40 rounded-md border text-xs space-y-1.5" data-testid="hotel-workflow-service-info">
-                                  <div className="flex items-center gap-2 font-medium text-foreground">
-                                    <Hotel className="h-3.5 w-3.5 text-primary" />
-                                    <span>{tourHotels && tourHotels.length > 0 ? tourHotels.map((h: any) => h.name).join(", ") : t("hotel_information")}</span>
-                                  </div>
-                                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
-                                    <span className="flex items-center gap-1">
-                                      <Bed className="h-3 w-3" />
-                                      {roomsNeeded} {t("rooms_summary")} ({booking.roomType ? t((booking.roomType === "matrimonial" ? "room_matrimonial" : booking.roomType === "doble" ? "room_double" : "room_triple") as any) : "Standard"})
-                                    </span>
-                                    {departure?.startDate && (
-                                      <span className="flex items-center gap-1">
-                                        <Clock className="h-3 w-3" />
-                                        {format(new Date(departure.startDate), "dd MMM")} - {departure.endDate ? format(new Date(departure.endDate), "dd MMM yyyy") : ""}
-                                      </span>
-                                    )}
-                                  </div>
+                              <Badge variant="outline" className={`shrink-0 gap-1.5 py-0.5 px-2.5 text-xs ${presentation.badgeClass}`}>
+                                <StatusIcon className="h-3.5 w-3.5" />
+                                {presentation.label}
+                              </Badge>
+                            </div>
+
+                            {wf.serviceType === "airline" && (
+                              <div className="mt-3 p-3 bg-sky-500/10 rounded-md border border-sky-500/20 text-xs space-y-1.5" data-testid="airline-workflow-service-info">
+                                <div className="flex items-center gap-2 font-medium text-sky-800 dark:text-sky-300">
+                                  <Plane className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                                  <span>
+                                    {booking.departureCity || "Jakarta (CGK)"} &rarr; {destination || (tour ? lt(tour, "title") : "Destinasi Tour")}
+                                  </span>
                                 </div>
-                              )}
-                              {wf.updatedAt && (
-                                <p className="mt-3 flex items-center gap-1 text-[11px] text-muted-foreground">
-                                  <Clock className="h-3 w-3" />
-                                  {t("updated_label")} {new Date(wf.updatedAt).toLocaleString()}
-                                </p>
-                              )}
-                            </CardContent>
-                          </Card>
-                        </div>
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
+                                  {departure?.startDate && (
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {format(new Date(departure.startDate), "dd MMM")} - {departure.endDate ? format(new Date(departure.endDate), "dd MMM yyyy") : ""}
+                                    </span>
+                                  )}
+                                  <span className="flex items-center gap-1">
+                                    <Ticket className="h-3 w-3" />
+                                    {booking.partySizeExpected || 1} Tiket (Pax)
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            {wf.serviceType === "hotel" && (
+                              <div className="mt-3 p-3 bg-muted/30 rounded-md border text-xs space-y-1.5" data-testid="hotel-workflow-service-info">
+                                <div className="flex items-center gap-2 font-medium text-foreground">
+                                  <Hotel className="h-3.5 w-3.5 text-primary" />
+                                  <span>{tourHotels && tourHotels.length > 0 ? tourHotels.map((h: any) => h.name).join(", ") : t("hotel_information")}</span>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <Bed className="h-3 w-3" />
+                                    {roomsNeeded} {t("rooms_summary")} ({booking.roomType ? t((booking.roomType === "matrimonial" ? "room_matrimonial" : booking.roomType === "doble" ? "room_double" : "room_triple") as any) : "Standard"})
+                                  </span>
+                                  {departure?.startDate && (
+                                    <span className="flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {format(new Date(departure.startDate), "dd MMM")} - {departure.endDate ? format(new Date(departure.endDate), "dd MMM yyyy") : ""}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
                       );
                     })}
                   </div>

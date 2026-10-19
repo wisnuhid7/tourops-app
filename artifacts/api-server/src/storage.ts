@@ -180,7 +180,7 @@ export interface IStorage {
   getWorkflows(bookingId: string): Promise<BookingWorkflow[]>;
   getWorkflowsByUser(userId: string): Promise<(BookingWorkflow & { 
     booking?: Booking;
-    tour?: { id: string; title: string; duration?: number };
+    tour?: { id: string; title: string; duration?: number; countries?: string[] | null };
     departure?: { id: string; startDate: string; endDate: string };
     hotels?: Array<{ id: string; name: string; starRating: number | null; cityId: string; address: string | null; contactPhone: string | null; contactEmail: string | null }>;
     roomsNeeded?: number;
@@ -814,7 +814,7 @@ export class DatabaseStorage implements IStorage {
 
   async getWorkflowsByUser(userId: string): Promise<(BookingWorkflow & { 
     booking?: Booking;
-    tour?: { id: string; title: string; duration?: number };
+    tour?: { id: string; title: string; duration?: number; countries?: string[] | null };
     departure?: { id: string; startDate: string; endDate: string };
     hotels?: Array<{ id: string; name: string; starRating: number | null; cityId: string; address: string | null; contactPhone: string | null; contactEmail: string | null }>;
     roomsNeeded?: number;
@@ -890,6 +890,7 @@ export class DatabaseStorage implements IStorage {
           id: r.tour.id,
           title: r.tour.title,
           duration: r.tour.duration,
+          countries: r.tour.countries,
         } : undefined,
         departure: r.departure ? {
           id: r.departure.id,
@@ -1582,7 +1583,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async initializeBookingWorkflows(bookingId: string): Promise<void> {
-    const serviceTypes = ["airline", "hotel", "transport", "guide", "sights"] as const;
+    const [booking] = await db.select().from(bookings).where(eq(bookings.id, bookingId));
+    const isLandOnly = Boolean(
+      booking?.departureCity && booking.departureCity.toLowerCase().includes("land only")
+    );
+
+    const allServiceTypes = ["airline", "hotel", "transport", "guide", "sights"] as const;
+    const serviceTypes = isLandOnly
+      ? (["hotel", "transport", "guide", "sights"] as const)
+      : allServiceTypes;
     
     // Check existing workflows to avoid duplicates
     const existing = await db.select().from(bookingWorkflows).where(eq(bookingWorkflows.bookingId, bookingId));

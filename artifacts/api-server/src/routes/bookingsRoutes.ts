@@ -273,6 +273,13 @@ export function registerBookingsRoutes(app: Express): void {
         fulfillmentStatus: req.body.fulfillmentStatus || ("pending" as const),
       });
 
+      // Automatically initialize booking service workflows immediately upon submission
+      try {
+        await storage.initializeBookingWorkflows(booking.id);
+      } catch (wfErr) {
+        console.error("Failed to initialize booking workflows:", wfErr);
+      }
+
       if (req.body.bookingType === "leader_group") {
         const customerProfileToUpdate = await storage.getProfileByUserId(customerId);
         if (customerProfileToUpdate) {

@@ -17,7 +17,7 @@ import {
   ChevronRight, Calendar, User, Search, Globe,
   UserCheck, Ticket, Download, FileCheck, AlertTriangle,
   DollarSign, Bell, Plus, Trash2, Pencil,
-  Bed, LayoutGrid, List, Phone, Mail, Building
+  Bed, LayoutGrid, List, Phone, Mail, Building, XCircle
 } from "lucide-react";
 import { SightsTab } from "@/pages/admin/master-data";
 import { AirlinesCatalogTab } from "@/pages/supplier/airlines-catalog";
@@ -62,7 +62,7 @@ export default function SupplierDashboard() {
 
   const { data: workflows, isLoading } = useQuery<(BookingWorkflow & { 
     booking?: Booking;
-    tour?: { id: string; title: string; durationDays: number; durationNights: number };
+    tour?: { id: string; title: string; durationDays: number; durationNights: number; countries?: string[] | null };
     departure?: { id: string; startDate: string; endDate: string };
     hotels?: Array<{ id: string; name: string; starRating: number | null; cityId: string; address: string | null; contactPhone: string | null; contactEmail: string | null }>;
     roomsNeeded?: number;
@@ -79,6 +79,69 @@ export default function SupplierDashboard() {
       toast({ title: t("workflow_updated") });
     },
   });
+
+  const acceptTask = useMutation({
+    mutationFn: (workflowId: string) =>
+      apiRequest("PATCH", `/api/workflows/${workflowId}`, { status: "in_progress" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/supplier/workflows"] });
+      toast({
+        title: "Tugas Berhasil Diterima!",
+        description: "Status layanan kini berubah menjadi Diproses.",
+      });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const completeTask = useMutation({
+    mutationFn: (workflowId: string) =>
+      apiRequest("PATCH", `/api/workflows/${workflowId}`, { status: "completed" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/supplier/workflows"] });
+      toast({
+        title: "Tugas Ditandai Selesai!",
+        description: "Status layanan telah rampung dan terkonfirmasi.",
+      });
+    },
+    onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
+  });
+
+  const getSupplierTaskStatus = (status?: string | null) => {
+    switch (status) {
+      case "completed":
+        return {
+          label: "Selesai",
+          icon: CheckCircle2,
+          badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300",
+        };
+      case "in_progress":
+        return {
+          label: "Diproses",
+          icon: Clock,
+          badgeClass: "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300",
+        };
+      case "blocked":
+        return {
+          label: "Kendala",
+          icon: AlertTriangle,
+          badgeClass: "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300",
+        };
+      case "cancelled":
+        return {
+          label: "Dibatalkan",
+          icon: XCircle,
+          badgeClass: "border-border bg-muted text-muted-foreground",
+        };
+      case "assigned":
+      case "not_assigned":
+      default:
+        return {
+          label: "Tugas Baru",
+          icon: Clock,
+          badgeClass: "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300 font-semibold",
+        };
+    }
+  };
 
   const search = useSearch();
   // Deep-link support: /supplier?tab=guide_rates opens directly on that tab
@@ -535,11 +598,10 @@ export default function SupplierDashboard() {
                   <TableRow>
                     <TableHead className="w-[140px]">{t("booking_code_label")}</TableHead>
                     <TableHead>{t("tour")} & {t("hotel_information")}</TableHead>
-                    <TableHead className="w-[200px]">{t("room_type_and_count")}</TableHead>
-                    <TableHead className="w-[180px]">{t("stay_dates")}</TableHead>
-                    <TableHead className="w-[140px]">{t("step_label")}</TableHead>
-                    <TableHead className="w-[160px]">{t("status")}</TableHead>
-                    <TableHead className="text-right w-[170px]">{t("actions")}</TableHead>
+                    <TableHead className="w-[180px]">{t("room_type_and_count")}</TableHead>
+                    <TableHead className="w-[170px]">{t("stay_dates")}</TableHead>
+                    <TableHead className="w-[140px]">{t("status")}</TableHead>
+                    <TableHead className="text-right w-[240px]">{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -585,6 +647,19 @@ export default function SupplierDashboard() {
                                   </p>
                                 )}
                               </div>
+                            ) : wf.serviceType === "airline" ? (
+                              <div className="space-y-0.5">
+                                <div className="flex items-center gap-1.5 text-xs text-sky-700 dark:text-sky-300 font-semibold">
+                                  <Plane className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
+                                  <span className="truncate" title={`${wf.booking?.departureCity || "Jakarta (CGK)"} → ${wf.tour?.countries?.join(", ") || wf.tour?.title || "Destinasi Tour"}`}>
+                                    {wf.booking?.departureCity || "Jakarta (CGK)"} &rarr; {wf.tour?.countries?.join(", ") || wf.tour?.title || "Destinasi Tour"}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                  <Ticket className="h-3 w-3" />
+                                  {wf.booking?.partySizeExpected ?? 1} Tiket Penerbangan PP
+                                </p>
+                              </div>
                             ) : (
                               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                 <Icon className="h-3.5 w-3.5 shrink-0" />
@@ -594,19 +669,31 @@ export default function SupplierDashboard() {
                           </div>
                         </TableCell>
                         <TableCell className="align-top py-3.5">
-                          <div className="space-y-1 text-xs">
-                            <div className="font-semibold flex items-center gap-1.5">
-                              <Bed className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span>{wf.roomsNeeded || 1} {t("room_units_count")}</span>
-                              <Badge variant="outline" className="text-[10px] px-1 py-0 capitalize">
-                                {roomTypeLabel}
-                              </Badge>
+                          {wf.serviceType === "airline" ? (
+                            <div className="space-y-1 text-xs">
+                              <div className="font-semibold flex items-center gap-1.5 text-sky-800 dark:text-sky-300">
+                                <Ticket className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
+                                <span>{wf.booking?.partySizeExpected ?? 1} Tiket (Pax)</span>
+                              </div>
+                              <p className="text-muted-foreground text-[11px] truncate max-w-[170px]" title={wf.booking?.departureCity || "Jakarta (CGK)"}>
+                                Hub: {wf.booking?.departureCity || "Jakarta (CGK)"}
+                              </p>
                             </div>
-                            <p className="text-muted-foreground flex items-center gap-1 text-[11px]">
-                              <Users className="h-3 w-3" />
-                              <span>{wf.booking?.partySizeExpected ?? 1} {t("pax_suffix")}</span>
-                            </p>
-                          </div>
+                          ) : (
+                            <div className="space-y-1 text-xs">
+                              <div className="font-semibold flex items-center gap-1.5">
+                                <Bed className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span>{wf.roomsNeeded || 1} {t("room_units_count")}</span>
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 capitalize">
+                                  {roomTypeLabel}
+                                </Badge>
+                              </div>
+                              <p className="text-muted-foreground flex items-center gap-1 text-[11px]">
+                                <Users className="h-3 w-3" />
+                                <span>{wf.booking?.partySizeExpected ?? 1} {t("pax_suffix")}</span>
+                              </p>
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell className="align-top py-3.5">
                           <div className="space-y-0.5 text-xs">
@@ -626,27 +713,51 @@ export default function SupplierDashboard() {
                           </div>
                         </TableCell>
                         <TableCell className="align-top py-3.5">
-                          <span className="text-xs font-medium truncate block max-w-[130px]">
-                            {wf.currentStep || t("awaiting_action_label")}
-                          </span>
-                        </TableCell>
-                        <TableCell className="align-top py-3.5">
-                          <Select
-                            value={wf.status || "assigned"}
-                            onValueChange={(v) => updateWorkflow.mutate({ id: wf.id, status: v })}
-                          >
-                            <SelectTrigger className="h-8 text-xs rounded-lg border-muted bg-background">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {Object.entries(WORKFLOW_STATUSES).map(([k, v]) => (
-                                <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          {(() => {
+                            const statusPres = getSupplierTaskStatus(wf.status);
+                            const StatusIcon = statusPres.icon;
+                            return (
+                              <div className="space-y-1">
+                                <Badge variant="outline" className={`gap-1 px-2 py-0.5 text-xs ${statusPres.badgeClass}`}>
+                                  <StatusIcon className="h-3 w-3" />
+                                  <span>{statusPres.label}</span>
+                                </Badge>
+                                {(wf.status === "assigned" || wf.status === "not_assigned" || !wf.status) && (
+                                  <p className="text-[10px] text-amber-700 dark:text-amber-400 font-medium">
+                                    Tugas baru
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </TableCell>
                         <TableCell className="text-right align-top py-3.5">
-                          <div className="flex items-center justify-end gap-1.5">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            {(wf.status === "assigned" || wf.status === "not_assigned" || !wf.status) ? (
+                              <Button 
+                                size="sm" 
+                                className="h-8 px-2.5 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs"
+                                onClick={() => acceptTask.mutate(wf.id)}
+                                disabled={acceptTask.isPending}
+                                data-testid={`button-accept-task-${wf.id}`}
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span>Terima Tugas</span>
+                              </Button>
+                            ) : wf.status === "in_progress" ? (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                className="h-8 px-2.5 text-xs gap-1 text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 font-medium"
+                                onClick={() => completeTask.mutate(wf.id)}
+                                disabled={completeTask.isPending}
+                                data-testid={`button-complete-task-${wf.id}`}
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                <span>Selesaikan</span>
+                              </Button>
+                            ) : null}
+
                             <Button 
                               size="sm" 
                               variant="outline" 
@@ -702,15 +813,18 @@ export default function SupplierDashboard() {
                         }`} />
                         <CardHeader className="pb-3">
                           <div className="flex justify-between items-start mb-2">
-                            <Badge variant="outline" className={`capitalize font-bold border-none px-2 py-0.5 ${
-                              wf.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : 
-                              wf.status === 'blocked' ? 'bg-rose-100 text-rose-700' : 
-                              'bg-amber-100 text-amber-700'
-                            }`}>
-                              {(wf.status || 'pending').replace('_', ' ')}
-                            </Badge>
+                            {(() => {
+                              const statusPres = getSupplierTaskStatus(wf.status);
+                              const StatusIcon = statusPres.icon;
+                              return (
+                                <Badge variant="outline" className={`gap-1 px-2 py-0.5 text-xs font-semibold ${statusPres.badgeClass}`}>
+                                  <StatusIcon className="h-3 w-3" />
+                                  <span>{statusPres.label}</span>
+                                </Badge>
+                              );
+                            })()}
                             <span className="text-[10px] font-mono text-muted-foreground uppercase">
-                              BK-{wf.bookingId?.slice(0, 8)}
+                              {wf.booking?.bookingCode || `BK-${wf.bookingId?.slice(0, 8)}`}
                             </span>
                           </div>
                           <CardTitle className="text-lg flex items-center gap-2 group-hover:text-primary transition-colors">
@@ -729,6 +843,28 @@ export default function SupplierDashboard() {
                               </p>
                             )}
 
+                            {wf.serviceType === "airline" && (
+                              <div className="p-2.5 rounded-lg bg-sky-500/10 border border-sky-500/20 text-xs space-y-1" data-testid={`card-airline-summary-${wf.id}`}>
+                                <div className="flex items-center gap-1.5 font-semibold text-sky-800 dark:text-sky-300">
+                                  <Plane className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                                  <span className="truncate">
+                                    {wf.booking?.departureCity || "Jakarta (CGK)"} &rarr; {wf.tour?.countries?.join(", ") || wf.tour?.title || "Destinasi Tour"}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <Ticket className="h-3 w-3" />
+                                    {wf.booking?.partySizeExpected ?? 1} Tiket (Pax)
+                                  </span>
+                                  {wf.departure?.startDate && (
+                                    <span>
+                                      {format(new Date(wf.departure.startDate), "dd MMM")} - {wf.departure.endDate ? format(new Date(wf.departure.endDate), "dd MMM yyyy") : ""}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
                             {wf.serviceType === "hotel" && hotelNames && (
                               <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/10 text-xs space-y-1">
                                 <div className="flex items-center gap-1.5 font-semibold text-primary">
@@ -744,52 +880,60 @@ export default function SupplierDashboard() {
                               </div>
                             )}
 
-                            <div className="grid grid-cols-2 gap-3 text-xs bg-slate-50 dark:bg-slate-800/50 p-3 rounded-lg border">
-                              <div>
-                                <p className="text-muted-foreground font-bold uppercase tracking-tighter mb-0.5">{t("participants_label")}</p>
-                                <p className="font-bold flex items-center gap-1">
-                                  <Users className="h-3 w-3" />
-                                  {wf.booking?.partySizeExpected ?? "-"} {t("pax_suffix")}
-                                </p>
+                            <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 rounded-lg border bg-slate-50 dark:bg-slate-800/50 text-xs">
+                              <div className="flex items-center gap-1.5 font-medium">
+                                <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span>{wf.booking?.partySizeExpected ?? "-"} {t("pax_suffix")}</span>
                               </div>
-                              <div>
-                                <p className="text-muted-foreground font-bold uppercase tracking-tighter mb-0.5">{t("step_label")}</p>
-                                <p className="font-bold truncate">{wf.currentStep || t("awaiting_action_label")}</p>
-                              </div>
+                              <span className="text-muted-foreground text-[11px]">
+                                {wf.departure?.startDate ? format(new Date(wf.departure.startDate), "dd MMM yyyy") : "-"}
+                              </span>
                             </div>
 
-                            <div className="flex gap-2">
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="flex-1 rounded-full hover:bg-primary hover:text-white transition-colors"
-                                onClick={() => setSelectedBookingId(wf.bookingId || null)}
-                              >
-                                {t("manifest_button")}
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="flex-1 rounded-full shadow-sm"
-                                onClick={() => setUploadWorkflowId(wf.id)}
-                              >
-                                {t("upload_button")}
-                              </Button>
-                            </div>
-                            
-                            <div className="pt-2 border-t">
-                              <Select
-                                value={wf.status || "assigned"}
-                                onValueChange={(v) => updateWorkflow.mutate({ id: wf.id, status: v })}
-                              >
-                                <SelectTrigger className="h-8 text-xs rounded-full border-none bg-slate-100 dark:bg-slate-800">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {Object.entries(WORKFLOW_STATUSES).map(([k, v]) => (
-                                    <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                            <div className="flex flex-col gap-2 pt-1">
+                              {(wf.status === "assigned" || wf.status === "not_assigned" || !wf.status) ? (
+                                <Button 
+                                  size="sm" 
+                                  className="w-full rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-xs gap-1.5 h-9"
+                                  onClick={() => acceptTask.mutate(wf.id)}
+                                  disabled={acceptTask.isPending}
+                                  data-testid={`button-accept-task-card-${wf.id}`}
+                                >
+                                  <CheckCircle2 className="h-4 w-4" />
+                                  <span>Terima Tugas</span>
+                                </Button>
+                              ) : wf.status === "in_progress" ? (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="w-full rounded-full text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 font-semibold gap-1.5 h-9"
+                                  onClick={() => completeTask.mutate(wf.id)}
+                                  disabled={completeTask.isPending}
+                                  data-testid={`button-complete-task-card-${wf.id}`}
+                                >
+                                  <CheckCircle2 className="h-4 w-4" />
+                                  <span>Tandai Selesai</span>
+                                </Button>
+                              ) : null}
+
+                              <div className="flex gap-2">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="flex-1 rounded-full hover:bg-primary hover:text-white transition-colors"
+                                  onClick={() => setSelectedBookingId(wf.bookingId || null)}
+                                >
+                                  {t("manifest_button")}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="flex-1 rounded-full shadow-sm"
+                                  onClick={() => setUploadWorkflowId(wf.id)}
+                                >
+                                  {t("upload_button")}
+                                </Button>
+                              </div>
                             </div>
                           </div>
                         </CardContent>

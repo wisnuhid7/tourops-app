@@ -25,7 +25,7 @@ import { WORKFLOW_STATUSES } from "@/lib/constants";
 import type { BookingWorkflow, Booking, UserProfile, Traveler, Document } from "@workspace/db";
 import { Link, useSearch } from "wouter";
 import { useState, useEffect, useMemo } from "react";
-import { getFullImageUrl } from "@/lib/utils";
+import { getFullImageUrl, getFlightSchedule } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -647,20 +647,31 @@ export default function SupplierDashboard() {
                                   </p>
                                 )}
                               </div>
-                            ) : wf.serviceType === "airline" ? (
-                              <div className="space-y-0.5">
-                                <div className="flex items-center gap-1.5 text-xs text-sky-700 dark:text-sky-300 font-semibold">
-                                  <Plane className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
-                                  <span className="truncate" title={`${wf.booking?.departureCity || "Jakarta (CGK)"} → ${wf.tour?.countries?.join(", ") || wf.tour?.title || "Destinasi Tour"}`}>
-                                    {wf.booking?.departureCity || "Jakarta (CGK)"} &rarr; {wf.tour?.countries?.join(", ") || wf.tour?.title || "Destinasi Tour"}
-                                  </span>
+                            ) : wf.serviceType === "airline" ? (() => {
+                              const flightSched = getFlightSchedule(
+                                wf.departure?.startDate,
+                                wf.departure?.endDate,
+                                wf.tour?.countries,
+                                wf.tour?.title
+                              );
+                              return (
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center gap-1.5 text-xs text-sky-700 dark:text-sky-300 font-semibold">
+                                    <Plane className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
+                                    <span className="truncate" title={`${wf.booking?.departureCity || "Jakarta (CGK)"} → ${wf.tour?.countries?.join(", ") || wf.tour?.title || "Destinasi Tour"}`}>
+                                      {wf.booking?.departureCity || "Jakarta (CGK)"} &rarr; {wf.tour?.countries?.join(", ") || wf.tour?.title || "Destinasi Tour"}
+                                    </span>
+                                    <Badge variant="outline" className={`text-[9px] px-1 py-0 ml-1 shrink-0 ${flightSched.isInternational ? "border-indigo-300 text-indigo-700 dark:text-indigo-300" : "border-emerald-300 text-emerald-700 dark:text-emerald-300"}`}>
+                                      {flightSched.routeTypeLabel}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                    <Ticket className="h-3 w-3" />
+                                    {wf.booking?.partySizeExpected ?? 1} Tiket PP &bull; {flightSched.tagLabel}
+                                  </p>
                                 </div>
-                                <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                                  <Ticket className="h-3 w-3" />
-                                  {wf.booking?.partySizeExpected ?? 1} Tiket Penerbangan PP
-                                </p>
-                              </div>
-                            ) : (
+                              );
+                            })() : (
                               <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                 <Icon className="h-3.5 w-3.5 shrink-0" />
                                 <span className="capitalize">{wf.serviceType}</span>
@@ -696,21 +707,46 @@ export default function SupplierDashboard() {
                           )}
                         </TableCell>
                         <TableCell className="align-top py-3.5">
-                          <div className="space-y-0.5 text-xs">
-                            {wf.departure?.startDate ? (
-                              <>
-                                <p className="font-medium text-slate-800 dark:text-slate-200">
-                                  {format(new Date(wf.departure.startDate), "dd MMM yyyy")}
-                                </p>
-                                <p className="text-muted-foreground text-[11px]">
-                                  {wf.departure?.endDate ? `→ ${format(new Date(wf.departure.endDate), "dd MMM yyyy")}` : ""}
-                                  {wf.tour?.durationNights ? ` (${wf.tour.durationNights}N)` : ""}
-                                </p>
-                              </>
-                            ) : (
-                              <span className="text-muted-foreground">-</span>
-                            )}
-                          </div>
+                          {wf.serviceType === "airline" ? (() => {
+                            const flightSched = getFlightSchedule(
+                              wf.departure?.startDate,
+                              wf.departure?.endDate,
+                              wf.tour?.countries,
+                              wf.tour?.title
+                            );
+                            return (
+                              <div className="space-y-0.5 text-xs">
+                                {flightSched.flightDepartureDate ? (
+                                  <>
+                                    <p className="font-medium text-sky-900 dark:text-sky-200">
+                                      {format(flightSched.flightDepartureDate, "dd MMM yyyy")} <span className="text-[10px] text-sky-600 dark:text-sky-400">({flightSched.tagLabel})</span>
+                                    </p>
+                                    <p className="text-muted-foreground text-[11px]">
+                                      {flightSched.flightReturnDate ? `→ ${format(flightSched.flightReturnDate, "dd MMM yyyy")}` : ""}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </div>
+                            );
+                          })() : (
+                            <div className="space-y-0.5 text-xs">
+                              {wf.departure?.startDate ? (
+                                <>
+                                  <p className="font-medium text-slate-800 dark:text-slate-200">
+                                    {format(new Date(wf.departure.startDate), "dd MMM yyyy")}
+                                  </p>
+                                  <p className="text-muted-foreground text-[11px]">
+                                    {wf.departure?.endDate ? `→ ${format(new Date(wf.departure.endDate), "dd MMM yyyy")}` : ""}
+                                    {wf.tour?.durationNights ? ` (${wf.tour.durationNights}N)` : ""}
+                                  </p>
+                                </>
+                              ) : (
+                                <span className="text-muted-foreground">-</span>
+                              )}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell className="align-top py-3.5">
                           {(() => {
@@ -843,27 +879,40 @@ export default function SupplierDashboard() {
                               </p>
                             )}
 
-                            {wf.serviceType === "airline" && (
-                              <div className="p-2.5 rounded-lg bg-sky-500/10 border border-sky-500/20 text-xs space-y-1" data-testid={`card-airline-summary-${wf.id}`}>
-                                <div className="flex items-center gap-1.5 font-semibold text-sky-800 dark:text-sky-300">
-                                  <Plane className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
-                                  <span className="truncate">
-                                    {wf.booking?.departureCity || "Jakarta (CGK)"} &rarr; {wf.tour?.countries?.join(", ") || wf.tour?.title || "Destinasi Tour"}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                                  <span className="flex items-center gap-1">
-                                    <Ticket className="h-3 w-3" />
-                                    {wf.booking?.partySizeExpected ?? 1} Tiket (Pax)
-                                  </span>
-                                  {wf.departure?.startDate && (
-                                    <span>
-                                      {format(new Date(wf.departure.startDate), "dd MMM")} - {wf.departure.endDate ? format(new Date(wf.departure.endDate), "dd MMM yyyy") : ""}
+                            {wf.serviceType === "airline" && (() => {
+                              const flightSched = getFlightSchedule(
+                                wf.departure?.startDate,
+                                wf.departure?.endDate,
+                                wf.tour?.countries,
+                                wf.tour?.title
+                              );
+                              return (
+                                <div className="p-2.5 rounded-lg bg-sky-500/10 border border-sky-500/20 text-xs space-y-1" data-testid={`card-airline-summary-${wf.id}`}>
+                                  <div className="flex items-center justify-between gap-1 font-semibold text-sky-800 dark:text-sky-300">
+                                    <div className="flex items-center gap-1.5 min-w-0">
+                                      <Plane className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                                      <span className="truncate">
+                                        {wf.booking?.departureCity || "Jakarta (CGK)"} &rarr; {wf.tour?.countries?.join(", ") || wf.tour?.title || "Destinasi Tour"}
+                                      </span>
+                                    </div>
+                                    <Badge variant="outline" className={`text-[10px] px-1 py-0 shrink-0 ${flightSched.isInternational ? "border-indigo-300 text-indigo-700 dark:text-indigo-300" : "border-emerald-300 text-emerald-700 dark:text-emerald-300"}`}>
+                                      {flightSched.routeTypeLabel}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
+                                    <span className="flex items-center gap-1">
+                                      <Ticket className="h-3 w-3" />
+                                      {wf.booking?.partySizeExpected ?? 1} Tiket (Pax)
                                     </span>
-                                  )}
+                                    {flightSched.flightDepartureDate && (
+                                      <span>
+                                        {format(flightSched.flightDepartureDate, "dd MMM")} ({flightSched.tagLabel}) - {flightSched.flightReturnDate ? format(flightSched.flightReturnDate, "dd MMM yyyy") : ""}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            )}
+                              );
+                            })()}
 
                             {wf.serviceType === "hotel" && hotelNames && (
                               <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/10 text-xs space-y-1">

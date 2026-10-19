@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { subDays } from "date-fns"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -77,3 +78,64 @@ export const safeStorage = {
     }
   },
 };
+
+/**
+ * Calculates airline flight dates and metadata.
+ * - International routes (e.g. Japan, Korea, Europe): flight departs H-1 night.
+ * - Domestic routes (e.g. Bali, Jogja, Lombok within Indonesia): flight departs same-day (Hari-H).
+ */
+export function getFlightSchedule(
+  startDateStr?: string | null,
+  endDateStr?: string | null,
+  countries?: string[] | null,
+  tourTitle?: string
+) {
+  if (!startDateStr) {
+    return {
+      isInternational: false,
+      flightDepartureDate: null,
+      flightReturnDate: null,
+      routeTypeLabel: "Domestik",
+      tagLabel: "Hari-H",
+    };
+  }
+
+  // Determine whether it is international or domestic
+  let isInternational = false;
+  if (countries && countries.length > 0) {
+    isInternational = countries.some((c) => {
+      const norm = c.trim().toLowerCase();
+      return (
+        norm !== "indonesia" &&
+        norm !== "id" &&
+        norm !== "bali" &&
+        norm !== "yogyakarta" &&
+        norm !== "jogja" &&
+        norm !== "labuan bajo" &&
+        norm !== "lombok"
+      );
+    });
+  } else if (tourTitle) {
+    const lower = tourTitle.toLowerCase();
+    const intlKeywords = [
+      "japan", "jepang", "korea", "europe", "eropa", "turkey", "turki",
+      "umroh", "umrah", "saudi", "singapore", "singapura", "malaysia",
+      "bangkok", "thailand", "vietnam", "australia", "china", "tiongkok",
+      "taiwan", "hong kong", "dubai", "usa", "america", "inggris", "london"
+    ];
+    isInternational = intlKeywords.some((kw) => lower.includes(kw));
+  }
+
+  // Use subDays from date-fns for exact day arithmetic
+  const startDateObj = new Date(startDateStr);
+  const flightDepartureDate = isInternational ? subDays(startDateObj, 1) : startDateObj;
+  const flightReturnDate = endDateStr ? new Date(endDateStr) : null;
+
+  return {
+    isInternational,
+    flightDepartureDate,
+    flightReturnDate,
+    routeTypeLabel: isInternational ? "Internasional" : "Domestik",
+    tagLabel: isInternational ? "H-1 Malam" : "Hari-H",
+  };
+}

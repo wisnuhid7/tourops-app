@@ -120,6 +120,7 @@ export default function AdminDepartures() {
     const tour = tours?.find((tr) => tr.id === dep.tourId);
     const depAir = airports?.find((airport) => airport.id === dep.departureAirportId);
     const arrAir = airports?.find((airport) => airport.id === dep.arrivalAirportId);
+    const isPrivate = dep.notes?.toLowerCase().includes("private") || !dep.publicJoinEnabled;
     const searchText = [
       tour?.title,
       dep.startDate,
@@ -128,7 +129,8 @@ export default function AdminDepartures() {
       arrAir?.code,
       dep.notes,
       dep.status,
-      dep.pricePerPerson != null ? String(dep.pricePerPerson) : "",
+      isPrivate ? "privat private custom kustom" : "public publik",
+      dep.pricePerPerson != null ? String(dep.pricePerPerson) : tour?.basePrice != null ? String(tour.basePrice) : "",
     ].filter(Boolean).join(" ").toLowerCase();
 
     return (!normalizedSearch || searchText.includes(normalizedSearch)) &&
@@ -171,8 +173,27 @@ export default function AdminDepartures() {
       headerName: t("price"),
       width: 140,
       filter: "agNumberColumnFilter",
-      valueGetter: (params) => params.data?.pricePerPerson != null ? Number(params.data.pricePerPerson) : null,
-      valueFormatter: (params) => params.data?.pricePerPerson != null ? `$${params.data.pricePerPerson} / ${t("per_person")}` : "—",
+      valueGetter: (params) => {
+        if (params.data?.pricePerPerson != null) {
+          return Number(params.data.pricePerPerson);
+        }
+        const tour = tours?.find((tr) => tr.id === params.data?.tourId);
+        return tour?.basePrice != null ? Number(tour.basePrice) : null;
+      },
+      cellRenderer: (params: ICellRendererParams<DepartureRow>) => {
+        if (params.data?.pricePerPerson != null) {
+          return <span>${Number(params.data.pricePerPerson).toLocaleString()} / {t("per_person")}</span>;
+        }
+        const tour = tours?.find((tr) => tr.id === params.data?.tourId);
+        if (tour?.basePrice != null) {
+          return (
+            <span className="text-muted-foreground" title="Harga dasar tur (fallback)">
+              ${Number(tour.basePrice).toLocaleString()} / {t("per_person")}
+            </span>
+          );
+        }
+        return "—";
+      },
     },
     {
       headerName: t("route_label"),
@@ -189,12 +210,32 @@ export default function AdminDepartures() {
       ) : "—",
     },
     {
-      headerName: t("public_badge"),
-      width: 100,
+      headerName: t("public_badge") || "Akses",
+      width: 130,
       filter: "agTextColumnFilter",
-      valueGetter: (params) => !!params.data?.publicJoinEnabled,
-      filterValueGetter: (params) => params.data?.publicJoinEnabled ? t("public_badge") : "—",
-      cellRenderer: (params: ICellRendererParams<DepartureRow>) => params.value ? <Badge variant="outline">{t("public_badge")}</Badge> : "—",
+      valueGetter: (params) => {
+        if (params.data?.publicJoinEnabled) return "public";
+        const isPrivate = params.data?.notes?.toLowerCase().includes("private") || params.data?.status === "closed";
+        return isPrivate ? "private" : "closed";
+      },
+      filterValueGetter: (params) => {
+        if (params.data?.publicJoinEnabled) return t("public_badge") || "Grup Publik";
+        return "Privat / Kustom";
+      },
+      cellRenderer: (params: ICellRendererParams<DepartureRow>) => {
+        if (params.data?.publicJoinEnabled) {
+          return <Badge variant="outline">{t("public_badge") || "Grup Publik"}</Badge>;
+        }
+        const isPrivate = params.data?.notes?.toLowerCase().includes("private") || params.data?.status === "closed";
+        if (isPrivate) {
+          return (
+            <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-300/60 font-medium">
+              Privat / Kustom
+            </Badge>
+          );
+        }
+        return <span className="text-muted-foreground text-xs">—</span>;
+      },
     },
     {
       headerName: t("status"),

@@ -138,6 +138,28 @@ export function registerBookingsRoutes(app: Express): void {
       let perPersonPrice: number | undefined;
       let departureId = req.body.departureId || undefined;
 
+      // Resolve perPersonPrice: shared precedence with GET /api/tours/:tourId/price-preview
+      let departurePrice: string | number | null = null;
+      if (departureId) {
+        const dep = await storage.getDeparture(departureId);
+        if (dep && dep.tourId === req.body.tourId) {
+          departurePrice = dep.pricePerPerson;
+        }
+      }
+      let publicPerPersonBase: number | null = null;
+      let tourBasePrice: string | number | null = null;
+      if (!isUsableDeparturePrice(departurePrice) && req.body.tourId) {
+        const pp = await publicTourPricing(req.body.tourId);
+        if (pp && pp.perPersonBase > 0) publicPerPersonBase = pp.perPersonBase;
+        else {
+          const tourRow = await storage.getTour(req.body.tourId);
+          tourBasePrice = tourRow?.basePrice ?? null;
+        }
+      }
+      if (req.body.tourId) {
+        perPersonPrice = resolvePerPersonPrice({ departurePrice, publicPerPersonBase, tourBasePrice });
+      }
+
       // When customer chooses a custom date (customStartDate), auto-create a closed private departure
       if (!departureId && req.body.customStartDate && req.body.tourId) {
         const tourRow = await storage.getTour(req.body.tourId);
@@ -153,42 +175,20 @@ export function registerBookingsRoutes(app: Express): void {
             customEnd = customStart;
           }
         }
+        const privateDepPrice = perPersonPrice !== undefined ? Math.round(perPersonPrice) : null;
         const privateDep = await storage.createDeparture({
           tourId: req.body.tourId,
           startDate: customStart,
           endDate: customEnd,
           capacityTotal: partySize,
           capacityBooked: partySize,
-          pricePerPerson: null,
+          pricePerPerson: privateDepPrice,
           departureAirportId: req.body.departureAirportId || undefined,
           status: "closed",
           publicJoinEnabled: false,
           notes: `Private Departure created for Booking [${req.body.bookingType || "private_family"}]`,
         });
         departureId = privateDep.id;
-      }
-
-      if (req.body.tourId) {
-        let departurePrice: string | number | null = null;
-        if (departureId) {
-          const dep = await storage.getDeparture(departureId);
-          if (dep && dep.tourId === req.body.tourId) {
-            departurePrice = dep.pricePerPerson;
-          }
-        }
-        let publicPerPersonBase: number | null = null;
-        let tourBasePrice: string | number | null = null;
-        if (!isUsableDeparturePrice(departurePrice)) {
-          const pp = await publicTourPricing(req.body.tourId);
-          if (pp && pp.perPersonBase > 0) publicPerPersonBase = pp.perPersonBase;
-          else {
-            const tourRow = await storage.getTour(req.body.tourId);
-            tourBasePrice = tourRow?.basePrice ?? null;
-          }
-        }
-        // Shared precedence with GET /api/tours/:tourId/price-preview
-        // (services/booking-pricing.ts).
-        perPersonPrice = resolvePerPersonPrice({ departurePrice, publicPerPersonBase, tourBasePrice });
       }
 
       // Room-type selection: accommodation is priced server-side from the

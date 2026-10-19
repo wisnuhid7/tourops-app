@@ -74,6 +74,9 @@ export function registerServiceOpsRoutes(app: Express): void {
       const parsed = insertBookingServiceRequestSchema.safeParse({ ...req.body, bookingId });
       if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Invalid input" });
       // The assignee must be a real supplier-capable account.
+      if (!parsed.data.supplierUserId) {
+        return res.status(400).json({ message: "supplierUserId is required" });
+      }
       const [supplierProfile] = await db.select().from(userProfiles)
         .where(eq(userProfiles.userId, parsed.data.supplierUserId));
       if (!supplierProfile || !ASSIGNABLE_SUPPLIER_ROLES.includes(supplierProfile.role))

@@ -47,6 +47,8 @@ export async function runPaymentReminderJob(): Promise<{
       );
 
     for (const inst of overdueRows) {
+      const remaining = Number(inst.amount) - Number(inst.paidAmount || 0);
+      if (remaining <= 0.005) continue;
       // Compare-and-swap: only update if another concurrent runner hasn't already.
       const [updated] = await db
         .update(bookingPaymentSchedules)

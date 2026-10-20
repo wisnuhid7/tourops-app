@@ -611,7 +611,7 @@ export function registerOpsRoutes(app: Express): void {
       // Finance staff record manual payments; provider/refund/intent fields
       // are owned by the checkout + webhook pipeline and cannot be set here.
       const staffPaymentSchema = z.object({
-        amount: z.number().int().positive(),
+        amount: z.number().positive(),
         method: z.enum(["bank_transfer", "card", "cash", "other"]).default("bank_transfer"),
         status: z.enum(["pending", "paid"]).default("pending"),
         currency: z.string().max(8).optional(),

@@ -230,8 +230,8 @@ export async function syncBookingPaymentSchedules(bookingId: string) {
       const allocated = Math.min(targetAmount, Math.max(0, unallocatedFunds));
       unallocatedFunds -= allocated;
 
-      const isPaid = allocated >= targetAmount;
-      const isPartiallyPaid = allocated > 0 && !isPaid;
+      const isPaid = (targetAmount - allocated) <= 0.005;
+      const isPartiallyPaid = allocated > 0.005 && !isPaid;
       const dueDate = new Date(sched.dueDate);
       const isOverdue = dueDate < now;
 
@@ -266,10 +266,10 @@ export async function recordSchedulePayment(scheduleId: string, amount: number) 
     if (!sched) return;
     const currentPaid = parseFloat(sched.paidAmount?.toString() || "0");
     const targetAmount = parseFloat(sched.amount?.toString() || "0");
-    const newPaid = currentPaid + amount;
-    const isPaid = newPaid >= targetAmount;
+    const newPaid = Number((currentPaid + amount).toFixed(2));
+    const isPaid = (targetAmount - newPaid) <= 0.005;
     await db.update(bookingPaymentSchedules).set({
-      paidAmount: newPaid.toString(),
+      paidAmount: newPaid.toFixed(2),
       status: isPaid ? "paid" : "partially_paid",
       updatedAt: new Date(),
     }).where(eq(bookingPaymentSchedules.id, sched.id));
@@ -450,30 +450,30 @@ export async function ensureCityExists(cityName: string | null | undefined, coun
     }
   }
 
-/** All money is integer units. Booking.totalPrice is whole currency units. */
 export async function computeCheckoutSummary(booking: {
   totalPrice: number | null;
   currency: string | null;
   taxAmount?: string | number | null;
   serviceFeeAmount?: string | number | null;
 }) {
-  const subtotal = Math.round(booking.totalPrice || 0);
+  const subtotal = Number(Number(booking.totalPrice || 0).toFixed(2));
   const feeSetting = await storage.getGlobalSettingByKey?.("default_service_fee");
   const fees = booking.serviceFeeAmount != null
-    ? Math.round(Number(booking.serviceFeeAmount))
-    : Math.round(Number(feeSetting?.value || 0));
+    ? Number(Number(booking.serviceFeeAmount).toFixed(2))
+    : Number(Number(feeSetting?.value || 0).toFixed(2));
   const taxSetting = await storage.getGlobalSettingByKey?.("checkout_tax_rate_percent");
   const taxRate = Number(taxSetting?.value || 0);
   const taxes = booking.taxAmount != null
-    ? Math.round(Number(booking.taxAmount))
-    : Math.round((subtotal * taxRate) / 100);
+    ? Number(Number(booking.taxAmount).toFixed(2))
+    : Number(((subtotal * taxRate) / 100).toFixed(2));
   const discount = 0; // promo codes not supported yet
+  const total = Number((subtotal + taxes + fees - discount).toFixed(2));
   return {
     subtotal,
     taxes,
     fees,
     discount,
-    total: subtotal + taxes + fees - discount,
+    total,
     currency: booking.currency || "USD",
     taxRate,
   };

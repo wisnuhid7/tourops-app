@@ -263,7 +263,7 @@ export const bookings = pgTable("bookings", {
   partySizeExpected: integer("party_size_expected").default(1),
   status: bookingStatusEnum("status").default("submitted"),
   fulfillmentStatus: fulfillmentStatusEnum("fulfillment_status").default("pending"),
-  totalPrice: integer("total_price"),
+  totalPrice: numeric("total_price").$type<number>(),
   currency: text("currency").default("USD"),
   // Customer's chosen room type (matrimonial | doble | triple) and the
   // server-computed accommodation cost (selected room rate × tour nights).
@@ -477,12 +477,12 @@ export const payments = pgTable("payments", {
   provider: text("provider").default("manual"), // 'manual' | 'offline_test' | 'stripe' (future)
   paymentIntentId: text("payment_intent_id"),
   transactionId: text("transaction_id"),
-  amount: integer("amount").notNull(), // grand total charged, whole currency units
-  subtotal: integer("subtotal"),
-  taxes: integer("taxes").default(0),
-  fees: integer("fees").default(0),
-  discount: integer("discount").default(0),
-  refundedAmount: integer("refunded_amount").default(0),
+  amount: numeric("amount").$type<number>().notNull(), // grand total charged, decimal currency units
+  subtotal: numeric("subtotal").$type<number>(),
+  taxes: numeric("taxes").$type<number>().default(0),
+  fees: numeric("fees").$type<number>().default(0),
+  discount: numeric("discount").$type<number>().default(0),
+  refundedAmount: numeric("refunded_amount").$type<number>().default(0),
   currency: text("currency").default("USD"),
   method: paymentMethodEnum("payment_method").default("bank_transfer"),
   status: paymentStatusEnum("payment_status").default("pending"),
@@ -510,7 +510,7 @@ export const refunds = pgTable("refunds", {
   bookingId: varchar("booking_id").notNull(),
   provider: text("provider").notNull(),
   providerRefundId: text("provider_refund_id"),
-  amount: integer("amount").notNull(), // cents
+  amount: numeric("amount").$type<number>().notNull(), // decimal currency units
   currency: text("currency").default("USD"),
   reason: text("reason").notNull(),
   notes: text("notes"),
@@ -976,7 +976,7 @@ export const invoices = pgTable("invoices", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   bookingId: varchar("booking_id").notNull(),
   invoiceNumber: text("invoice_number").notNull().unique(),
-  amount: integer("amount").notNull(),
+  amount: numeric("amount").$type<number>().notNull(),
   currency: text("currency").default("USD"),
   status: invoiceStatusEnum("status").default("draft"),
   dueDate: text("due_date"),

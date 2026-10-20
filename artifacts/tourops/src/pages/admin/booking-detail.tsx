@@ -261,7 +261,7 @@ export default function AdminBookingDetail() {
   const createPayment = useMutation({
     mutationFn: (data: any) => apiRequest("POST", `/api/bookings/${bookingId}/payments`, {
       ...data,
-      amount: Math.round(parseFloat(data.amount))
+      amount: Number(parseFloat(data.amount).toFixed(2))
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "payments"] });
@@ -275,7 +275,7 @@ export default function AdminBookingDetail() {
   const createInvoice = useMutation({
     mutationFn: (data: any) => apiRequest("POST", `/api/bookings/${bookingId}/invoices`, {
       ...data,
-      amount: Math.round(parseFloat(data.amount))
+      amount: Number(parseFloat(data.amount).toFixed(2))
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/bookings", bookingId, "invoices"] });
@@ -1509,9 +1509,9 @@ export default function AdminBookingDetail() {
                   const now = new Date();
                   const due = new Date(inst.dueDate);
                   const daysUntil = Math.ceil((due.getTime() - now.getTime()) / 86400000);
-                  const isOverdue = inst.status === "late" || (inst.status !== "paid" && inst.status !== "cancelled" && due < now);
-                  const isDueSoon = !isOverdue && inst.status !== "paid" && inst.status !== "cancelled" && daysUntil <= 7 && daysUntil >= 0;
                   const remaining = Math.max(0, parseFloat(inst.amount) - parseFloat(inst.paidAmount));
+                  const isOverdue = (inst.status === "late" || (inst.status !== "paid" && inst.status !== "cancelled" && due < now)) && remaining > 0.005;
+                  const isDueSoon = !isOverdue && inst.status !== "paid" && inst.status !== "cancelled" && daysUntil <= 7 && daysUntil >= 0 && remaining > 0.005;
                   return (
                     <Card
                       key={inst.id}

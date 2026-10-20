@@ -93,7 +93,7 @@ export default function AdminPayments() {
   const refundMutation = useMutation({
     mutationFn: async () => {
       const body: Record<string, unknown> = { reason: refundReason.trim(), notes: refundNotes.trim() || undefined };
-      if (refundAmount.trim()) body.amount = Math.round(Number(refundAmount));
+      if (refundAmount.trim()) body.amount = Number(parseFloat(refundAmount).toFixed(2));
       return (await apiRequest("POST", `/api/payments/${detailId}/refunds`, body)).json();
     },
     onSuccess: (res: { refund: Refund }) => {

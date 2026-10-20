@@ -22,9 +22,10 @@ const checkoutLimiter = rateLimit({
 });
 
 function paidCoverage(rows: Payment[]): number {
-  return rows
+  return Number(rows
     .filter((p) => ["paid", "processing"].includes(p.status || ""))
-    .reduce((sum, p) => sum + (p.amount - (p.refundedAmount || 0)), 0);
+    .reduce((sum, p) => sum + (Number(p.amount) - Number(p.refundedAmount || 0)), 0)
+    .toFixed(2));
 }
 
 export function registerPaymentRoutes(app: Express): void {
@@ -87,7 +88,7 @@ export function registerPaymentRoutes(app: Express): void {
             const s = schedules[i];
             const isLast = i === schedules.length - 1;
             const pct = Number(s.percentage) || (schedSum > 0 ? (Number(s.amount) / schedSum) * 100 : 0);
-            const newAmt = isLast ? Math.round(summary.total - allocated) : Math.round((summary.total * pct) / 100);
+            const newAmt = isLast ? Number((summary.total - allocated).toFixed(2)) : Number(((summary.total * pct) / 100).toFixed(2));
             allocated += newAmt;
             await db.update(bookingPaymentSchedules).set({
               amount: newAmt.toFixed(2),
@@ -106,8 +107,8 @@ export function registerPaymentRoutes(app: Express): void {
           installmentNumber: s.installmentNumber,
           label: s.label,
           percentage: s.percentage,
-          amount: Math.round(Number(s.amount)),
-          paidAmount: Math.round(Number(s.paidAmount || 0)),
+          amount: Number(Number(s.amount).toFixed(2)),
+          paidAmount: Number(Number(s.paidAmount || 0).toFixed(2)),
           status: s.status,
           dueDate: s.dueDate,
         })),
@@ -143,7 +144,7 @@ export function registerPaymentRoutes(app: Express): void {
         ));
         if (!sched) return res.status(404).json({ message: "Installment schedule not found" });
         if (sched.status === "paid") return res.status(409).json({ message: "This installment is already paid" });
-        const remaining = Math.max(1, Math.round(Number(sched.amount) - Number(sched.paidAmount || 0)));
+        const remaining = Math.max(0.01, Number((Number(sched.amount) - Number(sched.paidAmount || 0)).toFixed(2)));
         targetAmount = remaining;
         targetSchedule = sched;
       }
@@ -185,10 +186,10 @@ export function registerPaymentRoutes(app: Express): void {
         });
 
         const instRatio = (targetSchedule && summary.total > 0) ? (targetAmount / summary.total) : 1;
-        const instTaxes = targetSchedule ? Math.round(summary.taxes * instRatio) : summary.taxes;
-        const instFees = targetSchedule ? Math.round(summary.fees * instRatio) : summary.fees;
-        const instDiscount = targetSchedule ? Math.round(summary.discount * instRatio) : summary.discount;
-        const instSubtotal = targetSchedule ? (targetAmount - instTaxes - instFees + instDiscount) : summary.subtotal;
+        const instTaxes = targetSchedule ? Number((summary.taxes * instRatio).toFixed(2)) : summary.taxes;
+        const instFees = targetSchedule ? Number((summary.fees * instRatio).toFixed(2)) : summary.fees;
+        const instDiscount = targetSchedule ? Number((summary.discount * instRatio).toFixed(2)) : summary.discount;
+        const instSubtotal = targetSchedule ? Number((targetAmount - instTaxes - instFees + instDiscount).toFixed(2)) : summary.subtotal;
 
         const [payment] = await tx.insert(payments).values({
           bookingId: booking.id,
@@ -267,10 +268,9 @@ export function registerPaymentRoutes(app: Express): void {
         await autoConfirmBookingIfEligible(booking.id, "Auto-confirmed on checkout confirmation");
         const instId = (payment.metadata as any)?.installmentId;
         if (instId) {
-          await recordSchedulePayment(instId, payment.amount);
-        } else {
-          await syncBookingPaymentSchedules(booking.id);
+          await recordSchedulePayment(instId, Number(payment.amount));
         }
+        await syncBookingPaymentSchedules(booking.id);
       }
 
       // Success side effects (notify/email) run via the provider webhook so
@@ -369,19 +369,19 @@ export function registerPaymentRoutes(app: Express): void {
       if (!await requireRole(req, res, FINANCE_ROLES)) return;
       const userId = getUserId(req)!;
       const schema = z.object({
-        amount: z.number().int().positive().optional(), // cents; omitted = full remaining
+        amount: z.number().positive().optional(), // decimal currency units; omitted = full remaining
         reason: z.string().min(1).max(500),
         notes: z.string().max(2000).optional(),
       });
       const parsed = schema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ message: "A refund reason is required (amount in cents optional for partial refunds)" });
+      if (!parsed.success) return res.status(400).json({ message: "A refund reason is required (positive amount optional for partial refunds)" });
       const [payment] = await db.select().from(payments).where(eq(payments.id, req.params.id as string));
       if (!payment) return res.status(404).json({ message: "Payment not found" });
       if (!["paid", "partially_refunded", "refunded"].includes(payment.status || "")) {
         return res.status(409).json({ message: `Only settled payments can be refunded (status: ${payment.status})` });
       }
-      const remaining = payment.amount - (payment.refundedAmount || 0);
-      const amount = parsed.data.amount ?? remaining;
+      const remaining = Number((Number(payment.amount) - Number(payment.refundedAmount || 0)).toFixed(2));
+      const amount = parsed.data.amount ? Number(parsed.data.amount.toFixed(2)) : remaining;
       if (amount <= 0 || amount > remaining) {
         return res.status(400).json({ message: `Refund must be between 0.01 and ${remaining.toFixed(2)} ${payment.currency}` });
       }
@@ -392,9 +392,9 @@ export function registerPaymentRoutes(app: Express): void {
       const insertResult = await db.transaction(async (tx) => {
         await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${"refund:" + payment.id}))`);
         const existing = await tx.select().from(refunds).where(eq(refunds.paymentId, payment.id));
-        const committed = existing.filter((r) => r.status !== "failed").reduce((sum, r) => sum + r.amount, 0);
-        if (amount > payment.amount - committed) {
-          return { conflict: `Refund exceeds remaining balance of ${(payment.amount - committed).toFixed(2)} ${payment.currency}` as string };
+        const committed = Number(existing.filter((r) => r.status !== "failed").reduce((sum, r) => sum + Number(r.amount), 0).toFixed(2));
+        if (amount > Number((Number(payment.amount) - committed).toFixed(2))) {
+          return { conflict: `Refund exceeds remaining balance of ${(Number(payment.amount) - committed).toFixed(2)} ${payment.currency}` as string };
         }
         const [row] = await tx.insert(refunds).values({
           paymentId: payment.id,

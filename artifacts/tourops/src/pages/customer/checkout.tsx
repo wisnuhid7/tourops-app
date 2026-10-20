@@ -127,9 +127,9 @@ export default function Checkout() {
   const installmentTargetAmount = useMemo(() => {
     if (!selectedSched) return 0;
     if (isSchedPaid) {
-      return Math.round(Number(selectedSched.paidAmount || selectedSched.amount));
+      return Number(Number(selectedSched.paidAmount || selectedSched.amount).toFixed(2));
     }
-    return currentPayableAmount;
+    return Number(currentPayableAmount.toFixed(2));
   }, [selectedSched, isSchedPaid, currentPayableAmount]);
 
   const isStripe = config?.provider === "stripe" && !!config.publishableKey;
@@ -304,9 +304,9 @@ export default function Checkout() {
             {(() => {
               const displayAmt = isSchedPaid ? installmentTargetAmount : currentPayableAmount;
               const instRatio = summary.total > 0 ? (displayAmt / summary.total) : (Number(selectedSched.percentage) / 100);
-              const instTaxes = Math.round(summary.taxes * instRatio);
-              const instFees = Math.round(summary.fees * instRatio);
-              const instSubtotal = Math.max(0, displayAmt - instTaxes - instFees);
+              const instTaxes = Number((summary.taxes * instRatio).toFixed(2));
+              const instFees = Number((summary.fees * instRatio).toFixed(2));
+              const instSubtotal = Math.max(0, Number((displayAmt - instTaxes - instFees).toFixed(2)));
               return (
                 <div className="space-y-1.5 text-xs text-muted-foreground bg-slate-50 dark:bg-slate-900/60 p-3 rounded-md border border-slate-100 dark:border-slate-800">
                   <div className="text-[11px] font-semibold text-foreground mb-1 flex items-center justify-between">

@@ -1717,7 +1717,7 @@ export class DatabaseStorage implements IStorage {
 
   async getAnalytics(): Promise<any> {
     const allPayments = await db.select().from(payments).where(eq(payments.status, "paid"));
-    const totalRevenue = allPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+    const totalRevenue = allPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
     const allBookings = await db.select().from(bookings);
     const totalBookings = allBookings.length;
@@ -1736,7 +1736,7 @@ export class DatabaseStorage implements IStorage {
           const pd = new Date(p.createdAt || new Date());
           return pd.getMonth() === d.getMonth() && pd.getFullYear() === d.getFullYear();
         })
-        .reduce((sum, p) => sum + (p.amount || 0), 0);
+        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
       revenueByMonth.push({ month: monthLabel, revenue: monthRevenue });
     }
 

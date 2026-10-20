@@ -248,10 +248,10 @@ export function registerBookingsRoutes(app: Express): void {
       }
 
       const feeSetting = await storage.getGlobalSettingByKey?.("default_service_fee");
-      const defaultFees = Math.round(Number(feeSetting?.value || 0));
+      const defaultFees = Number(Number(feeSetting?.value || 0).toFixed(2));
       const taxSetting = await storage.getGlobalSettingByKey?.("checkout_tax_rate_percent");
       const taxRate = Number(taxSetting?.value || 0);
-      const computedTaxes = Math.round(((totalPrice ?? 0) * taxRate) / 100);
+      const computedTaxes = Number((((totalPrice ?? 0) * taxRate) / 100).toFixed(2));
 
       const booking = await storage.createBooking({
         ...req.body,
@@ -560,7 +560,7 @@ export function registerBookingsRoutes(app: Express): void {
       // a receipt) — never mark anything paid or touch provider/refund
       // fields. Online card payments must go through /api/checkout.
       const customerPaymentSchema = z.object({
-        amount: z.number().int().positive(),
+        amount: z.number().positive(),
         method: z.enum(["bank_transfer", "cash", "other"]).default("bank_transfer"),
         currency: z.string().max(8).optional(),
         receiptUrl: z.string().max(2000).optional(),

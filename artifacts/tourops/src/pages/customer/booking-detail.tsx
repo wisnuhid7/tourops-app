@@ -381,11 +381,11 @@ export default function CustomerBookingDetail() {
   const hasPendingPayment = Array.isArray(pmts) && pmts.some((payment) => payment.status === "pending");
 
   const pricingSummary = (booking as any)?.pricingSummary;
-  const totalPrice = Math.round(Number(pricingSummary?.total ?? booking?.totalPrice ?? 0));
+  const totalPrice = Number(Number(pricingSummary?.total ?? booking?.totalPrice ?? 0).toFixed(2));
   const totalPaid = Array.isArray(pmts)
-    ? pmts.filter((p) => p.status === "paid").reduce((sum, p) => sum + (Number(p.amount) - Number(p.refundedAmount || 0)), 0)
+    ? Number(pmts.filter((p) => p.status === "paid").reduce((sum, p) => sum + (Number(p.amount) - Number(p.refundedAmount || 0)), 0).toFixed(2))
     : 0;
-  const remainingBalance = Math.max(0, totalPrice - totalPaid);
+  const remainingBalance = Math.max(0, Number((totalPrice - totalPaid).toFixed(2)));
   const isFullyPaid = totalPaid >= totalPrice && totalPrice > 0;
   const progressPercent = totalPrice > 0 ? Math.min(100, Math.round((totalPaid / totalPrice) * 100)) : 0;
   const nextUnpaidSchedule = Array.isArray(schedule)
@@ -1753,8 +1753,8 @@ export default function CustomerBookingDetail() {
                     >
                       <CreditCard className="h-4 w-4 mr-2" />
                       {nextUnpaidSchedule
-                        ? `${t("pay_installment")} #${nextUnpaidSchedule.installmentNumber} ($${Math.max(0, parseFloat(nextUnpaidSchedule.amount) - parseFloat(nextUnpaidSchedule.paidAmount || "0")).toLocaleString()})`
-                        : `${t("pay_online_now")} ($${remainingBalance.toLocaleString()})`}
+                        ? `${t("pay_installment")} #${nextUnpaidSchedule.installmentNumber} ($${Math.max(0, parseFloat(nextUnpaidSchedule.amount) - parseFloat(nextUnpaidSchedule.paidAmount || "0")).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`
+                        : `${t("pay_online_now")} ($${remainingBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`}
                     </Button>
                   </Link>
                 </div>
@@ -2021,9 +2021,9 @@ export default function CustomerBookingDetail() {
                 const now = new Date();
                 const due = new Date(inst.dueDate);
                 const daysUntil = Math.ceil((due.getTime() - now.getTime()) / 86400000);
-                const isOverdue = inst.status === "late" || (inst.status !== "paid" && inst.status !== "cancelled" && due < now);
-                const isDueSoon = !isOverdue && inst.status !== "paid" && inst.status !== "cancelled" && daysUntil <= 7 && daysUntil >= 0;
                 const remaining = Math.max(0, parseFloat(inst.amount) - parseFloat(inst.paidAmount));
+                const isOverdue = (inst.status === "late" || (inst.status !== "paid" && inst.status !== "cancelled" && due < now)) && remaining > 0.005;
+                const isDueSoon = !isOverdue && inst.status !== "paid" && inst.status !== "cancelled" && daysUntil <= 7 && daysUntil >= 0 && remaining > 0.005;
                 return (
                   <Card
                     key={inst.id}

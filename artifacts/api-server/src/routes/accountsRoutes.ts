@@ -128,7 +128,7 @@ export function registerAccountsRoutes(app: Express): void {
 
   app.get("/api/user-profiles", isAuthenticated, async (req, res) => {
     try {
-      if (!await requireRole(req, res, PLATFORM_WIDE_READ_ROLES)) return;
+      if (!await requireRole(req, res, [...PLATFORM_WIDE_READ_ROLES, "accounting"])) return;
       const requester = await storage.getOrCreateProfile(getUserId(req)!);
       const all = await storage.getAllProfiles();
       // country_manager only sees users assigned to its own country (per role spec).

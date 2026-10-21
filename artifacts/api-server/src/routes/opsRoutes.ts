@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { and, or } from "drizzle-orm";
+import { and, or, desc, eq } from "drizzle-orm";
 import { z } from "zod/v4";
 import { SERVICE_WORKFLOW_STEPS } from "../lib/constants";
 import {
@@ -14,6 +14,7 @@ import { storage } from "../storage";
 import { isAuthenticated } from "../replit_integrations/auth";
 import {
   bookings,
+  db,
   documents,
   insertDocumentSchema,
   insertInvoiceSchema,
@@ -22,6 +23,7 @@ import {
   notifications,
   payments,
   travelers,
+  users,
 } from "@workspace/db";
 import {
   ADMIN_ROLES,
@@ -603,7 +605,41 @@ export function registerOpsRoutes(app: Express): void {
   app.get("/api/payments", isAuthenticated, async (req, res) => {
     try {
       if (!await requireRole(req, res, FINANCE_ROLES)) return;
-      res.json(await storage.getAllPayments());
+      const rows = await db.select({
+        id: payments.id,
+        bookingId: payments.bookingId,
+        customerId: payments.customerId,
+        invoiceId: payments.invoiceId,
+        provider: payments.provider,
+        paymentIntentId: payments.paymentIntentId,
+        transactionId: payments.transactionId,
+        amount: payments.amount,
+        subtotal: payments.subtotal,
+        taxes: payments.taxes,
+        fees: payments.fees,
+        discount: payments.discount,
+        refundedAmount: payments.refundedAmount,
+        currency: payments.currency,
+        method: payments.method,
+        status: payments.status,
+        refundStatus: payments.refundStatus,
+        receiptUrl: payments.receiptUrl,
+        metadata: payments.metadata,
+        notes: payments.notes,
+        createdBy: payments.createdBy,
+        createdAt: payments.createdAt,
+        updatedAt: payments.updatedAt,
+        bookingCode: bookings.bookingCode,
+        bookingTotalPrice: bookings.totalPrice,
+        customerName: users.username,
+        customerEmail: users.email,
+        customerFirstName: users.firstName,
+        customerLastName: users.lastName,
+      }).from(payments)
+        .leftJoin(bookings, eq(payments.bookingId, bookings.id))
+        .leftJoin(users, eq(payments.customerId, users.id))
+        .orderBy(desc(payments.createdAt));
+      res.json(rows);
     } catch (e: any) { routeError(res, e); }
   });
 
@@ -672,13 +708,15 @@ export function registerOpsRoutes(app: Express): void {
       const patchSchema = z.object({
         status: z.enum(["pending", "processing", "paid", "failed", "canceled"]).optional(),
         method: z.enum(["bank_transfer", "card", "cash", "other"]).optional(),
+        transactionId: z.string().max(255).nullable().optional(),
         receiptUrl: z.string().max(2000).nullable().optional(),
+        metadata: z.record(z.string(), z.any()).nullable().optional(),
         notes: z.string().max(2000).nullable().optional(),
         invoiceId: z.string().nullable().optional(),
       }).strict();
       const parsedPatch = patchSchema.safeParse(req.body);
       if (!parsedPatch.success) {
-        return res.status(400).json({ message: "Only status, method, receiptUrl, notes and invoiceId can be updated" });
+        return res.status(400).json({ message: "Only status, method, transactionId, receiptUrl, metadata, notes and invoiceId can be updated" });
       }
       const updated = await storage.updatePayment(req.params.id as string, parsedPatch.data);
       if (req.body.status) {

@@ -19,7 +19,7 @@ import {
   Send, Plane, Hotel, Bus, UserCheck, Ticket, Plus, Pencil,
   Trash2, Eye, ShieldCheck, ShieldX, Info, DollarSign,
   ExternalLink, Download, Printer, Globe, XCircle,
-  Bed, MapPin, Phone, Mail, Building
+  Bed, MapPin, Phone, Mail, Building, RotateCcw
 } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
@@ -373,6 +373,12 @@ export default function AdminBookingDetail() {
           icon: CheckCircle,
           badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300 font-medium",
         };
+      case "in_review":
+        return {
+          label: t("service_status_needs_review") || "Perlu Ditinjau",
+          icon: Clock,
+          badgeClass: "border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200 font-semibold ring-1 ring-amber-400/30",
+        };
       case "in_progress":
       case "blocked":
         return {
@@ -423,11 +429,18 @@ export default function AdminBookingDetail() {
       });
   }, [allUsers, managingWorkflow?.serviceType]);
 
+  const isLandOnly = Boolean(booking?.departureCity && booking.departureCity.toLowerCase().includes("land only"));
+  const displayedWorkflows = useMemo(() => {
+    return workflows?.filter((wf) => !(isLandOnly && wf.serviceType === "airline")) || [];
+  }, [workflows, isLandOnly]);
+
   const openManageWorkflow = (wf: BookingWorkflow) => {
     setManagingWorkflow(wf);
     let initialStatus = "not_assigned";
     if (wf.status === "completed") {
       initialStatus = "completed";
+    } else if (wf.status === "in_review") {
+      initialStatus = "in_review";
     } else if (wf.status === "in_progress" || wf.status === "blocked") {
       initialStatus = "in_progress";
     } else if (wf.status === "cancelled") {
@@ -484,11 +497,6 @@ export default function AdminBookingDetail() {
     const travelerDocs = documents?.filter((d) => d.travelerId === t.id);
     return !travelerDocs || travelerDocs.length === 0;
   }).length || 0;
-
-  const isLandOnly = Boolean(booking?.departureCity && booking.departureCity.toLowerCase().includes("land only"));
-  const displayedWorkflows = useMemo(() => {
-    return workflows?.filter((wf) => !(isLandOnly && wf.serviceType === "airline")) || [];
-  }, [workflows, isLandOnly]);
 
   const blockedWorkflowsCount = displayedWorkflows.filter((wf) => wf.status === "blocked").length;
   const unassignedWorkflowCount = displayedWorkflows.filter((wf) => !wf.assignedUserId || wf.status === "not_assigned").length;
@@ -1256,17 +1264,44 @@ export default function AdminBookingDetail() {
                         </div>
 
                         {isOps && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-8 text-xs gap-1.5 shrink-0"
-                            onClick={() => openManageWorkflow(wf)}
-                            disabled={booking.status === "cancelled"}
-                            data-testid={`button-manage-workflow-${wf.id}`}
-                          >
-                            <Pencil className="h-3.5 w-3.5 text-primary" />
-                            <span>Kelola Layanan</span>
-                          </Button>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {wf.status === "in_review" && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  className="h-8 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-xs"
+                                  onClick={() => updateWorkflow.mutate({ id: wf.id, status: "completed" })}
+                                  disabled={updateWorkflow.isPending || booking.status === "cancelled"}
+                                  data-testid={`button-approve-workflow-${wf.id}`}
+                                >
+                                  <CheckCircle className="h-3.5 w-3.5" />
+                                  <span>{t("approve_service") || "Setujui"}</span>
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 text-xs gap-1 text-amber-700 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30 font-medium"
+                                  onClick={() => updateWorkflow.mutate({ id: wf.id, status: "in_progress" })}
+                                  disabled={updateWorkflow.isPending || booking.status === "cancelled"}
+                                  data-testid={`button-revise-workflow-${wf.id}`}
+                                >
+                                  <RotateCcw className="h-3.5 w-3.5" />
+                                  <span>{t("request_revision") || "Minta Revisi"}</span>
+                                </Button>
+                              </>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-8 text-xs gap-1.5 shrink-0"
+                              onClick={() => openManageWorkflow(wf)}
+                              disabled={booking.status === "cancelled"}
+                              data-testid={`button-manage-workflow-${wf.id}`}
+                            >
+                              <Pencil className="h-3.5 w-3.5 text-primary" />
+                              <span>Kelola Layanan</span>
+                            </Button>
+                          </div>
                         )}
                       </div>
                     </CardContent>
@@ -2248,6 +2283,12 @@ export default function AdminBookingDetail() {
                     <span className="flex items-center gap-2">
                       <Clock className="h-3.5 w-3.5 text-sky-500" />
                       <span>Diproses (Supplier Sedang Menyiapkan)</span>
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="in_review">
+                    <span className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5 text-amber-500" />
+                      <span>Perlu Ditinjau (Supplier Sudah Menyerahkan Tiket/Voucher)</span>
                     </span>
                   </SelectItem>
                   <SelectItem value="completed">

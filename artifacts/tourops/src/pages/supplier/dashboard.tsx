@@ -17,7 +17,7 @@ import {
   ChevronRight, Calendar, User, Search, Globe,
   UserCheck, Ticket, Download, FileCheck, AlertTriangle,
   DollarSign, Bell, Plus, Trash2, Pencil,
-  Bed, LayoutGrid, List, Phone, Mail, Building, XCircle
+  Bed, LayoutGrid, List, Phone, Mail, Building, XCircle, Send
 } from "lucide-react";
 import { SightsTab } from "@/pages/admin/master-data";
 import { AirlinesCatalogTab } from "@/pages/supplier/airlines-catalog";
@@ -93,14 +93,14 @@ export default function SupplierDashboard() {
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
   });
 
-  const completeTask = useMutation({
+  const submitTaskForReview = useMutation({
     mutationFn: (workflowId: string) =>
-      apiRequest("PATCH", `/api/workflows/${workflowId}`, { status: "completed" }),
+      apiRequest("PATCH", `/api/workflows/${workflowId}`, { status: "in_review" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/supplier/workflows"] });
       toast({
-        title: "Tugas Ditandai Selesai!",
-        description: "Status layanan telah rampung dan terkonfirmasi.",
+        title: t("task_submitted_for_review") || "Tugas Diajukan untuk Ditinjau!",
+        description: t("task_submitted_desc") || "Layanan telah diserahkan dan menunggu persetujuan tim operasional.",
       });
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),
@@ -113,6 +113,12 @@ export default function SupplierDashboard() {
           label: "Selesai",
           icon: CheckCircle2,
           badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300",
+        };
+      case "in_review":
+        return {
+          label: "Menunggu Review",
+          icon: Clock,
+          badgeClass: "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300 font-medium",
         };
       case "in_progress":
         return {
@@ -494,7 +500,7 @@ export default function SupplierDashboard() {
   const config = ROLE_CONFIG[profile?.role || ""] || ROLE_CONFIG.admin;
   const DashboardIcon = config.icon;
 
-  const pending = (workflows || []).filter((w) => w.status === "assigned" || w.status === "in_progress").length;
+  const pending = (workflows || []).filter((w) => w.status === "assigned" || w.status === "in_progress" || w.status === "in_review").length;
   const completed = (workflows || []).filter((w) => w.status === "completed").length;
   const blocked = (workflows || []).filter((w) => w.status === "blocked").length;
 
@@ -784,14 +790,19 @@ export default function SupplierDashboard() {
                               <Button 
                                 size="sm" 
                                 variant="outline"
-                                className="h-8 px-2.5 text-xs gap-1 text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 font-medium"
-                                onClick={() => completeTask.mutate(wf.id)}
-                                disabled={completeTask.isPending}
-                                data-testid={`button-complete-task-${wf.id}`}
+                                className="h-8 px-2.5 text-xs gap-1.5 text-amber-700 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30 font-medium"
+                                onClick={() => submitTaskForReview.mutate(wf.id)}
+                                disabled={submitTaskForReview.isPending}
+                                data-testid={`button-submit-review-task-${wf.id}`}
                               >
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                <span>Selesaikan</span>
+                                <Send className="h-3.5 w-3.5" />
+                                <span>{t("submit_for_review") || "Kirim untuk Ditinjau"}</span>
                               </Button>
+                            ) : wf.status === "in_review" ? (
+                              <Badge variant="outline" className="h-8 px-2.5 text-xs gap-1 border-amber-300 bg-amber-50/80 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 font-medium">
+                                <Clock className="h-3.5 w-3.5" />
+                                <span>Menunggu Review Admin</span>
+                              </Badge>
                             ) : null}
 
                             <Button 
@@ -955,14 +966,19 @@ export default function SupplierDashboard() {
                                 <Button 
                                   size="sm" 
                                   variant="outline"
-                                  className="w-full rounded-full text-emerald-600 border-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 font-semibold gap-1.5 h-9"
-                                  onClick={() => completeTask.mutate(wf.id)}
-                                  disabled={completeTask.isPending}
-                                  data-testid={`button-complete-task-card-${wf.id}`}
+                                  className="w-full rounded-full text-amber-700 border-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/30 font-semibold gap-1.5 h-9"
+                                  onClick={() => submitTaskForReview.mutate(wf.id)}
+                                  disabled={submitTaskForReview.isPending}
+                                  data-testid={`button-submit-review-task-card-${wf.id}`}
                                 >
-                                  <CheckCircle2 className="h-4 w-4" />
-                                  <span>Tandai Selesai</span>
+                                  <Send className="h-4 w-4" />
+                                  <span>{t("submit_for_review") || "Kirim untuk Ditinjau"}</span>
                                 </Button>
+                              ) : wf.status === "in_review" ? (
+                                <div className="w-full py-2 px-3 rounded-full border border-amber-300 bg-amber-50/80 text-amber-800 text-xs text-center flex items-center justify-center gap-1.5 font-medium">
+                                  <Clock className="h-3.5 w-3.5" />
+                                  <span>Menunggu Persetujuan Admin</span>
+                                </div>
                               ) : null}
 
                               <div className="flex gap-2">

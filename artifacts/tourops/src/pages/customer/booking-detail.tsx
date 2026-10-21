@@ -593,6 +593,12 @@ export default function CustomerBookingDetail() {
           icon: CheckCircle,
           badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300 font-medium",
         };
+      case "in_review":
+        return {
+          label: t("service_status_in_review") || "Menunggu Review",
+          icon: Clock,
+          badgeClass: "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300 font-medium",
+        };
       case "in_progress":
       case "blocked":
         return {
@@ -1573,17 +1579,28 @@ export default function CustomerBookingDetail() {
                           <p className="text-xs text-muted-foreground">{(doc.docType || "").replace(/_/g, " ")}</p>
                         </div>
                       </div>
-                      <Badge variant="default">
-                        <CheckCircle className="h-3 w-3 mr-1" />{t("available_label")}
-                      </Badge>
-                      {doc.fileUrl && (
-                        <div className="flex items-center gap-1">
-                          <DocumentPreview fileUrl={doc.fileUrl} fileName={doc.fileName} />
-                          <Button size="sm" variant="ghost" className="text-white" asChild title={t("download_document")}>
-                            <a href={doc.fileUrl} download={doc.fileName}>
-                              <Download className="h-3.5 w-3.5" />
-                            </a>
-                          </Button>
+                      {doc.status === "approved" ? (
+                        <>
+                          <Badge variant="default" className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                            <CheckCircle className="h-3 w-3 mr-1" />{t("available_label")}
+                          </Badge>
+                          {doc.fileUrl && (
+                            <div className="flex items-center gap-1">
+                              <DocumentPreview fileUrl={doc.fileUrl} fileName={doc.fileName} />
+                              <Button size="sm" variant="ghost" className="text-primary hover:text-primary/80" asChild title={t("download_document")}>
+                                <a href={doc.fileUrl} download={doc.fileName}>
+                                  <Download className="h-3.5 w-3.5" />
+                                </a>
+                              </Button>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300 font-medium">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {t("doc_status_under_review") || "Sedang Diverifikasi"}
+                          </Badge>
                         </div>
                       )}
                     </CardContent>

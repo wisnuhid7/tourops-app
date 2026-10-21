@@ -378,6 +378,24 @@ export function registerOpsRoutes(app: Express): void {
       let updatedWf;
       if (profile.role === "admin" || profile.role === "super_admin" || profile.role === "operations_manager") {
         updatedWf = await storage.updateWorkflow(req.params.id as string, req.body);
+
+        // If admin/ops approves and marks the workflow as completed, auto-approve any pending fulfillment documents
+        if (req.body.status === "completed") {
+          try {
+            const allDocs = await storage.getDocuments(wf.bookingId);
+            const pendingFulfillmentDocs = allDocs.filter(
+              d => d.status === "uploaded" && !["passport", "id_doc", "visa"].includes(d.docType)
+            );
+            for (const doc of pendingFulfillmentDocs) {
+              await storage.updateDocument(doc.id, {
+                status: "approved",
+                reviewedBy: userId,
+              });
+            }
+          } catch (docErr) {
+            console.error("Auto-approving fulfillment documents failed:", docErr);
+          }
+        }
       } else if (wf.assignedUserId === userId || isFlightAgentOnAirlineWf) {
         // Non-admin updaters (assigned staff, or flight_agent on airline tasks)
         // may only touch task progress fields — not assignment/linkage/service metadata.
@@ -386,6 +404,14 @@ export function registerOpsRoutes(app: Express): void {
         for (const key of Object.keys(req.body || {})) {
           if (TASK_FIELDS.includes(key)) body[key] = req.body[key];
         }
+
+        // External suppliers / non-admin cannot unilaterally mark service as completed
+        if (body.status === "completed") {
+          return res.status(403).json({
+            message: "Hanya Admin atau Operations Manager yang dapat menyetujui dan menyelesaikan layanan (status completed). Silakan ajukan untuk ditinjau (in_review).",
+          });
+        }
+
         updatedWf = await storage.updateWorkflow(req.params.id as string, body);
       } else {
         return res.status(403).json({ message: "Forbidden" });

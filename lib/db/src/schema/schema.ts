@@ -354,7 +354,7 @@ export const insertBookingAssignmentSchema = createInsertSchema(bookingAssignmen
 export type InsertBookingAssignment = z.infer<typeof insertBookingAssignmentSchema>;
 export type BookingAssignment = typeof bookingAssignments.$inferSelect;
 
-export const workflowStatusEnum = pgEnum("workflow_status", ["not_assigned", "assigned", "in_progress", "blocked", "completed", "cancelled"]);
+export const workflowStatusEnum = pgEnum("workflow_status", ["not_assigned", "assigned", "in_progress", "in_review", "blocked", "completed", "cancelled"]);
 
 export const bookingWorkflows = pgTable("booking_workflows", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

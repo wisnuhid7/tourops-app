@@ -27,6 +27,7 @@ export const WORKFLOW_STATUSES: Record<string, string> = {
   not_assigned: "Not Assigned",
   assigned: "Assigned",
   in_progress: "In Progress",
+  in_review: "In Review",
   blocked: "Blocked",
   completed: "Completed",
   cancelled: "Cancelled",

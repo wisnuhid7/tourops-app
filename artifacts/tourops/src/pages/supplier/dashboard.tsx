@@ -86,8 +86,8 @@ export default function SupplierDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/supplier/workflows"] });
       toast({
-        title: "Tugas Berhasil Diterima!",
-        description: "Status layanan kini berubah menjadi Diproses.",
+        title: t("task_accepted"),
+        description: t("task_accepted_desc"),
       });
     },
     onError: (e: Error) => toast({ title: e.message, variant: "destructive" }),

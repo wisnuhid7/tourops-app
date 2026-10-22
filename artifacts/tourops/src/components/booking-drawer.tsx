@@ -257,7 +257,9 @@ export function BookingDrawer({
       queryClient.invalidateQueries({ queryKey: ["/api/my-bookings"] });
       toast({
         title: t("booking_created_success") || "Booking confirmed successfully!",
-        description: `Booking for ${tour.title} from ${departureCity} has been submitted.`,
+        description: (t("booking_submitted_desc") || "Booking for {tour} from {city} has been submitted.")
+          .replace("{tour}", tourTitle)
+          .replace("{city}", departureCity),
       });
       onClose();
       if (onBookingSuccess) onBookingSuccess();
@@ -298,8 +300,8 @@ export function BookingDrawer({
       };
       localStorage.setItem("tourops_pending_booking", JSON.stringify(draft));
       toast({
-        title: "Please sign in",
-        description: "Your booking preferences have been saved. Sign in to complete your reservation.",
+        title: t("please_sign_in") || "Please sign in",
+        description: t("booking_preferences_saved") || "Your booking preferences have been saved. Sign in to complete your reservation.",
       });
       onClose();
       navigate("/#login");
@@ -308,8 +310,8 @@ export function BookingDrawer({
 
     if (dateMode === "open_departure" && !selectedDepartureId) {
       toast({
-        title: "Pilih tanggal keberangkatan",
-        description: "Silakan pilih tanggal keberangkatan yang tersedia.",
+        title: t("select_departure_date_title") || "Select departure date",
+        description: t("select_departure_date_desc") || "Please select an available departure date.",
         variant: "destructive",
       });
       setCurrentStep(1);
@@ -318,8 +320,8 @@ export function BookingDrawer({
 
     if (dateMode === "custom_date" && !customStartDate) {
       toast({
-        title: "Pilih tanggal keberangkatan",
-        description: "Silakan tentukan tanggal mulai perjalanan kustom Anda.",
+        title: t("select_departure_date_title") || "Select departure date",
+        description: t("select_custom_start_date_desc") || "Please determine the start date of your custom trip.",
         variant: "destructive",
       });
       setCurrentStep(1);
@@ -380,12 +382,12 @@ export function BookingDrawer({
           <SheetDescription className="text-xs text-muted-foreground flex items-center gap-3">
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3 text-primary" />
-              {tour.duration} {tour.duration === 1 ? "Day" : "Days"}
+              {tour.duration} {t("days_count")}
             </span>
             <span>•</span>
             <span className="flex items-center gap-1">
               <ShieldCheck className="h-3 w-3 text-emerald-500" />
-              Verified Escorted Tour
+              {t("verified_escorted_tour")}
             </span>
           </SheetDescription>
 
@@ -414,7 +416,7 @@ export function BookingDrawer({
               >
                 {currentStep > 1 ? <Check className="h-3 w-3" /> : "1"}
               </div>
-              <span>Departure & Date</span>
+              <span>{t("step_departure_date")}</span>
             </button>
 
             <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40" />
@@ -443,7 +445,7 @@ export function BookingDrawer({
               >
                 {currentStep > 2 ? <Check className="h-3 w-3" /> : "2"}
               </div>
-              <span>Travelers & Room</span>
+              <span>{t("step_travelers_room")}</span>
             </button>
 
             <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/40" />
@@ -468,7 +470,7 @@ export function BookingDrawer({
               >
                 3
               </div>
-              <span>Review & Book</span>
+              <span>{t("step_review_book")}</span>
             </button>
           </div>
         </SheetHeader>
@@ -485,7 +487,7 @@ export function BookingDrawer({
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold flex items-center gap-2">
                     <PlaneTakeoff className="h-4 w-4 text-primary" />
-                    Keberangkatan Dari (Departure City)
+                    {t("departure_from_label")}
                   </Label>
                   <button
                     type="button"
@@ -496,7 +498,7 @@ export function BookingDrawer({
                     }}
                     className="text-xs text-primary hover:underline font-medium"
                   >
-                    {isLandOnly ? "Pilih Kota Asal" : "Land Only (Tanpa Tiket)"}
+                    {isLandOnly ? t("select_origin_city") : t("land_only_no_ticket")}
                   </button>
                 </div>
 
@@ -512,7 +514,7 @@ export function BookingDrawer({
                         </div>
                         <div>
                           <p className="font-semibold text-sm leading-snug">{departureCity}</p>
-                          <p className="text-xs text-muted-foreground">Titik kumpul & penjemputan logistik</p>
+                          <p className="text-xs text-muted-foreground">{t("meeting_point_logistics")}</p>
                         </div>
                       </div>
                       <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -524,7 +526,7 @@ export function BookingDrawer({
                           <div className="relative">
                             <Search className="h-3.5 w-3.5 absolute left-2.5 top-2.5 text-muted-foreground" />
                             <Input
-                              placeholder="Cari kota atau kode bandara (e.g. CGK, DPS, SUB)..."
+                              placeholder={t("search_city_airport_placeholder")}
                               value={customCitySearch}
                               onChange={(e) => setCustomCitySearch(e.target.value)}
                               className="pl-8 h-8 text-xs bg-background"
@@ -565,7 +567,7 @@ export function BookingDrawer({
                           ))}
                           {filteredHubs.length === 0 && (
                             <div className="p-3 text-center text-xs text-muted-foreground">
-                              Tidak ada bandara cocok. Anda bisa mengetik kota kustom di bawah:
+                              {t("no_matching_airports")}
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -575,7 +577,7 @@ export function BookingDrawer({
                                   setShowCityDropdown(false);
                                 }}
                               >
-                                Gunakan "{customCitySearch.trim()}"
+                                {(t("use_custom_city") || 'Use "{city}"').replace("{city}", customCitySearch.trim())}
                               </Button>
                             </div>
                           )}
@@ -587,9 +589,9 @@ export function BookingDrawer({
                   <div className="p-3 rounded-lg border border-dashed border-primary/30 bg-primary/5 flex items-start gap-3">
                     <Building className="h-5 w-5 text-primary mt-0.5" />
                     <div>
-                      <p className="text-xs font-semibold text-primary">Land Package Only (Self Arrival)</p>
+                      <p className="text-xs font-semibold text-primary">{t("land_package_only_title")}</p>
                       <p className="text-[11px] text-muted-foreground">
-                        Anda mengatur transportasi kedatangan mandiri ke meeting point destinasi (bandara/lobi hotel lokal).
+                        {t("land_package_only_desc")}
                       </p>
                     </div>
                   </div>
@@ -605,7 +607,7 @@ export function BookingDrawer({
                   </Label>
                   <Badge variant="outline" className="text-[11px] font-normal gap-1 bg-primary/5 text-primary border-primary/20">
                     <Clock className="h-3 w-3" />
-                    {tour.duration} Hari / {Math.max(1, tour.duration - 1)} Malam
+                    {tour.duration} {t("days_count")} / {Math.max(1, tour.duration - 1)} {t("nights_count")}
                   </Badge>
                 </div>
 
@@ -664,21 +666,21 @@ export function BookingDrawer({
                                     </span>
                                     {isSelected && (
                                       <Badge className="bg-primary text-primary-foreground text-[10px] h-4 px-1.5 gap-1">
-                                        <Check className="h-2.5 w-2.5" /> Selected
+                                        <Check className="h-2.5 w-2.5" /> {t("selected_badge")}
                                       </Badge>
                                     )}
                                   </div>
                                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                     <span className="flex items-center gap-1">
                                       <Users className="h-3 w-3 text-primary/70" />
-                                      {spotsLeft} seat tersisa
+                                      {spotsLeft} {t("seats_left")}
                                     </span>
                                     <span>•</span>
                                     <span className="flex items-center gap-1 font-medium text-foreground">
                                       {dep.pricePerPerson ? (
                                         <>USD {Number(dep.pricePerPerson).toLocaleString()} / pax</>
                                       ) : (
-                                        <>Base Price: USD {Number(tour.basePrice).toLocaleString()} / pax</>
+                                        <>{t("base_price_label")}: USD {Number(tour.basePrice).toLocaleString()} / pax</>
                                       )}
                                     </span>
                                   </div>
@@ -740,7 +742,7 @@ export function BookingDrawer({
                               </Badge>
                             </div>
                             <p className="font-bold text-sm text-foreground">
-                              {customStartDate} s/d {customEndDate}
+                              {customStartDate} {t("to_date_connector")} {customEndDate}
                             </p>
                             <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium pt-0.5">
                               <ShieldCheck className="h-3.5 w-3.5" />
@@ -794,12 +796,12 @@ export function BookingDrawer({
               <div className="space-y-3">
                 <Label className="text-sm font-semibold flex items-center gap-2">
                   <Users className="h-4 w-4 text-primary" />
-                  Jumlah Peserta (Travelers)
+                  {t("travelers_count_label")}
                 </Label>
                 <div className="flex items-center justify-between p-3 border rounded-lg bg-card">
                   <div>
-                    <p className="font-medium text-sm">Dewasa & Anak (Total Pax)</p>
-                    <p className="text-xs text-muted-foreground">Total orang yang ikut dalam perjalanan</p>
+                    <p className="font-medium text-sm">{t("adults_children_pax")}</p>
+                    <p className="text-xs text-muted-foreground">{t("total_travelers_desc")}</p>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <Button
@@ -836,7 +838,7 @@ export function BookingDrawer({
                 <div className="space-y-3">
                   <Label className="text-sm font-semibold flex items-center gap-2">
                     <Bed className="h-4 w-4 text-primary" />
-                    Pilihan Tipe Kamar Hotel (Room Type)
+                    {t("hotel_room_type_selection")}
                   </Label>
                   <div className="grid grid-cols-1 gap-2.5">
                     {roomTypeOptions.map((o) => {
@@ -854,7 +856,7 @@ export function BookingDrawer({
                           <div className="space-y-0.5">
                             <p className="text-sm font-semibold">{t(o.labelKey as any)}</p>
                             <p className="text-xs text-muted-foreground">
-                              Mulai dari {o.currency} {o.minRate.toLocaleString()} / malam
+                              {t("starting_from")} {o.currency} {o.minRate.toLocaleString()} / {t("night_unit")}
                             </p>
                           </div>
                           <div
@@ -873,22 +875,22 @@ export function BookingDrawer({
 
               {/* Booking Type Selector */}
               <div className="space-y-3">
-                <Label className="text-sm font-semibold">Tipe Pemesanan (Booking Type)</Label>
+                <Label className="text-sm font-semibold">{t("booking_type")}</Label>
                 <Select value={bookingType} onValueChange={setBookingType}>
                   <SelectTrigger className="bg-card">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="join_public_group">Join Public Group (Gabung Grup Terbuka)</SelectItem>
-                    <SelectItem value="leader_group">Create Leader Group (Bikin Rombongan Sendiri)</SelectItem>
-                    <SelectItem value="private_family">Private Family (Tur Khusus Keluarga)</SelectItem>
+                    <SelectItem value="join_public_group">{t("join_public_group_full")}</SelectItem>
+                    <SelectItem value="leader_group">{t("create_leader_group_full")}</SelectItem>
+                    <SelectItem value="private_family">{t("private_family_full")}</SelectItem>
                   </SelectContent>
                 </Select>
                 {bookingType === "leader_group" && (
                   <div className="pt-2 space-y-1.5">
-                    <Label className="text-xs">Nama Rombongan / Grup</Label>
+                    <Label className="text-xs">{t("group_name_label")}</Label>
                     <Input
-                      placeholder="e.g. Keluarga Besar Pratama / Alumni 98"
+                      placeholder={t("group_name_placeholder")}
                       value={groupName}
                       onChange={(e) => setGroupName(e.target.value)}
                     />
@@ -908,15 +910,15 @@ export function BookingDrawer({
                 <div className="bg-primary/10 px-4 py-2.5 border-b flex items-center justify-between">
                   <span className="text-xs font-bold text-primary flex items-center gap-1.5 uppercase tracking-wider">
                     <Receipt className="h-3.5 w-3.5" />
-                    Trip Booking Summary
+                    {t("trip_booking_summary")}
                   </span>
                   <Badge variant="outline" className="text-[10px] bg-background">
-                    {tour.duration} Hari / {Math.max(1, tour.duration - 1)} Malam
+                    {tour.duration} {t("days_count")} / {Math.max(1, tour.duration - 1)} {t("nights_count")}
                   </Badge>
                 </div>
                 <CardContent className="p-4 space-y-3 text-xs">
                   <div className="flex justify-between items-start pb-2 border-b">
-                    <span className="text-muted-foreground">Tur Paket:</span>
+                    <span className="text-muted-foreground">{t("tour_package_label")}</span>
                     <span className="font-semibold text-right max-w-[240px] text-foreground">
                       {tourTitle}
                     </span>
@@ -924,7 +926,7 @@ export function BookingDrawer({
 
                   <div className="flex justify-between items-center pb-2 border-b">
                     <span className="text-muted-foreground flex items-center gap-1">
-                      <PlaneTakeoff className="h-3 w-3 text-primary" /> Keberangkatan:
+                      <PlaneTakeoff className="h-3 w-3 text-primary" /> {t("departure_label")}
                     </span>
                     <span className="font-medium text-foreground">{departureCity}</span>
                   </div>
@@ -944,17 +946,19 @@ export function BookingDrawer({
 
                   <div className="flex justify-between items-center pb-2 border-b">
                     <span className="text-muted-foreground flex items-center gap-1">
-                      <Users className="h-3 w-3 text-primary" /> Jumlah Peserta:
+                      <Users className="h-3 w-3 text-primary" /> {t("travelers_label")}
                     </span>
-                    <span className="font-medium text-foreground">{partySize} Orang</span>
+                    <span className="font-medium text-foreground">{partySize} {t("people_count")}</span>
                   </div>
 
                   {roomType && (
                     <div className="flex justify-between items-center pb-2 border-b">
                       <span className="text-muted-foreground flex items-center gap-1">
-                        <Bed className="h-3 w-3 text-primary" /> Kamar Hotel:
+                        <Bed className="h-3 w-3 text-primary" /> {t("hotel_room_label")}
                       </span>
-                      <span className="font-medium capitalize text-foreground">{roomType} Room</span>
+                      <span className="font-medium capitalize text-foreground">
+                        {t((roomTypeOptions.find((o) => o.value === roomType)?.labelKey || "room") as any)}
+                      </span>
                     </div>
                   )}
 
@@ -965,17 +969,27 @@ export function BookingDrawer({
                     ) : pricePreview ? (
                       <>
                         <div className="flex justify-between items-center text-muted-foreground">
-                          <span>Biaya Tur ({partySize} pax × {pricePreview.currency} {pricePreview.perPersonPrice.toLocaleString()}):</span>
+                          <span>
+                            {(t("tour_cost_breakdown") || "Tour Cost ({count} pax × {currency} {price}):")
+                              .replace("{count}", String(partySize))
+                              .replace("{currency}", pricePreview.currency)
+                              .replace("{price}", pricePreview.perPersonPrice.toLocaleString())}
+                          </span>
                           <span>{pricePreview.currency} {pricePreview.perPersonSubtotal.toLocaleString()}</span>
                         </div>
                         {pricePreview.accommodationCost > 0 && (
                           <div className="flex justify-between items-center text-muted-foreground">
-                            <span>Akomodasi Kamar ({pricePreview.roomsNeeded} kamar):</span>
+                            <span>
+                              {(t("accommodation_rooms_breakdown") || "Room Accommodation ({count} rooms):")
+                                .replace("{count}", String(pricePreview.roomsNeeded))
+                                .replace("{currency}", pricePreview.currency)
+                                .replace("{cost}", pricePreview.accommodationCost.toLocaleString())}
+                            </span>
                             <span>{pricePreview.currency} {pricePreview.accommodationCost.toLocaleString()}</span>
                           </div>
                         )}
                         <div className="flex justify-between items-center pt-2 border-t font-bold text-sm text-foreground">
-                          <span>Total Estimasi:</span>
+                          <span>{t("estimated_total_label")}</span>
                           <span className="text-primary text-base">
                             {pricePreview.currency} {pricePreview.grandTotal.toLocaleString()}
                           </span>
@@ -983,7 +997,7 @@ export function BookingDrawer({
                       </>
                     ) : (
                       <div className="flex justify-between items-center pt-1 font-bold text-sm">
-                        <span>Estimasi Harga:</span>
+                        <span>{t("estimated_price_label")}</span>
                         <span className="text-primary">
                           USD {(Number(tour.basePrice) * partySize).toLocaleString()}
                         </span>
@@ -996,10 +1010,10 @@ export function BookingDrawer({
               {/* Special Requests / Notes */}
               <div className="space-y-2">
                 <Label className="text-xs font-semibold">
-                  Catatan Khusus / Permintaan Penjemputan (Opsional)
+                  {t("special_notes_label")}
                 </Label>
                 <Textarea
-                  placeholder="Contoh: Butuh penjemputan bandara jam 10 pagi, menu vegetarian, dll."
+                  placeholder={t("special_notes_placeholder")}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className="text-xs min-h-[70px] resize-none"
@@ -1011,9 +1025,9 @@ export function BookingDrawer({
                 <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-start gap-2.5 text-xs text-amber-700 dark:text-amber-400">
                   <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
                   <div>
-                    <p className="font-semibold">Simpan Draf & Masuk Akun</p>
+                    <p className="font-semibold">{t("save_draft_login_title")}</p>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                      Anda belum login. Saat menekan tombol konfirmasi di bawah, preferensi rute dan jadwal Anda akan disimpan dan Anda akan diarahkan untuk login/daftar dengan cepat.
+                      {t("save_draft_login_desc")}
                     </p>
                   </div>
                 </div>
@@ -1032,11 +1046,11 @@ export function BookingDrawer({
               onClick={() => setCurrentStep((prev) => (prev - 1) as any)}
               className="gap-1.5"
             >
-              <ChevronLeft className="h-4 w-4" /> Kembali
+              <ChevronLeft className="h-4 w-4" /> {t("back")}
             </Button>
           ) : (
             <Button type="button" variant="ghost" size="sm" onClick={onClose}>
-              Batal
+              {t("cancel")}
             </Button>
           )}
 
@@ -1048,7 +1062,7 @@ export function BookingDrawer({
               onClick={() => setCurrentStep((prev) => (prev + 1) as any)}
               className="gap-1.5 px-6 shadow-md"
             >
-              Lanjutkan <ChevronRight className="h-4 w-4" />
+              {t("next")} <ChevronRight className="h-4 w-4" />
             </Button>
           ) : (
             <Button
@@ -1059,14 +1073,14 @@ export function BookingDrawer({
               className="gap-2 px-6 shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
             >
               {bookMutation.isPending ? (
-                "Memproses..."
+                t("loading")
               ) : isAuthenticated ? (
                 <>
-                  <Check className="h-4 w-4" /> Konfirmasi Booking
+                  <Check className="h-4 w-4" /> {t("confirm_booking_btn")}
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="h-4 w-4" /> Masuk & Konfirmasi
+                  <CheckCircle2 className="h-4 w-4" /> {t("sign_in_and_confirm_btn")}
                 </>
               )}
             </Button>

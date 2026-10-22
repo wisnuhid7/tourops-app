@@ -20,6 +20,7 @@ import { Link } from "wouter";
 import { useState, useRef, useEffect } from "react";
 import type { Tour, TourDeparture, TourDay } from "@workspace/db";
 import { BookingDrawer } from "@/components/booking-drawer";
+import { useSidebarSafe } from "@/components/ui/sidebar";
 
 function PublicGroupsList({ departureId }: { departureId: string }) {
   const { t } = useLanguage();
@@ -421,10 +422,18 @@ export default function TourDetail() {
         ? Math.round(startingFromPrice * (Math.min(baseChildPrice, basePrice) / basePrice))
         : Math.min(baseChildPrice, startingFromPrice))
     : 0;
+  const sidebar = useSidebarSafe();
+  const sidebarOffsetClass = sidebar && !sidebar.isMobile
+    ? sidebar.state === "collapsed"
+      ? "left-12"
+      : "left-64"
+    : "left-0";
 
   return (
-    <div className="p-6 pb-28 space-y-6 max-w-4xl mx-auto">
+    <div className="min-h-screen bg-background flex flex-col">
       {!isAuthenticated && <PublicHeader />}
+
+      <div className="flex-1 p-6 pb-28 space-y-6 max-w-4xl mx-auto w-full">
       {/* Join Group Dialog (Automatic) */}
       <Dialog open={!!urlJoinCode && !!joinedGroupData && !bookingConfirmed} onOpenChange={(v) => !v && navigate(`/tours/${tourId}`)}>
         <DialogContent className="sm:max-w-md">
@@ -780,9 +789,10 @@ export default function TourDetail() {
           </div>
         )}
       </div>
+      </div>
 
       {/* Floating Bottom Booking Bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-md border-t shadow-lg py-3 px-4 sm:px-6">
+      <div className={`fixed bottom-0 right-0 ${sidebarOffsetClass} z-30 transition-[left] duration-200 ease-linear bg-background/95 backdrop-blur-md border-t shadow-lg py-3 px-4 sm:px-6`}>
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
           <div className="space-y-0.5">
             <p className="text-[11px] uppercase font-bold tracking-wider text-muted-foreground line-clamp-1">

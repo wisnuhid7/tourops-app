@@ -7,6 +7,7 @@ import {
   sendBookingConfirmedNotification,
   sendDocumentStatusNotification,
   sendPaymentStatusNotification,
+  sendPaymentReminderNotification,
 } from "../lib/email";
 import { authStorage } from "../replit_integrations/auth/storage";
 import { routeError } from "../lib/routeError";
@@ -745,6 +746,83 @@ export function registerOpsRoutes(app: Express): void {
       }
 
       res.json(updated);
+    } catch (e: any) { routeError(res, e); }
+  });
+
+  app.post("/api/payments/:id/remind", isAuthenticated, async (req, res) => {
+    try {
+      if (!await requireRole(req, res, FINANCE_ROLES)) return;
+      const [payment] = await db.select().from(payments).where(eq(payments.id, req.params.id as string));
+      if (!payment) return res.status(404).json({ message: "Payment not found" });
+      if (payment.status === "paid") {
+        return res.status(400).json({ message: "Payment is already marked as paid" });
+      }
+
+      const booking = await storage.getBooking(payment.bookingId);
+      const customerId = payment.customerId || booking?.customerId;
+      if (!customerId) {
+        return res.status(400).json({ message: "No customer associated with this payment" });
+      }
+
+      const [user] = await db.select().from(users).where(eq(users.id, customerId));
+      const customerEmail = user?.email;
+      const customerName = [user?.firstName, user?.lastName].filter(Boolean).join(" ").trim() || user?.username || "Pelanggan";
+
+      // 1. Send In-App Notification to Customer
+      await storage.createNotification({
+        userId: customerId,
+        title: `Pengingat Pembayaran (${booking?.bookingCode || "Booking"})`,
+        message: `Halo ${customerName}, ini adalah pengingat pembayaran tagihan sebesar ${payment.currency || "USD"} ${Number(payment.amount).toLocaleString("id-ID", { minimumFractionDigits: 2 })} untuk booking ${booking?.bookingCode || ""}. Silakan lakukan pembayaran agar perjalanan Anda dapat segera diproses.`,
+        type: "booking_update",
+      });
+
+      // 2. Send Email Notification
+      if (customerEmail) {
+        try {
+          const installmentLabel = (payment.metadata as any)?.paymentType
+            ? String((payment.metadata as any).paymentType).replace("_", " ").toUpperCase()
+            : payment.notes
+            ? payment.notes.slice(0, 30)
+            : "Tagihan Pembayaran";
+          const dueDate = (payment.metadata as any)?.dueDate
+            ? new Date((payment.metadata as any).dueDate)
+            : new Date();
+          const daysUntilDue = (payment.metadata as any)?.dueDate
+            ? Math.max(0, Math.ceil((new Date((payment.metadata as any).dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+            : 1;
+
+          sendPaymentReminderNotification(
+            customerEmail,
+            booking?.bookingCode || "Booking",
+            installmentLabel,
+            String(payment.amount),
+            payment.currency || "USD",
+            dueDate,
+            daysUntilDue
+          );
+        } catch (emailErr) {
+          console.error("Failed to enqueue payment reminder email:", emailErr);
+        }
+      }
+
+      // 3. Log Audit
+      const staffUserId = getUserId(req);
+      await storage.logChange(
+        "payment",
+        payment.id,
+        "reminder_sent",
+        null,
+        { customerId, email: customerEmail, staffUserId, sentAt: new Date().toISOString() },
+        staffUserId,
+        "Finance"
+      );
+
+      res.json({
+        success: true,
+        message: "Payment reminder sent successfully",
+        emailSent: !!customerEmail,
+        recipient: customerEmail || customerName,
+      });
     } catch (e: any) { routeError(res, e); }
   });
 }

@@ -379,13 +379,24 @@ export default function AccountingDashboard() {
     toast({ title: "CSV exported successfully" });
   };
 
+  const sendReminderMutation = useMutation({
+    mutationFn: async (paymentId: string) => {
+      const res = await apiRequest("POST", `/api/payments/${paymentId}/remind`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: "Reminder Sent Successfully",
+        description: data.emailSent
+          ? `Notifikasi in-app & email telah dikirim ke ${data.recipient}.`
+          : `Notifikasi in-app telah dikirim ke akun pelanggan (${data.recipient}).`,
+      });
+    },
+    onError: (e: any) => toast({ title: String(e.message || e), variant: "destructive" }),
+  });
+
   const handleSendReminder = (payment: any) => {
-    const b = payment?.bookingId ? bookingById.get(payment.bookingId) : null;
-    const cust = getCustomerName(payment, b);
-    toast({
-      title: "Reminder Sent",
-      description: `Payment reminder sent to ${cust} for booking ${pBookingCode(payment)}.`,
-    });
+    sendReminderMutation.mutate(payment.id);
   };
 
   const pBookingCode = (p: any) => {
@@ -755,8 +766,9 @@ export default function AccountingDashboard() {
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
-                                title="Send Payment Reminder"
+                                className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
+                                title="Send Payment Reminder (Email & In-App)"
+                                disabled={sendReminderMutation.isPending}
                                 onClick={() => handleSendReminder(p)}
                               >
                                 <Send className="h-3.5 w-3.5" />

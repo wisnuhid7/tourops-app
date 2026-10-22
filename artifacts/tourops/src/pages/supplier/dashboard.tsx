@@ -110,31 +110,31 @@ export default function SupplierDashboard() {
     switch (status) {
       case "completed":
         return {
-          label: "Selesai",
+          label: t("done"),
           icon: CheckCircle2,
           badgeClass: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-300",
         };
       case "in_review":
         return {
-          label: "Menunggu Review",
+          label: t("service_status_in_review"),
           icon: Clock,
           badgeClass: "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300 font-medium",
         };
       case "in_progress":
         return {
-          label: "Diproses",
+          label: t("status_processed_badge"),
           icon: Clock,
           badgeClass: "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950/40 dark:text-sky-300",
         };
       case "blocked":
         return {
-          label: "Kendala",
+          label: t("workflow_status_blocked"),
           icon: AlertTriangle,
           badgeClass: "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300",
         };
       case "cancelled":
         return {
-          label: "Dibatalkan",
+          label: t("service_status_cancelled"),
           icon: XCircle,
           badgeClass: "border-border bg-muted text-muted-foreground",
         };
@@ -142,7 +142,7 @@ export default function SupplierDashboard() {
       case "not_assigned":
       default:
         return {
-          label: "Tugas Baru",
+          label: t("status_not_assigned_opt"),
           icon: Clock,
           badgeClass: "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300 font-semibold",
         };
@@ -664,16 +664,16 @@ export default function SupplierDashboard() {
                                 <div className="space-y-0.5">
                                   <div className="flex items-center gap-1.5 text-xs text-sky-700 dark:text-sky-300 font-semibold">
                                     <Plane className="h-3.5 w-3.5 shrink-0 text-sky-600 dark:text-sky-400" />
-                                    <span className="truncate" title={`${wf.booking?.departureCity || "Jakarta (CGK)"} → ${wf.tour?.countries?.join(", ") || wf.tour?.title || "Destinasi Tour"}`}>
-                                      {wf.booking?.departureCity || "Jakarta (CGK)"} &rarr; {wf.tour?.countries?.join(", ") || wf.tour?.title || "Destinasi Tour"}
+                                    <span className="truncate" title={`${wf.booking?.departureCity || "Jakarta (CGK)"} → ${wf.tour?.countries?.join(", ") || wf.tour?.title || t("destination_tour")}`}>
+                                      {wf.booking?.departureCity || "Jakarta (CGK)"} &rarr; {wf.tour?.countries?.join(", ") || wf.tour?.title || t("destination_tour")}
                                     </span>
                                     <Badge variant="outline" className={`text-[9px] px-1 py-0 ml-1 shrink-0 ${flightSched.isInternational ? "border-indigo-300 text-indigo-700 dark:text-indigo-300" : "border-emerald-300 text-emerald-700 dark:text-emerald-300"}`}>
-                                      {flightSched.routeTypeLabel}
+                                      {t(flightSched.routeTypeKey as any)}
                                     </Badge>
                                   </div>
                                   <p className="text-[11px] text-muted-foreground flex items-center gap-1">
                                     <Ticket className="h-3 w-3" />
-                                    {wf.booking?.partySizeExpected ?? 1} Tiket PP &bull; {flightSched.tagLabel}
+                                    {wf.booking?.partySizeExpected ?? 1} {t("tickets_pax")} &bull; {t(flightSched.tagKey as any)}
                                   </p>
                                 </div>
                               );
@@ -690,7 +690,7 @@ export default function SupplierDashboard() {
                             <div className="space-y-1 text-xs">
                               <div className="font-semibold flex items-center gap-1.5 text-sky-800 dark:text-sky-300">
                                 <Ticket className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400" />
-                                <span>{wf.booking?.partySizeExpected ?? 1} Tiket (Pax)</span>
+                                <span>{wf.booking?.partySizeExpected ?? 1} {t("tickets_pax")}</span>
                               </div>
                               <p className="text-muted-foreground text-[11px] truncate max-w-[170px]" title={wf.booking?.departureCity || "Jakarta (CGK)"}>
                                 Hub: {wf.booking?.departureCity || "Jakarta (CGK)"}
@@ -725,7 +725,7 @@ export default function SupplierDashboard() {
                                 {flightSched.flightDepartureDate ? (
                                   <>
                                     <p className="font-medium text-sky-900 dark:text-sky-200">
-                                      {format(flightSched.flightDepartureDate, "dd MMM yyyy")} <span className="text-[10px] text-sky-600 dark:text-sky-400">({flightSched.tagLabel})</span>
+                                      {format(flightSched.flightDepartureDate, "dd MMM yyyy")} <span className="text-[10px] text-sky-600 dark:text-sky-400">({t(flightSched.tagKey as any)})</span>
                                     </p>
                                     <p className="text-muted-foreground text-[11px]">
                                       {flightSched.flightReturnDate ? `→ ${format(flightSched.flightReturnDate, "dd MMM yyyy")}` : ""}
@@ -784,7 +784,7 @@ export default function SupplierDashboard() {
                                 data-testid={`button-accept-task-${wf.id}`}
                               >
                                 <CheckCircle2 className="h-3.5 w-3.5" />
-                                <span>Terima Tugas</span>
+                                <span>{t("accept_task")}</span>
                               </Button>
                             ) : wf.status === "in_progress" ? (
                               <Button 
@@ -801,7 +801,7 @@ export default function SupplierDashboard() {
                             ) : wf.status === "in_review" ? (
                               <Badge variant="outline" className="h-8 px-2.5 text-xs gap-1 border-amber-300 bg-amber-50/80 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 font-medium">
                                 <Clock className="h-3.5 w-3.5" />
-                                <span>Menunggu Review Admin</span>
+                                <span>{t("awaiting_admin_review")}</span>
                               </Badge>
                             ) : null}
 
@@ -903,21 +903,21 @@ export default function SupplierDashboard() {
                                     <div className="flex items-center gap-1.5 min-w-0">
                                       <Plane className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
                                       <span className="truncate">
-                                        {wf.booking?.departureCity || "Jakarta (CGK)"} &rarr; {wf.tour?.countries?.join(", ") || wf.tour?.title || "Destinasi Tour"}
+                                        {wf.booking?.departureCity || "Jakarta (CGK)"} &rarr; {wf.tour?.countries?.join(", ") || wf.tour?.title || t("destination_tour")}
                                       </span>
                                     </div>
                                     <Badge variant="outline" className={`text-[10px] px-1 py-0 shrink-0 ${flightSched.isInternational ? "border-indigo-300 text-indigo-700 dark:text-indigo-300" : "border-emerald-300 text-emerald-700 dark:text-emerald-300"}`}>
-                                      {flightSched.routeTypeLabel}
+                                      {t(flightSched.routeTypeKey as any)}
                                     </Badge>
                                   </div>
                                   <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
                                     <span className="flex items-center gap-1">
                                       <Ticket className="h-3 w-3" />
-                                      {wf.booking?.partySizeExpected ?? 1} Tiket (Pax)
+                                      {wf.booking?.partySizeExpected ?? 1} {t("tickets_pax")}
                                     </span>
                                     {flightSched.flightDepartureDate && (
                                       <span>
-                                        {format(flightSched.flightDepartureDate, "dd MMM")} ({flightSched.tagLabel}) - {flightSched.flightReturnDate ? format(flightSched.flightReturnDate, "dd MMM yyyy") : ""}
+                                        {format(flightSched.flightDepartureDate, "dd MMM")} ({t(flightSched.tagKey as any)}) - {flightSched.flightReturnDate ? format(flightSched.flightReturnDate, "dd MMM yyyy") : ""}
                                       </span>
                                     )}
                                   </div>
@@ -960,7 +960,7 @@ export default function SupplierDashboard() {
                                   data-testid={`button-accept-task-card-${wf.id}`}
                                 >
                                   <CheckCircle2 className="h-4 w-4" />
-                                  <span>Terima Tugas</span>
+                                  <span>{t("accept_task")}</span>
                                 </Button>
                               ) : wf.status === "in_progress" ? (
                                 <Button 
@@ -977,7 +977,7 @@ export default function SupplierDashboard() {
                               ) : wf.status === "in_review" ? (
                                 <div className="w-full py-2 px-3 rounded-full border border-amber-300 bg-amber-50/80 text-amber-800 text-xs text-center flex items-center justify-center gap-1.5 font-medium">
                                   <Clock className="h-3.5 w-3.5" />
-                                  <span>Menunggu Persetujuan Admin</span>
+                                  <span>{t("awaiting_admin_approval")}</span>
                                 </div>
                               ) : null}
 

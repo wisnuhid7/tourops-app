@@ -601,7 +601,7 @@ export function BookingDrawer({
                 <div className="flex items-center justify-between">
                   <Label className="text-sm font-semibold flex items-center gap-2">
                     <CalendarIcon className="h-4 w-4 text-primary" />
-                    Pilih Tanggal Perjalanan
+                    {t("travel_date_label")}
                   </Label>
                   <Badge variant="outline" className="text-[11px] font-normal gap-1 bg-primary/5 text-primary border-primary/20">
                     <Clock className="h-3 w-3" />
@@ -612,11 +612,11 @@ export function BookingDrawer({
                 <Tabs value={dateMode} onValueChange={(v) => setDateMode(v as any)} className="w-full">
                   <TabsList className="grid w-full grid-cols-2 p-1 bg-muted/80 rounded-xl">
                     <TabsTrigger value="open_departure" className="text-xs font-semibold rounded-lg data-[state=active]:shadow-sm">
-                      Jadwal Grup Terbuka
+                      {t("public_group_badge")}
                     </TabsTrigger>
                     <TabsTrigger value="custom_date" className="text-xs font-semibold rounded-lg data-[state=active]:shadow-sm gap-1">
                       <Sparkles className="h-3 w-3 text-amber-500" />
-                      Kustom Tanggal Sendiri
+                      {t("choose_custom_date_btn")}
                     </TabsTrigger>
                   </TabsList>
 
@@ -626,8 +626,8 @@ export function BookingDrawer({
                       <Card className="border-dashed bg-muted/20">
                         <CardContent className="p-6 text-center text-xs text-muted-foreground space-y-2">
                           <CalendarIcon className="h-8 w-8 mx-auto text-muted-foreground/30" />
-                          <p className="font-medium text-foreground">Belum ada jadwal grup terbuka untuk tur ini.</p>
-                          <p className="text-[11px]">Anda dapat menentukan tanggal keberangkatan sendiri dengan menekan tombol di bawah:</p>
+                          <p className="font-medium text-foreground">{t("no_departures")}</p>
+                          <p className="text-[11px]">{t("no_active_open_departures")}</p>
                           <Button
                             type="button"
                             size="sm"
@@ -636,7 +636,7 @@ export function BookingDrawer({
                             className="mt-2 text-primary font-semibold text-xs gap-1.5"
                           >
                             <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-                            Pilih Tanggal Kustom Sekarang
+                            {t("set_custom_date_btn")}
                           </Button>
                         </CardContent>
                       </Card>
@@ -707,16 +707,16 @@ export function BookingDrawer({
                       <CardContent className="p-4 space-y-3.5 text-xs">
                         <div className="flex items-center gap-2 text-amber-800 dark:text-amber-400 font-semibold">
                           <Sparkles className="h-4 w-4 flex-shrink-0" />
-                          <span>Tur Privat Bebas Tentukan Tanggal</span>
+                          <span>{t("custom_private_date_title")}</span>
                         </div>
                         <p className="text-muted-foreground leading-relaxed text-[11px]">
-                          Tentukan tanggal mulai perjalanan sesuai agenda Anda. Perjalanan ini diselenggarakan secara privat khusus rombongan Anda tanpa digabung traveler lain.
+                          {t("custom_private_date_desc")}
                         </p>
 
                         <div className="space-y-1.5 pt-1">
                           <Label htmlFor="custom-start-date" className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                             <CalendarIcon className="h-3.5 w-3.5 text-primary" />
-                            Pilih Tanggal Mulai Keberangkatan:
+                            {t("select_custom_start_date")}
                           </Label>
                           <Input
                             id="custom-start-date"
@@ -727,16 +727,16 @@ export function BookingDrawer({
                             className="h-10 text-sm bg-background border-border font-medium cursor-pointer"
                           />
                           <p className="text-[11px] text-muted-foreground">
-                            * Pemesanan minimal 7 hari sebelum keberangkatan untuk koordinasi logistik.
+                            {t("custom_date_lead_time_notice")}
                           </p>
                         </div>
 
                         {customStartDate && customEndDate && (
                           <div className="p-3 rounded-lg bg-primary/5 border border-primary/15 space-y-1 mt-2">
                             <div className="flex justify-between items-center text-xs">
-                              <span className="text-muted-foreground font-medium">Jadwal Perjalanan Kustom:</span>
+                              <span className="text-muted-foreground font-medium">{t("custom_trip_schedule")}</span>
                               <Badge variant="outline" className="font-semibold text-primary border-primary/30 text-[10px]">
-                                Tur Privat
+                                {t("private_custom_badge")}
                               </Badge>
                             </div>
                             <p className="font-bold text-sm text-foreground">
@@ -744,7 +744,7 @@ export function BookingDrawer({
                             </p>
                             <div className="flex items-center gap-1.5 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium pt-0.5">
                               <ShieldCheck className="h-3.5 w-3.5" />
-                              <span>Durasi {tour.duration} hari terkunci otomatis</span>
+                              <span>{(t("duration_locked_notice") || "Durasi {duration} hari terkunci otomatis").replace("{duration}", String(tour.duration))}</span>
                             </div>
                           </div>
                         )}
@@ -765,7 +765,7 @@ export function BookingDrawer({
               {dateMode === "open_departure" && activeDeparture ? (
                 <div className="p-3 bg-primary/5 border border-primary/15 rounded-lg flex items-center justify-between text-xs">
                   <div>
-                    <span className="text-muted-foreground">Jadwal Terpilih (Grup):</span>
+                    <span className="text-muted-foreground">{t("selected_schedule_group")}</span>
                     <p className="font-semibold text-foreground">
                       {activeDeparture.startDate} — {activeDeparture.endDate}
                     </p>
@@ -778,7 +778,7 @@ export function BookingDrawer({
                 <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center justify-between text-xs">
                   <div>
                     <span className="text-amber-800 dark:text-amber-400 font-medium flex items-center gap-1">
-                      <Sparkles className="h-3 w-3" /> Tanggal Kustom (Privat):
+                      <Sparkles className="h-3 w-3" /> {t("custom_date_private_label")}
                     </span>
                     <p className="font-semibold text-foreground">
                       {customStartDate} — {customEndDate}
@@ -931,13 +931,13 @@ export function BookingDrawer({
 
                   <div className="flex justify-between items-center pb-2 border-b">
                     <span className="text-muted-foreground flex items-center gap-1">
-                      <CalendarIcon className="h-3 w-3 text-primary" /> Tanggal Perjalanan:
+                      <CalendarIcon className="h-3 w-3 text-primary" /> {t("travel_date_label")}
                     </span>
                     <span className="font-medium text-foreground">
                       {dateMode === "open_departure" && activeDeparture
                         ? `${activeDeparture.startDate} — ${activeDeparture.endDate}`
                         : dateMode === "custom_date" && customStartDate
-                        ? `${customStartDate} — ${computedCustomEndDate || customEndDate} (Tur Privat)`
+                        ? `${customStartDate} — ${computedCustomEndDate || customEndDate} ${t("private_tour_suffix")}`
                         : "TBD"}
                     </span>
                   </div>

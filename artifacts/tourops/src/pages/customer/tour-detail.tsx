@@ -721,16 +721,16 @@ export default function TourDetail() {
             className="gap-1.5 text-xs text-primary border-primary/30 hover:bg-primary/5"
           >
             <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-            Pilih Tanggal Kustom Sendiri
+            {t("choose_custom_date_btn")}
           </Button>
         </div>
         {openDepartures.length === 0 ? (
           <Card>
             <CardContent className="flex flex-col items-center py-10 text-center">
               <Calendar className="h-10 w-10 text-muted-foreground/40 mb-3" />
-              <p className="text-sm font-semibold text-foreground mb-1">{t("no_departures") || "Belum ada jadwal keberangkatan"}</p>
+              <p className="text-sm font-semibold text-foreground mb-1">{t("no_departures")}</p>
               <p className="text-xs text-muted-foreground max-w-sm mb-4">
-                Belum ada jadwal open-group aktif untuk tur ini. Anda tetap dapat memesan tur dengan menentukan tanggal keberangkatan kustom Anda sendiri (Private Tour).
+                {t("no_active_open_departures")}
               </p>
               <Button
                 onClick={() => {
@@ -741,7 +741,7 @@ export default function TourDetail() {
                 size="sm"
               >
                 <Sparkles className="h-4 w-4 text-amber-300" />
-                Tentukan Tanggal Kustom Sendiri
+                {t("set_custom_date_btn")}
               </Button>
             </CardContent>
           </Card>

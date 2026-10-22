@@ -187,7 +187,7 @@ export default function AdminDepartures() {
         const tour = tours?.find((tr) => tr.id === params.data?.tourId);
         if (tour?.basePrice != null) {
           return (
-            <span className="text-muted-foreground" title="Harga dasar tur (fallback)">
+            <span className="text-muted-foreground" title={t("fallback_base_price_tooltip") || "Harga dasar tur (fallback)"}>
               ${Number(tour.basePrice).toLocaleString()} / {t("per_person")}
             </span>
           );
@@ -210,7 +210,7 @@ export default function AdminDepartures() {
       ) : "—",
     },
     {
-      headerName: t("public_badge") || "Akses",
+      headerName: t("access_label") || "Akses",
       width: 130,
       filter: "agTextColumnFilter",
       valueGetter: (params) => {
@@ -219,18 +219,18 @@ export default function AdminDepartures() {
         return isPrivate ? "private" : "closed";
       },
       filterValueGetter: (params) => {
-        if (params.data?.publicJoinEnabled) return t("public_badge") || "Grup Publik";
-        return "Privat / Kustom";
+        if (params.data?.publicJoinEnabled) return t("public_group_badge") || "Grup Publik";
+        return t("private_custom_badge") || "Privat / Kustom";
       },
       cellRenderer: (params: ICellRendererParams<DepartureRow>) => {
         if (params.data?.publicJoinEnabled) {
-          return <Badge variant="outline">{t("public_badge") || "Grup Publik"}</Badge>;
+          return <Badge variant="outline">{t("public_group_badge") || "Grup Publik"}</Badge>;
         }
         const isPrivate = params.data?.notes?.toLowerCase().includes("private") || params.data?.status === "closed";
         if (isPrivate) {
           return (
             <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-amber-300/60 font-medium">
-              Privat / Kustom
+              {t("private_custom_badge") || "Privat / Kustom"}
             </Badge>
           );
         }

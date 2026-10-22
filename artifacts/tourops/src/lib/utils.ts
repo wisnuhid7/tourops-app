@@ -97,6 +97,8 @@ export function getFlightSchedule(
       flightReturnDate: null,
       routeTypeLabel: "Domestik",
       tagLabel: "Hari-H",
+      routeTypeKey: "route_domestic" as const,
+      tagKey: "flight_tag_d_day" as const,
     };
   }
 
@@ -137,5 +139,7 @@ export function getFlightSchedule(
     flightReturnDate,
     routeTypeLabel: isInternational ? "Internasional" : "Domestik",
     tagLabel: isInternational ? "H-1 Malam" : "Hari-H",
+    routeTypeKey: isInternational ? ("route_international" as const) : ("route_domestic" as const),
+    tagKey: isInternational ? ("flight_tag_h_minus_1" as const) : ("flight_tag_d_day" as const),
   };
 }

@@ -386,10 +386,10 @@ export default function AccountingDashboard() {
     },
     onSuccess: (data: any) => {
       toast({
-        title: "Reminder Sent Successfully",
+        title: t("reminder_sent_success") || "Reminder Sent Successfully",
         description: data.emailSent
-          ? `Notifikasi in-app & email telah dikirim ke ${data.recipient}.`
-          : `Notifikasi in-app telah dikirim ke akun pelanggan (${data.recipient}).`,
+          ? (t("reminder_in_app_email_sent") || "Notifikasi in-app & email telah dikirim ke {recipient}.").replace("{recipient}", data.recipient)
+          : (t("reminder_in_app_sent") || "Notifikasi in-app telah dikirim ke akun pelanggan ({recipient}).").replace("{recipient}", data.recipient),
       });
     },
     onError: (e: any) => toast({ title: String(e.message || e), variant: "destructive" }),
@@ -767,7 +767,7 @@ export default function AccountingDashboard() {
                                 size="sm"
                                 variant="ghost"
                                 className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
-                                title="Send Payment Reminder (Email & In-App)"
+                                title={t("send_payment_reminder_tooltip") || "Send Payment Reminder (Email & In-App)"}
                                 disabled={sendReminderMutation.isPending}
                                 onClick={() => handleSendReminder(p)}
                               >

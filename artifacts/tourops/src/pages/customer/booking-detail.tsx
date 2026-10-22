@@ -1089,28 +1089,28 @@ export default function CustomerBookingDetail() {
                                     <div className="flex items-center gap-2 font-medium text-sky-800 dark:text-sky-300">
                                       <Plane className="h-3.5 w-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
                                       <span>
-                                        {booking.departureCity || "Jakarta (CGK)"} &rarr; {destination || (tour ? lt(tour, "title") : "Destinasi Tour")}
+                                        {booking.departureCity || "Jakarta (CGK)"} &rarr; {destination || (tour ? lt(tour, "title") : t("destination_tour"))}
                                       </span>
                                     </div>
                                     <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${flightSched.isInternational ? "border-indigo-300 text-indigo-700 dark:text-indigo-300 bg-indigo-50/50" : "border-emerald-300 text-emerald-700 dark:text-emerald-300 bg-emerald-50/50"}`}>
-                                      {flightSched.routeTypeLabel}
+                                      {t(flightSched.routeTypeKey as any)}
                                     </Badge>
                                   </div>
                                   <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-muted-foreground">
                                     {flightSched.flightDepartureDate && (
                                       <span className="flex items-center gap-1">
                                         <Clock className="h-3 w-3 text-sky-600" />
-                                        <span className="text-foreground font-medium">Berangkat:</span> {format(flightSched.flightDepartureDate, "dd MMM yyyy")} ({flightSched.tagLabel})
+                                        <span className="text-foreground font-medium">{t("departure_prefix") || "Berangkat:"}</span> {format(flightSched.flightDepartureDate, "dd MMM yyyy")} ({t(flightSched.tagKey as any)})
                                       </span>
                                     )}
                                     {flightSched.flightReturnDate && (
                                       <span className="flex items-center gap-1">
-                                        <span className="text-foreground font-medium">Pulang:</span> {format(flightSched.flightReturnDate, "dd MMM yyyy")}
+                                        <span className="text-foreground font-medium">{t("return_prefix") || "Pulang:"}</span> {format(flightSched.flightReturnDate, "dd MMM yyyy")}
                                       </span>
                                     )}
                                     <span className="flex items-center gap-1">
                                       <Ticket className="h-3 w-3" />
-                                      {booking.partySizeExpected || 1} Tiket (Pax)
+                                      {booking.partySizeExpected || 1} {t("tickets_pax")}
                                     </span>
                                   </div>
                                 </div>

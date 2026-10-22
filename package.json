@@ -11,6 +11,8 @@
     "dev:api": "pnpm --filter @workspace/api-server run dev",
     "dev:web": "pnpm --filter @workspace/tourops run dev",
     "web": "pnpm --filter @workspace/tourops run serve",
+    "db:migrate": "pnpm --filter @workspace/db push",
+    "migrate": "pnpm run db:migrate",
     "db:seed": "pnpm --filter @workspace/api-server exec tsx --env-file=.env src/seed-all.ts",
     "db:seed:users": "pnpm --filter @workspace/api-server exec tsx --env-file=.env src/seed-users.ts",
     "test:ui": "node tools/test-suite/src/server.js",
